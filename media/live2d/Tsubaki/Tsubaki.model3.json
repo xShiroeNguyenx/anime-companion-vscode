@@ -1,0 +1,25 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "Tsubaki.moc3",
+		"Textures": [
+			"Tsubaki.4096/texture_00.png",
+			"Tsubaki.4096/texture_01.png",
+			"Tsubaki.4096/texture_02.png"
+		],
+		"Physics": "Tsubaki.physics3.json",
+		"DisplayInfo": "Tsubaki.cdi3.json"
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": []
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": []
+		}
+	]
+}

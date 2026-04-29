@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}"
+      ],
+      "outFiles": ["${workspaceFolder}/out/**/*.js"],
+      "preLaunchTask": "${defaultBuildTask}"
+    },
+    {
+      "name": "📦 Đóng gói Extension (.vsix)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vsce",
+        "package",
+        "--allow-missing-repository"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "🚀 Đóng gói & Cài đặt (Antigravity)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-Command",
+        "npx vsce package --allow-missing-repository; $vsix = Get-ChildItem -Filter *.vsix | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($vsix) { antigravity --install-extension $vsix.FullName --force }"
+      ],
+      "console": "integratedTerminal"
+    }
+  ]
+}

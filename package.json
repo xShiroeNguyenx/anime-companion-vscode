@@ -1,0 +1,235 @@
+{
+  "name": "anime-companion-vscode",
+  "displayName": "Anime Companion",
+  "description": "🌸 A cute anime companion that keeps you company while coding! Shows encouraging messages and reactions.",
+  "version": "0.1.20",
+  "publisher": "ShiroeNguyen",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ShiroeNguyen/anime-companion.git"
+  },
+  "keywords": [
+    "anime",
+    "companion",
+    "mascot",
+    "fun",
+    "productivity"
+  ],
+  "icon": "media/icon.png",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "animeCompanion.show",
+        "title": "Anime Companion: Show"
+      },
+      {
+        "command": "animeCompanion.hide",
+        "title": "Anime Companion: Hide Companion",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.toggle",
+        "title": "Anime Companion: Toggle"
+      },
+      {
+        "command": "animeCompanion.changeModel",
+        "title": "Anime Companion: Change Model",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.changeVoice",
+        "title": "Anime Companion: Change Voice",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.toggleMute",
+        "title": "Anime Companion: Toggle Mute",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.startPomodoro",
+        "title": "Anime Companion: Start Pomodoro",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.stopPomodoro",
+        "title": "Anime Companion: Stop Pomodoro",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.openSettings",
+        "title": "Anime Companion: Open Settings",
+        "category": "Anime Companion"
+      }
+    ],
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "animeCompanionPanel",
+          "title": "🌸 Anime Companion",
+          "icon": "media/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "animeCompanionPanel": [
+        {
+          "type": "webview",
+          "id": "animeCompanion.live2dView",
+          "name": "Anime Companion",
+          "when": "animeCompanion.visible"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Anime Companion",
+      "properties": {
+        "animeCompanion.messageIntervalMin": {
+          "type": "number",
+          "default": 10,
+          "minimum": 5,
+          "maximum": 120,
+          "description": "Minimum interval (in seconds) between random messages."
+        },
+        "animeCompanion.pomodoroWorkTime": {
+          "type": "number",
+          "default": 25,
+          "description": "Work duration for Pomodoro in minutes."
+        },
+        "animeCompanion.pomodoroBreakTime": {
+          "type": "number",
+          "default": 5,
+          "description": "Break duration for Pomodoro in minutes."
+        },
+        "animeCompanion.messageIntervalMax": {
+          "type": "number",
+          "default": 20,
+          "minimum": 10,
+          "maximum": 300,
+          "description": "Maximum interval (seconds) between random messages."
+        },
+        "animeCompanion.showOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically show the companion when VS Code starts."
+        },
+        "animeCompanion.characterSize": {
+          "type": "string",
+          "enum": [
+            "small",
+            "medium",
+            "large"
+          ],
+          "default": "medium",
+          "description": "Size of the companion character."
+        },
+        "animeCompanion.model": {
+          "type": "string",
+          "enum": [
+            "hiyori",
+            "cheshire",
+            "icegirl",
+            "tsubaki",
+            "whiteangel",
+            "vivian",
+            "changli"
+          ],
+          "enumDescriptions": [
+            "Hiyori (Live2D Sample) — Cute schoolgirl",
+            "Cheshire (Azur Lane) — Elegant cat maid",
+            "Ice Girl (TianYeLuLu) — Cute ice girl",
+            "Tsubaki (11月椿) — November Camellia",
+            "White Angel (白发天使)",
+            "Vivian (薇薇安)",
+            "Changli (长离)"
+          ],
+          "default": "hiyori",
+          "description": "Choose the Live2D character model."
+        },
+        "animeCompanion.voiceLanguage": {
+          "type": "string",
+          "enum": [
+            "ja",
+            "vi",
+            "en"
+          ],
+          "enumDescriptions": [
+            "Japanese (anime-style VoiceVox voice)",
+            "Tiếng Việt (Giọng Google TTS)",
+            "English (audio generated with Google TTS)"
+          ],
+          "default": "ja",
+          "description": "Choose the voice language for the companion."
+        },
+        "animeCompanion.muted": {
+          "type": "boolean",
+          "default": false,
+          "description": "Mute all companion audio playback."
+        },
+        "animeCompanion.breakReminderMinutes": {
+          "type": "number",
+          "default": 30,
+          "minimum": 10,
+          "maximum": 120,
+          "description": "Minutes of continuous coding before break reminder."
+        },
+        "animeCompanion.reactive.diagnostics": {
+          "type": "boolean",
+          "default": true,
+          "description": "React to errors and warnings (problems panel changes)."
+        },
+        "animeCompanion.reactive.save": {
+          "type": "boolean",
+          "default": true,
+          "description": "React when files are saved (including spam-save detection)."
+        },
+        "animeCompanion.reactive.typing": {
+          "type": "boolean",
+          "default": true,
+          "description": "React to typing speed and keyword Easter eggs (TODO/FIXME/console.log)."
+        },
+        "animeCompanion.reactive.git": {
+          "type": "boolean",
+          "default": true,
+          "description": "Poll Git state to react to branch switches, commits, merge conflicts, and many uncommitted changes."
+        },
+        "animeCompanion.quietHours": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\d{1,2}:\\d{2}\\s*-\\s*\\d{1,2}:\\d{2}$"
+          },
+          "default": [],
+          "description": "Time ranges (24h format \"HH:MM-HH:MM\") during which all bubble messages are suppressed. Example: [\"09:00-12:00\", \"22:00-06:00\"]. Mood/expression updates still happen — only messages are muted."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package --allow-missing-repository",
+    "package:install": "vsce package --allow-missing-repository && \"%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\bin\\code.cmd\" --install-extension \"%npm_package_name%-%npm_package_version%.vsix\" --force"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.19.0",
+    "typescript": "^5.3.0"
+  },
+  "overrides": {
+    "undici": "5.28.4"
+  }
+}
