@@ -220,8 +220,9 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
-    "package": "vsce package --allow-missing-repository",
-    "package:install": "vsce package --allow-missing-repository && \"%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\bin\\code.cmd\" --install-extension \"%npm_package_name%-%npm_package_version%.vsix\" --force"
+    "cleanup:vsix": "node scripts/cleanup-vsix.js",
+    "package": "vsce package --allow-missing-repository && npm run cleanup:vsix",
+    "package:install": "vsce package --allow-missing-repository && npm run cleanup:vsix && \"%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\bin\\code.cmd\" --install-extension \"%npm_package_name%-%npm_package_version%.vsix\" --force"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
