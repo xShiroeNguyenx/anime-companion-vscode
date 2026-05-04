@@ -2,16 +2,36 @@
 
 > Một bạn đồng hành Live2D dễ thương ngự ngay trong VS Code, phản ứng theo lúc bạn code: lỗi, save, commit, build, debug, Pomodoro… và biết khi nào bạn cần được khen hoặc bị nhắc nghỉ tay.
 
-**Phiên bản hiện tại:** v0.1.20
+> ⚠️ **Experimental — v0.1.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
+
+**Phiên bản hiện tại:** v0.1.24
+
+## 📦 Cài đặt
+
+### VS Code (Microsoft Marketplace) — *coming soon*
+```
+ext install shiroenguyen.anime-companion-vscode
+```
+
+### Cursor / VSCodium / Theia / Gitpod (Open VSX Registry)
+```
+ext install shiroenguyen.anime-companion-vscode
+```
+Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroenguyen/anime-companion-vscode) → `code --install-extension <file>`.
+
+### Manual install (mọi VS Code-based editor)
+1. Tải `.vsix` mới nhất từ [GitHub Releases](https://github.com/xShiroeNguyenx/anime-companion-vscode/releases).
+2. Trong editor: `Ctrl+Shift+P` → **Extensions: Install from VSIX...** → chọn file vừa tải.
 
 ---
 
 ## ✨ Tính năng nổi bật
 
 ### 🎭 Live2D Companion
-- 7 model có sẵn, đổi nóng không cần reload: **Hiyori**, **Cheshire** (Azur Lane), **Ice Girl** (TianYeLuLu), **Tsubaki** (11月椿), **White Angel**, **Vivian**, **Changli** (长离).
+- **4 model Live2D Sample** dùng Free Material License: **Hiyori**, **Haru**, **Mao**, **Miara**. Hiyori bundled trong .vsix (~8 MB), 3 cái còn lại lazy download lần đầu chọn.
 - Render bằng `pixi-live2d-display` + Cubism Core qua local HTTP server (bypass CSP của VS Code).
 - Expression blending mượt qua PIXI ticker — chuyển trạng thái cảm xúc không bị giật.
+- Setting `animeCompanion.experimentalModels` mở thêm 6 model gated cho dev local (xem [LICENSE-AUDIT.md](LICENSE-AUDIT.md)).
 
 ### 💫 Tương tác đa dạng
 - **Single Click** — chạm nhẹ (Surprised).

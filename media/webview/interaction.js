@@ -3,9 +3,26 @@ import { setExpression, updateExpressionTick } from './expression.js';
 import { playAudio } from './audio.js';
 import { showBubble, createSparkle } from './ui.js';
 
+const HEART_CURSOR_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 48 48">
+  <g fill="none" fill-rule="round" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 7 24.5 21.8" stroke="#d45583" stroke-width="4.2"/>
+    <path d="M4.4 4.5 14.7 7.2 8.9 12.4 4.4 4.5Z" fill="#ffa4c7" stroke="#c23d73" stroke-width="2"/>
+    <path d="M27.7 21.6 38.5 34.7" stroke="#d45583" stroke-width="4.2"/>
+    <path d="M35.8 31 44 42.4 31.4 38.6 35.8 31Z" fill="#ffa4c7" stroke="#c23d73" stroke-width="2"/>
+    <path d="M24 38.8c-8.7-5.9-14.4-11-14.4-18 0-5.2 4.1-9.3 9.4-9.3 2.6 0 5.1 1.1 7 3.1 1.9-2 4.4-3.1 7-3.1 5.3 0 9.4 4.1 9.4 9.3 0 7-5.7 12.1-14.4 18Z" fill="#ff73ab" stroke="#ffffff" stroke-width="6"/>
+    <path d="M24 38.8c-8.7-5.9-14.4-11-14.4-18 0-5.2 4.1-9.3 9.4-9.3 2.6 0 5.1 1.1 7 3.1 1.9-2 4.4-3.1 7-3.1 5.3 0 9.4 4.1 9.4 9.3 0 7-5.7 12.1-14.4 18Z" fill="#ff8cbc" stroke="#cf3f79" stroke-width="2.2"/>
+    <path d="M16.2 17.2c0 0 2.3-3 5.8-3.8" stroke="#ffdbe9" stroke-width="2.2"/>
+    <path d="m29.4 14.5 2.1 1.8" stroke="#fff7fb" stroke-width="2.1"/>
+    <path d="m34.9 17.8.7 1.3" stroke="#fff7fb" stroke-width="1.8"/>
+    <circle cx="27.3" cy="21.2" r="1.2" fill="#fff7fb" stroke="none"/>
+  </g>
+</svg>`;
+const MODEL_HEART_CURSOR = `url("data:image/svg+xml;utf8,${encodeURIComponent(HEART_CURSOR_SVG)}") 4 4, pointer`;
+
 const DBLCLICK_MESSAGES = [
-  "Wow! Special move! ✨",
-  "Double tap! Bạn nhanh ghê! ⚡",
+  'Kyaa~ combo đẹp ghê luôn á! ✨',
+  'Double tap nhanh quá~ tim em lỡ nhịp luôn nè! 💖',
 ];
 
 // Fits the model into the panel and wires up pointer interaction + context menu.
@@ -23,7 +40,7 @@ export function setupModel() {
 
   state.model.on('pointerdown', (e) => {
     const btn = e?.data?.button ?? e?.data?.originalEvent?.button;
-    if (btn === 2) return; // right-click handled by mousedown listener below
+    if (btn === 2) return;
     if (isCooldown) return;
     debugLog('Pointer down');
     isLongPress = false;
@@ -41,7 +58,7 @@ export function setupModel() {
       setExpression('shy', 2000);
       setTimeout(() => setExpression('love', 3000), 2000);
 
-      showBubble("Dễ chịu quá nha~ 😊");
+      showBubble('Ehehe~ vuốt đầu dịu dàng quá đi~ 😊');
       playAudio('headpat.mp3');
       vscode.postMessage({ command: 'headpat' });
       createSparkle();
@@ -71,10 +88,12 @@ export function setupModel() {
         debugLog('Spam click: ' + clickCount);
         try { state.model.motion('TapBody'); } catch (_) { /* ignore */ }
         setExpression('angry', 3000);
-        showBubble("Đừng bấm nữa, chóng mặt quá đi! 😵");
+        showBubble('Eee đừng chọc liên tục nữa mà~ em chóng mặt mất! 😵');
         playAudio('spam.mp3');
         vscode.postMessage({ command: 'spamClick', count: clickCount });
-        createSparkle(); createSparkle(); createSparkle();
+        createSparkle();
+        createSparkle();
+        createSparkle();
       } else if (clickCount >= 2) {
         debugLog('Multi-click: ' + clickCount);
         try { state.model.motion('TapBody'); } catch (_) {
@@ -83,14 +102,15 @@ export function setupModel() {
         setExpression('happy', 2500);
         showBubble(DBLCLICK_MESSAGES[Math.floor(Math.random() * DBLCLICK_MESSAGES.length)]);
         vscode.postMessage({ command: 'multiClick', count: clickCount });
-        createSparkle(); createSparkle();
+        createSparkle();
+        createSparkle();
       } else {
         debugLog('Single click');
         try { state.model.motion('TapBody'); } catch (_) {
           try { state.model.motion('Idle'); } catch (__) { /* ignore */ }
         }
         setExpression('surprised', 2000);
-        showBubble("Ơ, chạm vào mình làm gì vậy? 👀");
+        showBubble('Eh~ chạm nhẹ vậy làm em giật mình đó nha! 🥺');
         playAudio('poke.mp3');
         vscode.postMessage({ command: 'poke' });
         createSparkle();
@@ -101,6 +121,8 @@ export function setupModel() {
 
   state.model.interactive = true;
   state.model.buttonMode = true;
+  state.model.cursor = MODEL_HEART_CURSOR;
+  applyModelHoverCursor();
 
   const wrapper = document.getElementById('characterWrapper');
   if (wrapper) {
@@ -113,10 +135,27 @@ export function setupModel() {
 
   setupContextMenu();
   setupVoicePanel();
+  setupMessagePanel();
   setupModelPanel();
+  setupMotionPanel();
 }
 
-// ─── Fit model to wrapper ────────────────────────────────────────────────
+function applyModelHoverCursor() {
+  const wrapper = document.getElementById('characterWrapper');
+  const canvas = document.getElementById('live2dCanvas');
+  if (!wrapper || !canvas || !state.model) return;
+
+  const setHover = (hovering) => {
+    wrapper.classList.toggle('model-hover-active', hovering);
+    canvas.classList.toggle('model-hover-active', hovering);
+  };
+
+  setHover(false);
+  state.model.on('pointerover', () => setHover(true));
+  state.model.on('pointerout', () => setHover(false));
+  state.model.on('pointerupoutside', () => setHover(false));
+}
+
 export function fitModel() {
   if (!state.model || !state.app) return;
   const wrapper = document.getElementById('characterWrapper');
@@ -143,7 +182,6 @@ export function fitModel() {
   debugLog('Fit: scale=' + scale.toFixed(4) + ', pos=(' + state.model.x + ',' + state.model.y + ')');
 }
 
-// ─── Context menu ────────────────────────────────────────────────────────
 function setupContextMenu() {
   const menu = document.createElement('div');
   menu.className = 'companion-context-menu';
@@ -168,6 +206,9 @@ function setupContextMenu() {
     <div class="companion-menu-item" data-action="change-voice">
       <span style="font-size: 11px;">🗣️</span> Voice
     </div>
+    <div class="companion-menu-item" data-action="change-message-language">
+      <span style="font-size: 11px;">💬</span> Messages
+    </div>
     <div class="companion-menu-item" data-action="toggle-mute">
       <span class="companion-mute-icon" style="font-size: 11px;">🔇</span> <span class="companion-mute-label">Mute</span>
     </div>
@@ -175,8 +216,18 @@ function setupContextMenu() {
     <div class="companion-menu-item" data-action="poke">
       <span style="font-size: 11px;">👉</span> Poke
     </div>
+    <div class="companion-menu-item" data-action="play-motion">
+      <span style="font-size: 11px;">🎬</span> Motion
+    </div>
     <div class="companion-menu-item" data-action="pomodoro">
       <span style="font-size: 11px;">🍅</span> Pomodoro
+    </div>
+    <div class="companion-menu-separator"></div>
+    <div class="companion-menu-item" data-action="achievements">
+      <span style="font-size: 11px;">🏆</span> Achievements
+    </div>
+    <div class="companion-menu-item" data-action="stats">
+      <span style="font-size: 11px;">📊</span> Stats
     </div>
     <div class="companion-menu-separator"></div>
     <div class="companion-menu-item" data-action="settings">
@@ -185,12 +236,9 @@ function setupContextMenu() {
   `;
   document.body.appendChild(menu);
 
-  // Right-click side effects (audio + bubble + expression + motion).
-  // Fired in mousedown so audio.play() runs while user activation is fresh —
-  // contextmenu alone may not satisfy Chromium's autoplay policy.
   window.addEventListener('mousedown', (e) => {
     if (e.button !== 2) return;
-    showBubble("Onii-chan cần em giúp đỡ hả? Em luôn sẳn sàng nè~ ♡");
+    showBubble('Onii-chan cần em giúp gì hả~ em luôn sẵn sàng nè! 💕');
     try { playAudio('help.mp3'); } catch (err) { console.error('[AnimeCompanion] playAudio err', err); }
     setExpression('shy', 2500);
     if (state.model) {
@@ -201,7 +249,6 @@ function setupContextMenu() {
     createSparkle();
   }, true);
 
-  // Show menu, flipping to the cursor's other side if it would overflow.
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     syncMuteMenuLabel(menu);
@@ -232,38 +279,48 @@ function setupContextMenu() {
     menu.classList.remove('show');
 
     if (action === 'start-server') {
-      showBubble("Dang bam F5 cho ban ne~");
+      showBubble('Để em khởi động lại cho Onii-chan liền nha~ 🚀');
       try { playAudio('server.mp3'); } catch (err) { console.error('[AnimeCompanion] playAudio err', err); }
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.runProject' });
     } else if (action === 'commit') {
-      showBubble("Commit that gon gang nha~");
+      showBubble('Commit gọn gàng một cái cho xinh nha~ ✨');
       vscode.postMessage({ command: 'runCommand', action: 'git.commit' });
     } else if (action === 'pull') {
-      showBubble("Keo code moi ve nao~");
+      showBubble('Mình kéo code mới về thôi nào~ 📦');
       vscode.postMessage({ command: 'runCommand', action: 'git.pull' });
     } else if (action === 'push') {
-      showBubble("Push code len cloud thoi~");
+      showBubble('Push code lên remote cho an tâm nha~ ☁️');
       vscode.postMessage({ command: 'runCommand', action: 'git.push' });
     } else if (action === 'pomodoro') {
-      showBubble("Bat dau Pomodoro nhe~");
+      showBubble('Bắt đầu Pomodoro nha~ em canh giờ giúp Onii-chan! 🍅');
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.startPomodoro' });
     } else if (action === 'poke') {
       if (state.model) { try { state.model.motion('TapBody'); } catch (_) { /* ignore */ } }
       vscode.postMessage({ command: 'poke' });
     } else if (action === 'change-model') {
-      showBubble("Đổi model ngay trên companion nha~ 🌸");
+      showBubble('Đổi model ngay trên companion luôn nha~ 🌸');
       showModelPanel();
     } else if (action === 'change-voice') {
-      showBubble("Đổi giọng ngay trên model nha~ 🗣️");
+      showBubble('Đổi giọng dễ thương hơn một chút nha~ 🗣️');
       showVoicePanel();
+    } else if (action === 'change-message-language') {
+      showBubble('Đổi ngôn ngữ chữ nha~ em sẽ nói kiểu khác đó! 💬');
+      showMessagePanel();
     } else if (action === 'toggle-mute') {
       const nextMuted = !window.__AUDIO_MUTED__;
       window.__AUDIO_MUTED__ = nextMuted;
-      showBubble(nextMuted ? "Mute rồi nha, em sẽ im lặng~ 🔇" : "Bật tiếng lại rồi nè~ 🔊");
+      showBubble(nextMuted ? 'Em sẽ im lặng một chút nha~ 🤫' : 'Em ríu rít lại rồi nè~ 🎀');
       vscode.postMessage({ command: 'setMuted', muted: nextMuted });
     } else if (action === 'settings') {
-      showBubble("Mở Settings cho bạn nè~ ⚙️");
+      showBubble('Mở Settings ra cho Onii-chan liền nha~ ⚙️');
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.openSettings' });
+    } else if (action === 'play-motion') {
+      showBubble('Chọn motion cho em diễn nha~ 🎬');
+      showMotionPanel();
+    } else if (action === 'achievements') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showAchievements' });
+    } else if (action === 'stats') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showStats' });
     }
   });
 }
@@ -319,12 +376,67 @@ function setupVoicePanel() {
 function showVoicePanel() {
   const panel = document.querySelector('.companion-voice-panel');
   if (!panel) return;
-  const modelPanel = document.querySelector('.companion-model-panel');
-  if (modelPanel) modelPanel.classList.remove('show');
+  document.querySelector('.companion-model-panel')?.classList.remove('show');
+  document.querySelector('.companion-message-panel')?.classList.remove('show');
+  document.querySelector('.companion-motion-panel')?.classList.remove('show');
 
   const current = window.__VOICE_LANGUAGE__ || 'ja';
   panel.querySelectorAll('.companion-voice-option').forEach((option) => {
     option.classList.toggle('active', option.getAttribute('data-voice') === current);
+  });
+  panel.classList.add('show');
+}
+
+function setupMessagePanel() {
+  const wrapper = document.getElementById('characterWrapper');
+  if (!wrapper) return;
+
+  const panel = document.createElement('div');
+  panel.className = 'companion-message-panel';
+  panel.innerHTML = `
+    <div class="companion-message-title">Messages</div>
+    <button class="companion-message-option" data-message-language="vi">
+      <span class="companion-message-label">Tiếng Việt</span>
+      <span class="companion-message-desc">Vietnamese bubble text</span>
+    </button>
+    <button class="companion-message-option" data-message-language="en">
+      <span class="companion-message-label">English</span>
+      <span class="companion-message-desc">English bubble text</span>
+    </button>
+    <button class="companion-message-option" data-message-language="ja">
+      <span class="companion-message-label">日本語</span>
+      <span class="companion-message-desc">Japanese bubble text</span>
+    </button>
+  `;
+  wrapper.appendChild(panel);
+
+  panel.addEventListener('click', (e) => {
+    const option = e.target.closest('.companion-message-option');
+    if (!option) return;
+    const messageLanguage = option.getAttribute('data-message-language');
+    if (!messageLanguage) return;
+
+    panel.classList.remove('show');
+    vscode.postMessage({ command: 'setMessageLanguage', messageLanguage });
+  });
+
+  window.addEventListener('click', (e) => {
+    if (!panel.contains(e.target)) {
+      panel.classList.remove('show');
+    }
+  }, true);
+}
+
+function showMessagePanel() {
+  const panel = document.querySelector('.companion-message-panel');
+  if (!panel) return;
+  document.querySelector('.companion-voice-panel')?.classList.remove('show');
+  document.querySelector('.companion-model-panel')?.classList.remove('show');
+  document.querySelector('.companion-motion-panel')?.classList.remove('show');
+
+  const current = window.__MESSAGE_LANGUAGE__ || 'vi';
+  panel.querySelectorAll('.companion-message-option').forEach((option) => {
+    option.classList.toggle('active', option.getAttribute('data-message-language') === current);
   });
   panel.classList.add('show');
 }
@@ -335,15 +447,22 @@ function setupModelPanel() {
 
   const panel = document.createElement('div');
   panel.className = 'companion-model-panel';
+  // Source of truth is `window.__VISIBLE_MODELS__` injected by companion-view.ts.
+  // It already filters out experimental models when the setting is off, so the
+  // UI doesn't have to know about gating rules.
+  const models = Array.isArray(window.__VISIBLE_MODELS__) && window.__VISIBLE_MODELS__.length > 0
+    ? window.__VISIBLE_MODELS__
+    : [{ id: 'hiyori', name: 'Hiyori', description: 'Live2D Sample' }];
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const buttons = models.map((m) =>
+    `<button class="companion-model-option" data-model="${escapeHtml(m.id)}">` +
+    `<span class="companion-model-label">${escapeHtml(m.name)}</span>` +
+    `<span class="companion-model-desc">${escapeHtml(m.description || '')}</span>` +
+    `</button>`
+  ).join('');
   panel.innerHTML = `
     <div class="companion-model-title">Model</div>
-    <button class="companion-model-option" data-model="hiyori"><span class="companion-model-label">Hiyori</span><span class="companion-model-desc">Live2D Sample</span></button>
-    <button class="companion-model-option" data-model="cheshire"><span class="companion-model-label">Cheshire</span><span class="companion-model-desc">Azur Lane</span></button>
-    <button class="companion-model-option" data-model="icegirl"><span class="companion-model-label">Ice Girl</span><span class="companion-model-desc">TianYeLuLu</span></button>
-    <button class="companion-model-option" data-model="tsubaki"><span class="companion-model-label">Tsubaki</span><span class="companion-model-desc">November Camellia</span></button>
-    <button class="companion-model-option" data-model="whiteangel"><span class="companion-model-label">White Angel</span><span class="companion-model-desc">White Hair Angel</span></button>
-    <button class="companion-model-option" data-model="vivian"><span class="companion-model-label">Vivian</span><span class="companion-model-desc">Vivian</span></button>
-    <button class="companion-model-option" data-model="changli"><span class="companion-model-label">Changli</span><span class="companion-model-desc">Changli</span></button>
+    ${buttons}
   `;
   wrapper.appendChild(panel);
 
@@ -367,12 +486,60 @@ function setupModelPanel() {
 function showModelPanel() {
   const panel = document.querySelector('.companion-model-panel');
   if (!panel) return;
-  const voicePanel = document.querySelector('.companion-voice-panel');
-  if (voicePanel) voicePanel.classList.remove('show');
+  document.querySelector('.companion-voice-panel')?.classList.remove('show');
+  document.querySelector('.companion-message-panel')?.classList.remove('show');
+  document.querySelector('.companion-motion-panel')?.classList.remove('show');
 
   const current = window.__MODEL_ID__ || 'hiyori';
   panel.querySelectorAll('.companion-model-option').forEach((option) => {
     option.classList.toggle('active', option.getAttribute('data-model') === current);
   });
+  panel.classList.add('show');
+}
+
+function setupMotionPanel() {
+  const wrapper = document.getElementById('characterWrapper');
+  if (!wrapper) return;
+
+  const panel = document.createElement('div');
+  panel.className = 'companion-motion-panel';
+  panel.innerHTML = `
+    <div class="companion-motion-title">Motion</div>
+    <button class="companion-motion-option" data-motion="TapBody"><span class="companion-motion-label">TapBody</span><span class="companion-motion-desc">Body tap</span></button>
+    <button class="companion-motion-option" data-motion="TapHead"><span class="companion-motion-label">TapHead</span><span class="companion-motion-desc">Head pat</span></button>
+    <button class="companion-motion-option" data-motion="Idle"><span class="companion-motion-label">Idle</span><span class="companion-motion-desc">Default idle</span></button>
+  `;
+  wrapper.appendChild(panel);
+
+  panel.addEventListener('click', (e) => {
+    const option = e.target.closest('.companion-motion-option');
+    if (!option) return;
+    const motionId = option.getAttribute('data-motion');
+    if (!motionId) return;
+
+    panel.classList.remove('show');
+    if (state.model) {
+      try {
+        state.model.motion(motionId);
+      } catch (err) {
+        console.warn('[AnimeCompanion] motion failed:', err);
+      }
+    }
+    createSparkle();
+  });
+
+  window.addEventListener('click', (e) => {
+    if (!panel.contains(e.target)) {
+      panel.classList.remove('show');
+    }
+  }, true);
+}
+
+function showMotionPanel() {
+  const panel = document.querySelector('.companion-motion-panel');
+  if (!panel) return;
+  document.querySelector('.companion-voice-panel')?.classList.remove('show');
+  document.querySelector('.companion-message-panel')?.classList.remove('show');
+  document.querySelector('.companion-model-panel')?.classList.remove('show');
   panel.classList.add('show');
 }

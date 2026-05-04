@@ -1,27 +1,48 @@
 {
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
-  "description": "🌸 A cute anime companion that keeps you company while coding! Shows encouraging messages and reactions.",
-  "version": "0.1.20",
-  "publisher": "ShiroeNguyen",
+  "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
+  "version": "0.1.25",
+  "publisher": "shiroenguyen",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Visualization"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/ShiroeNguyen/anime-companion.git"
+    "url": "https://github.com/xShiroeNguyenx/anime-companion-vscode.git"
   },
+  "bugs": {
+    "url": "https://github.com/xShiroeNguyenx/anime-companion-vscode/issues"
+  },
+  "homepage": "https://github.com/xShiroeNguyenx/anime-companion-vscode#readme",
+  "qna": "marketplace",
   "keywords": [
     "anime",
     "companion",
     "mascot",
+    "live2d",
+    "waifu",
+    "vtuber",
+    "pomodoro",
+    "productivity",
     "fun",
-    "productivity"
+    "motivation",
+    "kawaii",
+    "pet",
+    "buddy",
+    "azur lane",
+    "voicevox"
   ],
   "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#FFD6E7",
+    "theme": "light"
+  },
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -52,6 +73,11 @@
         "category": "Anime Companion"
       },
       {
+        "command": "animeCompanion.changeMessageLanguage",
+        "title": "Anime Companion: Change Message Language",
+        "category": "Anime Companion"
+      },
+      {
         "command": "animeCompanion.toggleMute",
         "title": "Anime Companion: Toggle Mute",
         "category": "Anime Companion"
@@ -69,6 +95,26 @@
       {
         "command": "animeCompanion.openSettings",
         "title": "Anime Companion: Open Settings",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.showStats",
+        "title": "Anime Companion: Show Stats",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.showAchievements",
+        "title": "Anime Companion: Show Achievements",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.playMotion",
+        "title": "Anime Companion: Play Motion",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.resetWorkspaceModel",
+        "title": "Anime Companion: Reset Workspace Model",
         "category": "Anime Companion"
       }
     ],
@@ -137,6 +183,9 @@
           "type": "string",
           "enum": [
             "hiyori",
+            "haru",
+            "mao",
+            "miara",
             "cheshire",
             "icegirl",
             "tsubaki",
@@ -146,15 +195,23 @@
           ],
           "enumDescriptions": [
             "Hiyori (Live2D Sample) — Cute schoolgirl",
-            "Cheshire (Azur Lane) — Elegant cat maid",
-            "Ice Girl (TianYeLuLu) — Cute ice girl",
-            "Tsubaki (11月椿) — November Camellia",
-            "White Angel (白发天使)",
-            "Vivian (薇薇安)",
-            "Changli (长离)"
+            "Haru (Live2D Sample) — Greeter girl",
+            "Mao (Live2D Sample) — Cat-eared shrine girl",
+            "Miara (Live2D Sample) — Magical girl",
+            "Cheshire (Azur Lane) — experimental, requires animeCompanion.experimentalModels",
+            "Ice Girl (TianYeLuLu) — experimental, requires animeCompanion.experimentalModels",
+            "Tsubaki (11月椿) — experimental, requires animeCompanion.experimentalModels",
+            "White Angel (白发天使) — experimental, requires animeCompanion.experimentalModels",
+            "Vivian (薇薇安) — experimental, requires animeCompanion.experimentalModels",
+            "Changli (长离) — experimental, requires animeCompanion.experimentalModels"
           ],
           "default": "hiyori",
-          "description": "Choose the Live2D character model."
+          "description": "Choose the Live2D character model. Models marked 'experimental' are hidden from the inline picker unless `animeCompanion.experimentalModels` is enabled."
+        },
+        "animeCompanion.experimentalModels": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show experimental Live2D models (Azur Lane, Wuthering Waves, fan-made) in the picker. These assets do not have explicit redistribution rights for the Marketplace — use only locally. See LICENSE-AUDIT.md."
         },
         "animeCompanion.voiceLanguage": {
           "type": "string",
@@ -169,7 +226,22 @@
             "English (audio generated with Google TTS)"
           ],
           "default": "ja",
-          "description": "Choose the voice language for the companion."
+          "description": "Choose the voice language for the companion (audio only)."
+        },
+        "animeCompanion.messageLanguage": {
+          "type": "string",
+          "enum": [
+            "vi",
+            "en",
+            "ja"
+          ],
+          "enumDescriptions": [
+            "Tiếng Việt",
+            "English",
+            "日本語"
+          ],
+          "default": "vi",
+          "description": "Choose the language for bubble text (idle/reactive messages, achievements). Independent from voice."
         },
         "animeCompanion.muted": {
           "type": "boolean",
@@ -211,6 +283,46 @@
           },
           "default": [],
           "description": "Time ranges (24h format \"HH:MM-HH:MM\") during which all bubble messages are suppressed. Example: [\"09:00-12:00\", \"22:00-06:00\"]. Mood/expression updates still happen — only messages are muted."
+        },
+        "animeCompanion.customPhrases.idle": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra idle bubble phrases. Merged into the default idle pool for the active language."
+        },
+        "animeCompanion.customPhrases.save": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra phrases shown after a successful save. Merged into the default save pool."
+        },
+        "animeCompanion.customPhrases.error": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra phrases shown when new errors appear. Merged into the default error pool."
+        },
+        "animeCompanion.modelDownloadBaseUrl": {
+          "type": "string",
+          "default": "https://github.com/xShiroeNguyenx/anime-companion-vscode/releases/download/models-v1",
+          "description": "Base URL where lazy-loaded Live2D model zips are hosted. Each model is fetched as `{baseUrl}/{folder}.zip` (e.g. Vivian.zip). Override if you self-host."
+        },
+        "animeCompanion.customKeywords": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": {},
+          "description": "User-defined keyword reactions. Each key is a substring (case-insensitive) to watch for in typed text; the value is a pool of messages picked when matched. Example: { \"NOTE\": [\"Ghi chú thêm rồi nha~\"], \"refactor\": [\"Refactor là yêu lắm đó!\"] }."
         }
       }
     }
@@ -220,17 +332,28 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
+    "test": "npm run compile && node ./scripts/smoke-test.js",
     "cleanup:vsix": "node scripts/cleanup-vsix.js",
     "package": "vsce package --allow-missing-repository && npm run cleanup:vsix",
-    "package:install": "vsce package --allow-missing-repository && npm run cleanup:vsix && \"%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\bin\\code.cmd\" --install-extension \"%npm_package_name%-%npm_package_version%.vsix\" --force"
+    "package:install": "vsce package --allow-missing-repository && npm run cleanup:vsix && \"%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\bin\\code.cmd\" --install-extension \"%npm_package_name%-%npm_package_version%.vsix\" --force",
+    "publish:vsce": "vsce publish",
+    "publish:ovsx": "ovsx publish \"%npm_package_name%-%npm_package_version%.vsix\""
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
     "@vscode/vsce": "^2.19.0",
+    "eslint": "^8.57.1",
+    "ovsx": "^0.10.11",
     "typescript": "^5.3.0"
   },
   "overrides": {
     "undici": "5.28.4"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.17"
   }
 }

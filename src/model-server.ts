@@ -13,13 +13,26 @@ const MIME_TYPES: Record<string, string> = {
 
 // Tiny localhost HTTP server that serves Live2D model assets so PIXI's loader
 // can fetch them without VS Code's CSP / vscode-resource scheme getting in the way.
+//
+// Resolves URL paths against multiple roots in order:
+//   1. Bundled `media/live2d/` (ships with the extension; Hiyori only)
+//   2. Cache `{globalStorage}/models/` (lazy-downloaded models)
+//
+// The first root that contains the requested file wins. 404 if neither has it.
 export class ModelFileServer {
   private _server: http.Server | null = null;
   private _port: number = 0;
-  private _modelDir: string;
+  private _roots: string[];
 
-  constructor(extensionUri: vscode.Uri) {
-    this._modelDir = path.join(extensionUri.fsPath, 'media', 'live2d');
+  constructor(extensionUri: vscode.Uri, extraRoots: string[] = []) {
+    const bundled = path.join(extensionUri.fsPath, 'media', 'live2d');
+    this._roots = [bundled, ...extraRoots];
+  }
+
+  public addRoot(root: string) {
+    if (!this._roots.includes(root)) {
+      this._roots.push(root);
+    }
   }
 
   async start(): Promise<number> {
@@ -40,22 +53,21 @@ export class ModelFileServer {
         }
 
         const urlPath = decodeURIComponent(req.url || '/');
-        const filePath = path.join(this._modelDir, urlPath);
-
-        if (!filePath.startsWith(this._modelDir)) {
-          res.writeHead(403);
-          res.end('Forbidden');
+        const resolved = this._resolve(urlPath);
+        if (!resolved) {
+          res.writeHead(404);
+          res.end('Not found');
           return;
         }
 
-        fs.readFile(filePath, (err, data) => {
+        fs.readFile(resolved, (err, data) => {
           if (err) {
             res.writeHead(404);
             res.end('Not found');
             return;
           }
 
-          const ext = path.extname(filePath).toLowerCase();
+          const ext = path.extname(resolved).toLowerCase();
           const contentType = MIME_TYPES[ext] || 'application/octet-stream';
           res.writeHead(200, { 'Content-Type': contentType });
           res.end(data);
@@ -75,6 +87,19 @@ export class ModelFileServer {
 
       this._server.on('error', reject);
     });
+  }
+
+  // Returns the first existing absolute path under any root, or null.
+  // Path-traversal protected: resolved path must start with the root.
+  private _resolve(urlPath: string): string | null {
+    for (const root of this._roots) {
+      const candidate = path.join(root, urlPath);
+      if (!candidate.startsWith(root)) continue;
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+        return candidate;
+      }
+    }
+    return null;
   }
 
   stop() {

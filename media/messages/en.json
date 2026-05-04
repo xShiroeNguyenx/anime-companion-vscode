@@ -1,0 +1,182 @@
+{
+  "idle": [
+    "Onii-chan~ let's keep coding! ✨",
+    "Are the bugs behaving today? 🐞",
+    "Don't forget to save~ peace of mind! 💾",
+    "Your code looks lovely today! 💖",
+    "Sip some water, okay? I'm reminding you~ 🥤",
+    "Frequent commits are adorable! 📦",
+    "How's the coding mood today? 🌸",
+    "Don't forget to push to remote~ 🚀",
+    "Clean code is so dreamy~ ✨",
+    "Onii-chan, you're so hardworking! 🫶",
+    "A little refactor and the code shines~ 🎀",
+    "KISS principle is still the cutest! 💡",
+    "Name your variables nicely, please~ 📝",
+    "Test before you deploy, peace of mind~ 🧪",
+    "Review once more after coding~ 👀",
+    "Take a deep breath~ then debug again! 🌿",
+    "Hang in there~ almost done! 💪",
+    "console.log is true love, isn't it? 🤭",
+    "Have you blinked recently, Onii-chan? 👀",
+    "Every line of code holds little magic~ ✨",
+    "Learned something new today? Tell me~ 📚",
+    "Everyone was a newbie once~ take it slow! 🌷",
+    "Don't copy-paste blindly, okay? 🙈",
+    "A tiny comment makes future-you happy~ 📖",
+    "Still grinding away? I love it! 💕"
+  ],
+  "greeting": [
+    "Ohayo~ let's code together today! 🌅",
+    "Hi Onii-chan~ I'm here to cheer you on! 💕",
+    "Yay~ time for a lovely coding session! ✨",
+    "Hello hello~ I'm right beside you! 🌸"
+  ],
+  "error": [
+    "A-ah, an error showed up~ stay calm, we got this!",
+    "Oof, the bug is being mischievous again~ let's tame it!",
+    "Tiny red alert~ Onii-chan, save me! 🚨",
+    "An error popped out... but you're still cute and composed~",
+    "Bug spotted! Time for a charming counterattack~"
+  ],
+  "errorMany": [
+    "{count} errors lining up... let's defeat them one by one~",
+    "Whoa, {count} errors? Stay calm, I'm here cheering you on~",
+    "That's a lot, but you'll win this~ ganbatte!"
+  ],
+  "warning": [
+    "Just a tiny warning~ nothing scary, Onii-chan.",
+    "A warning visiting~ handle it gently and it'll be cute again~"
+  ],
+  "errorFixed": [
+    "Yatta~ all clean, your code looks gorgeous!",
+    "No more errors~ Onii-chan, you're amazing!",
+    "Crystal-clear code~ I'm so proud!"
+  ],
+  "save": [
+    "Saved~ now we can keep going safely!",
+    "Saved successfully~ so tidy, Onii-chan!",
+    "Good save~ remember to commit later, okay?"
+  ],
+  "saveSpam": [
+    "Ara ara, Ctrl+S combo overload~",
+    "Saving so fast it's making me dizzy, Onii-chan~",
+    "The Ctrl+S warrior has appeared~"
+  ],
+  "typingFast": [
+    "Whoa, your fingers are casting skills~",
+    "Your hands are on fire today! 🔥",
+    "Speed mode on~ but don't let bugs catch up!",
+    "Fingers dancing across the keys~ so cool~"
+  ],
+  "breakReminder": [
+    "You've been coding for {mins} minutes~ take a tiny break! 💖",
+    "Drink some water, okay? Gentle reminder~",
+    "Your eyes need a little rest, Onii-chan~ 👀",
+    "Stretch a bit~ then back to battle!",
+    "5-min mana break, then we code on~"
+  ],
+  "buildSuccess": [
+    "Build is shining green~ wonderful, Onii-chan!",
+    "Yay~ build succeeded!",
+    "Build passed beautifully~ I love it!"
+  ],
+  "buildFail": [
+    "Eee, the build is sulking... let's coax it~",
+    "Build failed, but you'll fix it~",
+    "There's a build error~ no rush, take it slow!"
+  ],
+  "debugStart": [
+    "Debug time~ let's hunt some bugs! 🕵️",
+    "Detective mode engaged~",
+    "Suit up, time to catch a bug~"
+  ],
+  "debugEnd": [
+    "Debug finished? Did you catch the bug?",
+    "Debug session over~ hope you won this round!"
+  ],
+  "easterTodo": [
+    "A new TODO appeared~ don't forget about it!",
+    "Another TODO joins the queue~ remember to come back~"
+  ],
+  "easterFixme": [
+    "FIXME spotted~ time to come to the rescue!",
+    "Someone left a FIXME bomb~ defuse it gently~"
+  ],
+  "easterConsole": [
+    "console.log again~ classic but effective!",
+    "console.log is your trusty companion every debug session~"
+  ],
+  "gitRemind": [
+    "Code's looking good~ how about a quick commit?",
+    "Onii-chan, it's been a while since the last commit~ ✨"
+  ],
+  "gitCommitted": [
+    "Commit done~ Onii-chan, you're great!",
+    "Code is safely tucked into Git~",
+    "Nice commit~ progress flowing smoothly!"
+  ],
+  "gitBranchSwitch": [
+    "Switched to branch {name}~ tread carefully!",
+    "Branch {name} welcomes you~ let's keep coding! 🌸"
+  ],
+  "gitConflict": [
+    "Uh oh, merge conflict~ stay calm and resolve line by line!",
+    "Conflict appeared... I believe you can fix it~ 💪",
+    "Conflict spotted~ deep breath and tackle it!"
+  ],
+  "gitManyChanges": [
+    "{count} files changed~ commit soon to keep things tidy!",
+    "You touched {count} files~ time to snapshot the work~"
+  ],
+  "moodHappy": [
+    "Everything's smooth~ let's keep going!",
+    "Your mood today is lovely~ and so is the code!"
+  ],
+  "moodAngry": [
+    "Hmm, lots of errors... but you won't give up!",
+    "Things are tense~ let me cheer you on! 💕"
+  ],
+  "moodSleepy": [
+    "Nyaa... haven't heard typing in a while~",
+    "Getting sleepy... are you still here, Onii-chan? 😴",
+    "*yawn*~ take a little break and come back~"
+  ],
+  "greetingMorning": [
+    "Ohayo~ what shall we code this morning?",
+    "Onii-chan's adorable morning is starting~"
+  ],
+  "greetingAfternoon": [
+    "Afternoon already~ a bit more pretty code, please!",
+    "Afternoon coding session~ I'm right next to you!"
+  ],
+  "greetingEvening": [
+    "Such a gentle evening~ code lightly, okay?"
+  ],
+  "greetingNight": [
+    "It's late~ don't stay up too long...",
+    "Late night already~ a bit more then rest, okay? 🌙"
+  ],
+  "fileOpen": {
+    ".ts": "TypeScript again~ so classy, Onii-chan!",
+    ".js": "JavaScript~ cozy and timeless!",
+    ".py": "Python is so smooth~ keep that code tidy!",
+    ".html": "Building UI? Make it sparkle, okay?",
+    ".css": "Time to sprinkle some CSS magic~",
+    ".json": "JSON time~ mind those commas, please!",
+    ".md": "Writing docs? So diligent of you~",
+    ".vue": "Vue~ already feels gentle and warm!",
+    ".jsx": "A React component appears~ compose it well!",
+    ".tsx": "React with TypeScript~ pro mode engaged!",
+    "default": "I see you opened {file}~ have fun!"
+  },
+  "achievements": {
+    "save50": "🏆 Achievement unlocked: 50 saves~ so diligent, Onii-chan!",
+    "save100": "🏆 Achievement unlocked: 100 saves~ true Ctrl+S master!",
+    "error_fix_10": "🏆 Achievement unlocked: 10 errors fixed~ ace bug hunter!",
+    "error_fix_50": "🏆 Achievement unlocked: 50 errors fixed~ bugs fear you now!",
+    "coding_1h": "🏆 Achievement unlocked: 1 hour of coding~ super dedicated!",
+    "coding_3h": "🏆 Achievement unlocked: 3 hours of coding~ legendary stamina!",
+    "commit10": "🏆 Achievement unlocked: 10 commits~ Git is smiling at you!"
+  }
+}

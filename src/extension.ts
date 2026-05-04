@@ -1,15 +1,23 @@
 import * as vscode from 'vscode';
 import { PomodoroManager, PomodoroState } from './pomodoro';
 import { initLogger, log } from './log';
-import { MODEL_MAP, getSelectedModel } from './models';
+import {
+  getSelectedModel,
+  setExtensionContext,
+  setWorkspaceModel,
+  clearWorkspaceModel,
+  hasWorkspaceModel,
+  listVisibleModels,
+} from './models';
 import { ModelFileServer } from './model-server';
+import { ModelDownloader } from './model-downloader';
 import { AnimeCompanionViewProvider } from './companion-view';
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+import { initMessageBank } from './messages';
+import { StatsStore, ACHIEVEMENT_DEFS } from './stats';
 
 async function startDebuggingFromContext(): Promise<void> {
   if (vscode.debug.activeDebugSession) {
-    log(`Active debug session detected (${vscode.debug.activeDebugSession.name}) → restarting`);
+    log(`Active debug session detected (${vscode.debug.activeDebugSession.name}) -> restarting`);
     await vscode.commands.executeCommand('workbench.action.debug.restart');
     return;
   }
@@ -20,25 +28,24 @@ async function startDebuggingFromContext(): Promise<void> {
   if (folder) {
     const launchConfig = vscode.workspace.getConfiguration('launch', folder.uri);
     const configurations = launchConfig.get<Array<{ name: string }>>('configurations') ?? [];
-    log(`Found ${configurations.length} launch configuration(s): ${configurations.map(c => c.name).join(', ')}`);
+    log(`Found ${configurations.length} launch configuration(s): ${configurations.map((c) => c.name).join(', ')}`);
 
     if (configurations.length > 0) {
       const targetName = configurations[0].name;
       log(`Calling vscode.debug.startDebugging(folder, "${targetName}")`);
       const started = await vscode.debug.startDebugging(folder, targetName);
       log(`startDebugging returned ${started}`);
-      if (started) return;
-      throw new Error(`Khong start duoc cau hinh "${targetName}"`);
+      if (started) {
+        return;
+      }
+
+      throw new Error(`Could not start launch configuration "${targetName}"`);
     }
   }
 
-  log('Fallback → workbench.action.debug.selectandstart');
+  log('Fallback -> workbench.action.debug.selectandstart');
   await vscode.commands.executeCommand('workbench.action.debug.selectandstart');
 }
-
-// ─── Status Bar ──────────────────────────────────────────────────────────────
-// Single status bar slot. Default: model name + click-to-toggle. When Pomodoro
-// is running, swaps to countdown + click-to-stop.
 
 class CompanionStatusBar {
   private _item: vscode.StatusBarItem;
@@ -68,7 +75,7 @@ class CompanionStatusBar {
   private _renderIdle() {
     const model = getSelectedModel();
     this._item.text = `$(heart) ${model.name}`;
-    this._item.tooltip = `Anime Companion — ${model.description}\nClick to toggle the panel`;
+    this._item.tooltip = `Anime Companion - ${model.description}\nClick to toggle the panel`;
     this._item.command = 'animeCompanion.toggle';
     this._item.backgroundColor = undefined;
   }
@@ -76,16 +83,18 @@ class CompanionStatusBar {
   private _renderPomodoro() {
     const mins = Math.floor(this._pomodoroSecs / 60);
     const secs = this._pomodoroSecs % 60;
-    const t = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const timeLabel = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
     if (this._pomodoroState === 'work') {
-      this._item.text = `🍅 ${t}`;
-      this._item.tooltip = 'Pomodoro: focusing — click to stop';
+      this._item.text = `$(flame) ${timeLabel}`;
+      this._item.tooltip = 'Pomodoro: focusing - click to stop';
       this._item.backgroundColor = undefined;
     } else {
-      this._item.text = `☕ ${t}`;
-      this._item.tooltip = 'Pomodoro: break — click to stop';
+      this._item.text = `$(coffee) ${timeLabel}`;
+      this._item.tooltip = 'Pomodoro: break - click to stop';
       this._item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
     }
+
     this._item.command = 'animeCompanion.stopPomodoro';
   }
 
@@ -93,8 +102,6 @@ class CompanionStatusBar {
     this._item.dispose();
   }
 }
-
-// ─── Activation ──────────────────────────────────────────────────────────────
 
 let modelServer: ModelFileServer | null = null;
 let pomodoroManager: PomodoroManager | null = null;
@@ -111,24 +118,33 @@ export async function activate(context: vscode.ExtensionContext) {
     log('Migrated legacy voiceLanguage "ja-vi" -> "en"');
   }
 
-  // VS Code lowercases the publisher portion when computing extension IDs
   const ext = vscode.extensions.getExtension('shiroenguyen.anime-companion-vscode');
   const currentVersion = (ext?.packageJSON?.version as string | undefined) ?? 'unknown';
-  log(`Anime Companion activated — version ${currentVersion}`);
+  log(`Anime Companion activated - version ${currentVersion}`);
 
-  // Surface a one-time toast when version changes after install/upgrade so the
-  // user knows the new code is actually running (vs. waiting for window reload).
-  const PREV_VERSION_KEY = 'animeCompanion.lastActivatedVersion';
-  const prevVersion = context.globalState.get<string>(PREV_VERSION_KEY);
-  if (prevVersion !== currentVersion) {
-    const action = prevVersion ? `cập nhật ${prevVersion} → ${currentVersion}` : `lần đầu chạy ${currentVersion}`;
+  const previousVersionKey = 'animeCompanion.lastActivatedVersion';
+  const previousVersion = context.globalState.get<string>(previousVersionKey);
+  if (previousVersion !== currentVersion) {
+    const action = previousVersion ? `updated ${previousVersion} -> ${currentVersion}` : `first run ${currentVersion}`;
     log(`Version change detected: ${action}`);
-    vscode.window.showInformationMessage(`🌸 Anime Companion ${currentVersion} đang chạy (${action})`);
-    context.globalState.update(PREV_VERSION_KEY, currentVersion);
+
+    if (context.extensionMode !== vscode.ExtensionMode.Test) {
+      vscode.window.showInformationMessage(`Anime Companion ${currentVersion} is active (${action})`);
+    }
+
+    await context.globalState.update(previousVersionKey, currentVersion);
   }
 
-  // Local file server for Live2D model assets
-  modelServer = new ModelFileServer(context.extensionUri);
+  const messageBank = initMessageBank(context.extensionUri);
+  context.subscriptions.push({ dispose: () => messageBank.dispose() });
+
+  setExtensionContext(context);
+  const stats = new StatsStore(context);
+  const downloader = new ModelDownloader(context);
+
+  // Pre-register the cache root with the file server so already-downloaded
+  // models work even if the user never selects them via the UI flow.
+  modelServer = new ModelFileServer(context.extensionUri, [downloader.cacheRoot]);
   try {
     await modelServer.start();
     log(`Model file server running on port ${modelServer.port}`);
@@ -136,28 +152,26 @@ export async function activate(context: vscode.ExtensionContext) {
     log(`Failed to start model server: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  // Webview view provider
-  const provider = new AnimeCompanionViewProvider(context.extensionUri, modelServer);
+  const provider = new AnimeCompanionViewProvider(context.extensionUri, modelServer, stats, downloader);
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      AnimeCompanionViewProvider.viewType,
-      provider,
-      { webviewOptions: { retainContextWhenHidden: true } }
-    )
+    vscode.window.registerWebviewViewProvider(AnimeCompanionViewProvider.viewType, provider, {
+      webviewOptions: { retainContextWhenHidden: true },
+    })
   );
 
-  // Status bar — model name by default, swaps to Pomodoro countdown while active
   const statusBar = new CompanionStatusBar();
   context.subscriptions.push(statusBar);
   context.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('animeCompanion.model')) {
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration('animeCompanion.model')) {
         statusBar.refresh();
+      }
+      if (event.affectsConfiguration('animeCompanion.experimentalModels')) {
+        provider.refreshView();
       }
     })
   );
 
-  // Pomodoro — wire tick into status bar
   pomodoroManager = new PomodoroManager(
     (state) => {
       if (state === 'work') {
@@ -168,11 +182,13 @@ export async function activate(context: vscode.ExtensionContext) {
         provider.postMessage({ command: 'pomodoroStop' });
       }
     },
-    (state, secondsLeft) => statusBar.setPomodoro(state, secondsLeft)
+    (state, secondsLeft, totalSeconds) => {
+      statusBar.setPomodoro(state, secondsLeft);
+      provider.updatePomodoroTick(state, secondsLeft, totalSeconds);
+    }
   );
   context.subscriptions.push(pomodoroManager);
 
-  // ── Commands ──────────────────────────────────────────────────────────────
   context.subscriptions.push(
     vscode.commands.registerCommand('animeCompanion.runProject', async () => {
       log('animeCompanion.runProject invoked');
@@ -182,71 +198,166 @@ export async function activate(context: vscode.ExtensionContext) {
       } catch (error) {
         const details = error instanceof Error ? error.message : String(error);
         log(`startDebuggingFromContext threw: ${details}`);
-        vscode.window.showWarningMessage(`Anime Companion khong the chay Run luc nay: ${details}`);
+        vscode.window.showWarningMessage(`Anime Companion could not run right now: ${details}`);
         throw error;
       }
     }),
     vscode.commands.registerCommand('animeCompanion.show', () => {
-      vscode.commands.executeCommand('setContext', 'animeCompanion.visible', true);
-      vscode.commands.executeCommand('animeCompanion.live2dView.focus');
+      return Promise.all([
+        vscode.commands.executeCommand('setContext', 'animeCompanion.visible', true),
+        vscode.commands.executeCommand('animeCompanion.live2dView.focus'),
+      ]);
     }),
     vscode.commands.registerCommand('animeCompanion.hide', () => {
-      vscode.commands.executeCommand('setContext', 'animeCompanion.visible', false);
+      return vscode.commands.executeCommand('setContext', 'animeCompanion.visible', false);
     }),
     vscode.commands.registerCommand('animeCompanion.toggle', () => {
-      vscode.commands.executeCommand('animeCompanion.live2dView.toggleVisibility');
+      return vscode.commands.executeCommand('animeCompanion.live2dView.toggleVisibility');
     }),
     vscode.commands.registerCommand('animeCompanion.changeModel', async () => {
-      const config = vscode.workspace.getConfiguration('animeCompanion');
-      const current = config.get<string>('model', 'hiyori');
-      const items = Object.values(MODEL_MAP).map(m => ({
-        label: `$(sparkle) ${m.name}${m.id === current ? '  ✓' : ''}`,
-        description: m.description,
-        id: m.id,
+      const current = getSelectedModel().id;
+      const hasWorkspace = !!vscode.workspace.workspaceFolders?.length;
+      const items = listVisibleModels().map((model) => ({
+        label: `$(sparkle) ${model.name}${model.id === current ? '  *' : ''}`,
+        description: model.description,
+        id: model.id,
       }));
 
       const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: '🌸 Choose your companion model',
+        placeHolder: hasWorkspace
+          ? 'Choose your companion model (saved per-workspace)'
+          : 'Choose your companion model',
         title: 'Anime Companion: Change Model',
       });
 
       if (selected && selected.id !== current) {
-        await config.update('model', selected.id, vscode.ConfigurationTarget.Global);
+        if (hasWorkspace) {
+          await setWorkspaceModel(selected.id);
+        } else {
+          await vscode.workspace.getConfiguration('animeCompanion')
+            .update('model', selected.id, vscode.ConfigurationTarget.Global);
+        }
         provider.refreshView();
-        vscode.window.showInformationMessage(`🌸 Switched to ${selected.label}!`);
+        vscode.window.showInformationMessage(`Switched to ${selected.label}`);
+      }
+    }),
+    vscode.commands.registerCommand('animeCompanion.resetWorkspaceModel', async () => {
+      if (!hasWorkspaceModel()) {
+        vscode.window.showInformationMessage('No per-workspace model is set. Falling back to global setting.');
+        return;
+      }
+      await clearWorkspaceModel();
+      provider.refreshView();
+      vscode.window.showInformationMessage('Workspace model cleared. Using global setting.');
+    }),
+    vscode.commands.registerCommand('animeCompanion.showStats', async () => {
+      const s = stats.getStats();
+      const fmtMins = (ms: number) => {
+        const m = Math.floor(ms / 60000);
+        if (m < 60) return `${m}m`;
+        const h = Math.floor(m / 60);
+        const r = m % 60;
+        return r === 0 ? `${h}h` : `${h}h ${r}m`;
+      };
+      const unlocked = s.achievements.length;
+      const items: vscode.QuickPickItem[] = [
+        { label: `$(save) Saves`,           description: `${s.saves}` },
+        { label: `$(git-commit) Commits`,   description: `${s.commits}` },
+        { label: `$(bug) Errors fixed`,     description: `${s.errorsFixed}` },
+        { label: `$(clock) Coding today`,   description: fmtMins(s.codingMillisToday) },
+        { label: `$(watch) Coding all-time`,description: fmtMins(s.codingMillisAllTime) },
+        { label: `$(trophy) Achievements`,  description: `${unlocked} / ${ACHIEVEMENT_DEFS.length} unlocked` },
+      ];
+      await vscode.window.showQuickPick(items, {
+        title: 'Anime Companion — Stats',
+        placeHolder: 'Press Esc to close',
+      });
+    }),
+    vscode.commands.registerCommand('animeCompanion.showAchievements', async () => {
+      const unlocked = new Set(stats.getAchievements());
+      const items: vscode.QuickPickItem[] = ACHIEVEMENT_DEFS.map((def) => {
+        const got = unlocked.has(def.id);
+        return {
+          label: `${got ? '$(check) ' : '$(lock) '}${def.title}`,
+          description: def.description,
+          detail: got ? 'Unlocked' : `Locked — threshold ${def.threshold}`,
+        };
+      });
+      await vscode.window.showQuickPick(items, {
+        title: `Anime Companion — Achievements (${unlocked.size}/${ACHIEVEMENT_DEFS.length})`,
+        placeHolder: 'Press Esc to close',
+      });
+    }),
+    vscode.commands.registerCommand('animeCompanion.playMotion', async () => {
+      const motions = [
+        { id: 'TapBody', label: '$(person) TapBody', description: 'Body tap motion' },
+        { id: 'TapHead', label: '$(heart) TapHead', description: 'Head pat motion' },
+        { id: 'Idle',    label: '$(sparkle) Idle', description: 'Default idle motion' },
+      ];
+      const selected = await vscode.window.showQuickPick(motions, {
+        placeHolder: 'Pick a motion to play',
+        title: 'Anime Companion: Play Motion',
+      });
+      if (selected) {
+        provider.postMessage({ command: 'playMotion', group: selected.id });
       }
     }),
     vscode.commands.registerCommand('animeCompanion.changeVoice', async () => {
-      const config = vscode.workspace.getConfiguration('animeCompanion');
-      const current = config.get<string>('voiceLanguage', 'ja');
+      const voiceConfig = vscode.workspace.getConfiguration('animeCompanion');
+      const current = voiceConfig.get<string>('voiceLanguage', 'ja');
       const voices = [
         { id: 'ja', label: 'Japanese', description: 'Anime-style VoiceVox voice (Shikoku Metan)' },
-        { id: 'vi', label: 'Tiếng Việt', description: 'Giọng nữ Google TTS' },
-        { id: 'en', label: 'English', description: 'English audio generated with Google TTS' },
+        { id: 'vi', label: 'Vietnamese', description: 'Google TTS voice' },
+        { id: 'en', label: 'English', description: 'Google TTS voice' },
       ];
-      const items = voices.map(v => ({
-        label: `$(unmute) ${v.label}${v.id === current ? '  ✓' : ''}`,
-        description: v.description,
-        id: v.id,
+      const items = voices.map((voice) => ({
+        label: `$(unmute) ${voice.label}${voice.id === current ? '  *' : ''}`,
+        description: voice.description,
+        id: voice.id,
       }));
 
       const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: '🌸 Choose voice language',
+        placeHolder: 'Choose voice language',
         title: 'Anime Companion: Change Voice',
       });
 
       if (selected && selected.id !== current) {
-        await config.update('voiceLanguage', selected.id, vscode.ConfigurationTarget.Global);
+        await voiceConfig.update('voiceLanguage', selected.id, vscode.ConfigurationTarget.Global);
         provider.refreshView();
-        vscode.window.showInformationMessage(`🌸 Voice switched to ${selected.label}!`);
+        vscode.window.showInformationMessage(`Voice switched to ${selected.label}`);
+      }
+    }),
+    vscode.commands.registerCommand('animeCompanion.changeMessageLanguage', async () => {
+      const cfg = vscode.workspace.getConfiguration('animeCompanion');
+      const current = cfg.get<string>('messageLanguage', 'vi');
+      const langs = [
+        { id: 'vi', label: 'Tiếng Việt', description: 'Vietnamese bubble text' },
+        { id: 'en', label: 'English', description: 'English bubble text' },
+        { id: 'ja', label: '日本語', description: 'Japanese bubble text' },
+      ];
+      const items = langs.map((l) => ({
+        label: `$(comment) ${l.label}${l.id === current ? '  *' : ''}`,
+        description: l.description,
+        id: l.id,
+      }));
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Choose bubble message language',
+        title: 'Anime Companion: Change Message Language',
+      });
+
+      if (selected && selected.id !== current) {
+        await cfg.update('messageLanguage', selected.id, vscode.ConfigurationTarget.Global);
+        provider.refreshView();
+        vscode.window.showInformationMessage(`Message language switched to ${selected.label}`);
       }
     }),
     vscode.commands.registerCommand('animeCompanion.toggleMute', async () => {
-      const config = vscode.workspace.getConfiguration('animeCompanion');
-      const muted = config.get<boolean>('muted', false);
-      await config.update('muted', !muted, vscode.ConfigurationTarget.Global);
+      const muteConfig = vscode.workspace.getConfiguration('animeCompanion');
+      const muted = muteConfig.get<boolean>('muted', false);
+      await muteConfig.update('muted', !muted, vscode.ConfigurationTarget.Global);
       provider.refreshView();
-      vscode.window.showInformationMessage(!muted ? '🌸 Companion muted!' : '🌸 Companion unmuted!');
+      vscode.window.showInformationMessage(!muted ? 'Companion muted.' : 'Companion unmuted.');
     }),
     vscode.commands.registerCommand('animeCompanion.startPomodoro', () => {
       pomodoroManager?.start();
@@ -255,19 +366,17 @@ export async function activate(context: vscode.ExtensionContext) {
       pomodoroManager?.stop();
     }),
     vscode.commands.registerCommand('animeCompanion.openSettings', () => {
-      // Filter Settings UI to this extension's properties
-      vscode.commands.executeCommand(
+      return vscode.commands.executeCommand(
         'workbench.action.openSettings',
         '@ext:shiroenguyen.anime-companion-vscode'
       );
     })
   );
 
-  // Auto-show on startup
-  if (config.get<boolean>('showOnStartup', true)) {
-    vscode.commands.executeCommand('setContext', 'animeCompanion.visible', true);
+  if (context.extensionMode !== vscode.ExtensionMode.Test && config.get<boolean>('showOnStartup', true)) {
+    void vscode.commands.executeCommand('setContext', 'animeCompanion.visible', true);
     setTimeout(() => {
-      vscode.commands.executeCommand('animeCompanion.live2dView.focus');
+      void vscode.commands.executeCommand('animeCompanion.live2dView.focus');
     }, 2000);
   }
 }

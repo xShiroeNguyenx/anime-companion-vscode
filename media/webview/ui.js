@@ -235,6 +235,59 @@ function ensureInputPanel() {
   return inputPanel;
 }
 
+// ─── Pomodoro ring overlay ─────────────────────────────────────────────
+
+let pomodoroRing = null;
+
+function ensurePomodoroRing() {
+  if (pomodoroRing) return pomodoroRing;
+  const wrapper = document.getElementById('characterWrapper');
+  if (!wrapper) return null;
+
+  pomodoroRing = document.createElement('div');
+  pomodoroRing.className = 'companion-pomodoro-ring';
+  // SVG circumference for r=22 → 2*pi*22 ≈ 138.23
+  pomodoroRing.innerHTML = `
+    <svg viewBox="0 0 50 50" class="companion-pomodoro-svg">
+      <circle class="companion-pomodoro-track" cx="25" cy="25" r="22"></circle>
+      <circle class="companion-pomodoro-progress" cx="25" cy="25" r="22"
+        stroke-dasharray="138.23" stroke-dashoffset="0"></circle>
+    </svg>
+    <div class="companion-pomodoro-label">
+      <span class="companion-pomodoro-icon">🍅</span>
+      <span class="companion-pomodoro-time">00:00</span>
+    </div>
+  `;
+  wrapper.appendChild(pomodoroRing);
+  return pomodoroRing;
+}
+
+export function updatePomodoroRing(pState, secondsLeft, totalSeconds) {
+  const ring = ensurePomodoroRing();
+  if (!ring) return;
+
+  const pct = totalSeconds > 0 ? Math.max(0, Math.min(1, secondsLeft / totalSeconds)) : 0;
+  const circumference = 138.23;
+  const progress = ring.querySelector('.companion-pomodoro-progress');
+  if (progress) {
+    progress.style.strokeDashoffset = String(circumference * (1 - pct));
+  }
+  const icon = ring.querySelector('.companion-pomodoro-icon');
+  if (icon) icon.textContent = pState === 'break' ? '☕' : '🍅';
+
+  const mins = Math.floor(secondsLeft / 60);
+  const secs = secondsLeft % 60;
+  const time = ring.querySelector('.companion-pomodoro-time');
+  if (time) time.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+  ring.classList.toggle('break', pState === 'break');
+  ring.classList.add('show');
+}
+
+export function hidePomodoroRing() {
+  if (pomodoroRing) pomodoroRing.classList.remove('show');
+}
+
 export function showCommitMessageInput(requestId, stagedCount) {
   const panel = ensureInputPanel();
   if (!panel) return;

@@ -1,15 +1,23 @@
-// ───────────────────────────────────────────────────────────────────────────
-// 🌸 Anime Companion — Live2D Webview Entry Point
-// ───────────────────────────────────────────────────────────────────────────
-
 import { state, vscode, debugLog } from './core.js';
 import { setExpression } from './expression.js';
 import { updateMoodIndicator } from './expression.js';
 import { playAudio } from './audio.js';
-import { showBubble, showError, showLoading, hideLoading, showFallback, playMotion, createSparkle, showProtectedBranchConfirm, showStageAllConfirm, showCommitMessageInput } from './ui.js';
+import {
+  showBubble,
+  showError,
+  showLoading,
+  hideLoading,
+  showFallback,
+  playMotion,
+  createSparkle,
+  showProtectedBranchConfirm,
+  showStageAllConfirm,
+  showCommitMessageInput,
+  updatePomodoroRing,
+  hidePomodoroRing,
+} from './ui.js';
 import { setupModel } from './interaction.js';
 
-// ─── Initialize Live2D ──────────────────────────────────────────────────
 async function initLive2D() {
   try {
     showLoading('Loading Live2D...');
@@ -83,7 +91,6 @@ async function initLive2D() {
   }
 }
 
-// ─── Fallback PNG click → still poke ────────────────────────────────────
 const fallbackImg = document.getElementById('fallbackImg');
 if (fallbackImg) {
   fallbackImg.addEventListener('click', () => {
@@ -94,7 +101,6 @@ if (fallbackImg) {
   });
 }
 
-// ─── Messages from extension host ──────────────────────────────────────
 window.addEventListener('message', (event) => {
   const { command, text } = event.data;
   switch (command) {
@@ -105,22 +111,37 @@ window.addEventListener('message', (event) => {
       playMotion(event.data.group, event.data.index);
       break;
     case 'setExpression':
-      // duration optional — when undefined, expression sticks until next call
       setExpression(event.data.expression, event.data.duration);
       break;
     case 'pomodoroStart':
       setExpression('focus', null);
-      showBubble("🍅 Bắt đầu làm việc thôi! Cố lên nha~");
+      showBubble('🍅 Bắt đầu focus thôi nào~ em ngồi cổ vũ Onii-chan đây!');
       playAudio('poke.mp3');
       break;
     case 'pomodoroBreak':
       setExpression('sleepy', null);
-      showBubble("🍅 Hết 25 phút rồi! Nghỉ tay, uống nước đi~");
-      if (state.model) { try { state.model.motion('TapBody'); } catch (_) { /* ignore */ } }
+      showBubble('🍅 Xong một phiên rồi nè~ nghỉ tay và uống nước chút nha!');
+      // Different sound cue for break vs work — break uses headpat (gentler)
+      playAudio('headpat.mp3');
+      if (state.model) {
+        try {
+          state.model.motion('TapBody');
+        } catch (_) {
+          // ignore
+        }
+      }
       break;
     case 'pomodoroStop':
       setExpression('neutral', null);
-      showBubble("🍅 Đã dừng Pomodoro!");
+      showBubble('🍅 Pomodoro dừng lại rồi nha~ khi nào cần em thì mình bắt đầu tiếp!');
+      hidePomodoroRing();
+      break;
+    case 'pomodoroTick':
+      if (event.data.state === 'idle' || !event.data.totalSeconds) {
+        hidePomodoroRing();
+      } else {
+        updatePomodoroRing(event.data.state, event.data.secondsLeft, event.data.totalSeconds);
+      }
       break;
     case 'tapBody':
       playMotion('TapBody');
@@ -144,6 +165,5 @@ window.addEventListener('message', (event) => {
   }
 });
 
-// ─── Start ──────────────────────────────────────────────────────────────
 debugLog('Webview script loaded');
 initLive2D();

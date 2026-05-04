@@ -2,7 +2,16 @@ node_modules/
 out/
 *.vsix
 
+# Model zips built by `pwsh scripts/build-model-zips.ps1` for Release upload
+dist-models/
+
 .claude/
+.vscode-test/
+
+# Local secrets — OVSX_PAT, VSCE_PAT, etc. Never commit.
+.env
+.env.*
+!.env.example
 
 *.log
 npm-debug.log*

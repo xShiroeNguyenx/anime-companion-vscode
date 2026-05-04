@@ -1,8 +1,67 @@
 .vscode/**
 .vscode-test/**
+.github/**
+.claude/**
+.cursor/**
 src/**
+scripts/**
 .gitignore
+.eslintrc.cjs
+
+# Local secrets — never ship
+.env
+.env.*
 *.map
+**/*.map
 **/*.ts
+!node_modules/adm-zip/**/*.d.ts
 tsconfig.json
-node_modules/**
+out/test/**
+
+# node_modules: vsce auto-ships production deps + prunes devDependencies.
+# Removing the blanket exclusion so `adm-zip` (used at runtime by ModelDownloader)
+# is included in the vsix. Without this, extension activation fails with
+# MODULE_NOT_FOUND on `require('adm-zip')`.
+
+# Build artifacts — không cần ship
+*.vsix
+*.zip
+build-install.sh
+
+# Internal docs — README.md, CHANGELOG.md, LICENSE, THIRDPARTY.md vẫn được ship
+PLAN.md
+CHECKLIST.md
+DECISIONS.md
+FEATURES.md
+MODELS.md
+LICENSE-AUDIT.md
+dist-models/**
+
+# Asset legacy đã migrate runtime sang en
+media/audio/ja-vi/**
+
+# Lazy-loaded Live2D models — downloaded on first selection.
+# Hiyori is the only bundled model; everything else fetches from
+# {animeCompanion.modelDownloadBaseUrl}/{folder}.zip on demand.
+# Free-license additions (Live2D Sample):
+media/live2d/Haru/**
+media/live2d/Mao/**
+media/live2d/Miara/**
+# Experimental — gated behind animeCompanion.experimentalModels (see LICENSE-AUDIT.md):
+media/live2d/chaijun_3/**
+media/live2d/IceGirl/**
+media/live2d/Tsubaki/**
+media/live2d/WhiteAngel/**
+media/live2d/Vivian/**
+media/live2d/Changli/**
+
+# OS / editor noise
+.DS_Store
+**/.DS_Store
+Thumbs.db
+**/__MACOSX/**
+
+# Live2D source artifacts không cần thiết khi runtime
+**/*.cmo3
+**/*.can3
+**/*.vtube.json

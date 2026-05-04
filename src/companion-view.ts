@@ -2,48 +2,13 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { ReactiveManager } from './reactive';
 import { log } from './log';
-import { getSelectedModel } from './models';
+import { getSelectedModel, setWorkspaceModel, HIYORI, ModelInfo, listVisibleModels } from './models';
 import { ModelFileServer } from './model-server';
+import { ModelDownloader } from './model-downloader';
 import { pullWithFeedback, pushWithFeedback, commitWithFeedback } from './git-ops';
-
-// ─── Message Collections (for the idle bubble timer + greetings) ────────────
-
-const IDLE_MESSAGES = [
-  "Code tiếp đi bạn ơi~ 💻",
-  "Bug hôm nay hơi lì nhỉ? 🐛",
-  "Nhớ save file nha! 💾",
-  "Bạn code giỏi lắm! ✨",
-  "Nghỉ tay uống nước đi~ 🍵",
-  "Commit code thường xuyên nha! 📦",
-  "Hôm nay code vui không? 🌸",
-  "Đừng quên push code lên remote! 🚀",
-  "Clean code = Happy life~ 🧹",
-  "Bạn là dev tuyệt nhất! 🌟",
-  "Refactor một chút cho đẹp nha~ 🎨",
-  "Remember: KISS principle! 💋",
-  "Đặt tên biến rõ ràng nha~ 📝",
-  "Test trước khi deploy nha! 🧪",
-  "Code xong nhớ review lại~ 👀",
-  "Hít thở sâu... rồi debug tiếp! 🧘",
-  "Cố lên! Sắp xong rồi~ 💪",
-  "Console.log là bạn thân! 😂",
-  "Bạn có nhớ uống nước chưa? 💧",
-  "Mỗi dòng code đều có ý nghĩa~ ✍️",
-  "Hôm nay học được gì mới không? 📚",
-  "Stack Overflow cũng từng newbie! 😄",
-  "Đừng copy paste mù quáng nha~ 🙈",
-  "Comment code cho người sau đọc nha! 📖",
-  "Ơ, bạn vẫn ở đây à? Chăm quá! 🥰",
-];
-
-const GREETING_MESSAGES = [
-  "Ohayo~ Hôm nay code gì nè? 🌅",
-  "Chào bạn! Sẵn sàng code chưa? 🎉",
-  "Yay! Mình đây~ Cùng code nào! 🌸",
-  "Hello world! 👋 Bắt đầu thôi~",
-];
-
-// ─── View Provider ──────────────────────────────────────────────────────────
+import { getMessageBank, MessageKey } from './messages';
+import { StatsStore } from './stats';
+import { PomodoroState } from './pomodoro';
 
 export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'animeCompanion.live2dView';
@@ -52,14 +17,54 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   private _messageTimer?: NodeJS.Timeout;
   private _extensionUri: vscode.Uri;
   private _server: ModelFileServer;
+  private _stats: StatsStore;
+  private _downloader: ModelDownloader;
+  private _resolvedModel: ModelInfo = HIYORI;
   private _reactive?: ReactiveManager;
   private _confirmCounter = 0;
   private _pendingConfirms = new Map<string, (approved: boolean) => void>();
   private _pendingInputs = new Map<string, (value: string | undefined) => void>();
 
-  constructor(extensionUri: vscode.Uri, server: ModelFileServer) {
+  constructor(extensionUri: vscode.Uri, server: ModelFileServer, stats: StatsStore, downloader: ModelDownloader) {
     this._extensionUri = extensionUri;
     this._server = server;
+    this._stats = stats;
+    this._downloader = downloader;
+  }
+
+  // Returns immediately for bundled models. For lazy models, downloads + extracts
+  // on first call, then registers the cache root with the file server. On error,
+  // falls back to the bundled Hiyori so the view always renders something.
+  private async _resolveModel(): Promise<ModelInfo> {
+    const requested = getSelectedModel();
+    if (requested.bundled || this._downloader.isModelCached(requested.folder, requested.file)) {
+      if (!requested.bundled) {
+        this._server.addRoot(this._downloader.cacheRoot);
+      }
+      return requested;
+    }
+
+    try {
+      await this._downloader.ensureModel(requested);
+      this._server.addRoot(this._downloader.cacheRoot);
+      return requested;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log(`ModelDownloader: ensure failed for "${requested.id}": ${msg}`);
+      vscode.window.showWarningMessage(
+        `Couldn't download model "${requested.name}" — falling back to Hiyori. (${msg})`,
+        'Retry'
+      ).then((choice) => {
+        if (choice === 'Retry') {
+          this.refreshView();
+        }
+      });
+      return HIYORI;
+    }
+  }
+
+  public updatePomodoroTick(state: PomodoroState, secondsLeft: number, totalSeconds: number) {
+    this.postMessage({ command: 'pomodoroTick', state, secondsLeft, totalSeconds });
   }
 
   public postMessage(message: any) {
@@ -69,19 +74,28 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   }
 
   public refreshView() {
-    if (this._view) {
-      this._view.webview.html = this._getHtmlForWebview(this._view.webview);
-      setTimeout(() => {
-        this._sendMessage(this._randomFrom(GREETING_MESSAGES));
-      }, 4000);
-    }
+    if (!this._view) return;
+    void this._renderWith(this._view);
+  }
+
+  // Resolves (downloading if needed) the requested model, then writes HTML.
+  // Webview renders nothing until the model is on disk, so the local server
+  // never serves a 404 to PIXI's loader.
+  private async _renderWith(webviewView: vscode.WebviewView) {
+    this._resolvedModel = await this._resolveModel();
+    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+    setTimeout(() => {
+      this._sendMessage(this._pickMessage('greeting'));
+    }, 4000);
   }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
-    _context: vscode.WebviewViewResolveContext,
-    _token: vscode.CancellationToken
+    context: vscode.WebviewViewResolveContext,
+    token: vscode.CancellationToken
   ) {
+    void context;
+    void token;
     this._view = webviewView;
 
     webviewView.webview.options = {
@@ -89,11 +103,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'media')],
     };
 
-    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-
-    setTimeout(() => {
-      this._sendMessage(this._randomFrom(GREETING_MESSAGES));
-    }, 4000);
+    void this._renderWith(webviewView);
 
     this._startMessageTimer();
 
@@ -109,13 +119,14 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
         if (this._view) {
           this._view.webview.postMessage({ command: 'setMood', mood });
         }
-      }
+      },
+      this._stats
     );
     this._reactive.activate();
 
     webviewView.webview.onDidReceiveMessage((message) => {
       // Pause idle timer when the user interacts
-      if (['poke', 'headpat', 'spamClick', 'multiClick', 'runCommand', 'setVoiceLanguage', 'setModel', 'setMuted', 'confirmDialogResult', 'inputDialogResult'].includes(message.command)) {
+      if (['poke', 'headpat', 'spamClick', 'multiClick', 'runCommand', 'setVoiceLanguage', 'setMessageLanguage', 'setModel', 'setMuted', 'confirmDialogResult', 'inputDialogResult'].includes(message.command)) {
         this._startMessageTimer(10000);
       }
 
@@ -160,7 +171,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
           }
 
           if (message.action === 'animeCompanion.runProject') {
-            this._sendMessage('Đang start server cho bạn nè~ 🚀');
+            this._sendMessage('Em gọi server dậy cho Onii-chan liền đây~ chờ em xíu nha!');
             if (this._view) {
               this._view.webview.postMessage({ command: 'setExpression', expression: 'happy', duration: 3000 });
               this._view.webview.postMessage({ command: 'playMotion', group: 'TapBody' });
@@ -186,18 +197,33 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
               .update('voiceLanguage', message.voiceLanguage, vscode.ConfigurationTarget.Global)
               .then(() => {
                 this.refreshView();
-                this._sendMessage(`Voice switched to ${message.voiceLanguage.toUpperCase()}~`);
+                this._sendMessage(`Giọng ${message.voiceLanguage.toUpperCase()} sẵn sàng rồi nha~ nghe dễ thương chứ?`);
+              });
+          }
+          break;
+        case 'setMessageLanguage':
+          if (typeof message.messageLanguage === 'string' && ['vi', 'en', 'ja'].includes(message.messageLanguage)) {
+            vscode.workspace.getConfiguration('animeCompanion')
+              .update('messageLanguage', message.messageLanguage, vscode.ConfigurationTarget.Global)
+              .then(() => {
+                this.refreshView();
+                this._sendMessage(getMessageBank().pick('greeting'));
               });
           }
           break;
         case 'setModel':
           if (typeof message.modelId === 'string') {
-            vscode.workspace.getConfiguration('animeCompanion')
-              .update('model', message.modelId, vscode.ConfigurationTarget.Global)
-              .then(() => {
-                this.refreshView();
-                this._sendMessage(`Switched to ${message.modelId}~`);
-              });
+            // Save in workspaceState if a workspace is open (per-project waifu),
+            // else fall through to global config so the choice still sticks.
+            const hasWorkspace = !!vscode.workspace.workspaceFolders?.length;
+            const persist = hasWorkspace
+              ? setWorkspaceModel(message.modelId)
+              : vscode.workspace.getConfiguration('animeCompanion')
+                  .update('model', message.modelId, vscode.ConfigurationTarget.Global);
+            Promise.resolve(persist).then(() => {
+              this.refreshView();
+              this._sendMessage(`Em đổi sang model ${message.modelId} rồi nè~ hợp gu Onii-chan không?`);
+            });
           }
           break;
         case 'setMuted':
@@ -206,7 +232,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
               .update('muted', message.muted, vscode.ConfigurationTarget.Global)
               .then(() => {
                 this.refreshView();
-                this._sendMessage(message.muted ? 'Companion da mute roi nha~' : 'Companion co tieng lai roi~');
+                this._sendMessage(message.muted ? 'Em sẽ ngoan ngoãn im lặng một chút nha~' : 'Yay~ em có thể ríu rít với Onii-chan lại rồi nè!');
               });
           }
           break;
@@ -247,25 +273,12 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       this._view = undefined;
     });
 
-    // Random reaction when active editor changes — comments on file type
+    // Random reaction when active editor changes - comments on file type
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (editor && this._view?.visible && Math.random() < 0.15) {
         const fileName = path.basename(editor.document.fileName);
         const ext = path.extname(fileName);
-        const fileMessages: Record<string, string> = {
-          '.ts': `TypeScript à? Bạn fancy quá~ 💎`,
-          '.js': `JavaScript! Classic choice~ ☕`,
-          '.py': `Python nè! 🐍 Code sạch đẹp nha~`,
-          '.html': `HTML! Xây giao diện đẹp nha~ 🎨`,
-          '.css': `CSS! Làm cho nó lung linh lên~ ✨`,
-          '.json': `JSON config... cẩn thận dấu phẩy nha! 😅`,
-          '.md': `Viết docs à? Tốt lắm! 📝`,
-          '.vue': `Vue.js! Progressive framework~ 💚`,
-          '.jsx': `React nè! Component đẹp nha~ ⚛️`,
-          '.tsx': `React + TypeScript! Pro quá! 🔥`,
-        };
-        const msg = fileMessages[ext] || `Đang mở ${fileName} nè~ 📂`;
-        this._sendMessage(msg);
+        this._sendMessage(getMessageBank().pickFileMessage(ext, fileName));
       }
     });
   }
@@ -279,14 +292,14 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     const scheduleNext = () => {
       const delay = (minInterval + Math.random() * (maxInterval - minInterval)) * 1000;
       this._messageTimer = setTimeout(() => {
-        this._sendMessage(this._randomFrom(IDLE_MESSAGES));
+        this._sendMessage(this._pickMessage('idle'));
         scheduleNext();
       }, delay);
     };
 
     if (forceDelayMs) {
       this._messageTimer = setTimeout(() => {
-        this._sendMessage(this._randomFrom(IDLE_MESSAGES));
+        this._sendMessage(this._pickMessage('idle'));
         scheduleNext();
       }, forceDelayMs);
     } else {
@@ -357,8 +370,8 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  private _randomFrom(arr: string[]): string {
-    return arr[Math.floor(Math.random() * arr.length)];
+  private _pickMessage(key: MessageKey): string {
+    return getMessageBank().pick(key);
   }
 
   private _getHtmlForWebview(webview: vscode.Webview): string {
@@ -372,12 +385,19 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     const cubism4Uri = mediaUri('lib', 'cubism4.min.js');
     const webviewScriptUri = mediaUri('webview', 'main.js');
 
-    const selectedModel = getSelectedModel();
+    const selectedModel = this._resolvedModel;
     const modelUrl = `http://127.0.0.1:${this._server.port}/${selectedModel.folder}/${selectedModel.file}`;
     const config = vscode.workspace.getConfiguration('animeCompanion');
     const configuredVoiceLanguage = config.get<string>('voiceLanguage') || 'ja';
     const voiceLanguage = configuredVoiceLanguage === 'ja-vi' ? 'en' : configuredVoiceLanguage;
+    const messageLanguage = config.get<string>('messageLanguage', 'vi');
     const muted = config.get<boolean>('muted', false);
+    // Slim down to only what the picker UI needs.
+    const visibleModels = listVisibleModels().map((m) => ({
+      id: m.id,
+      name: m.name,
+      description: m.description,
+    }));
 
     return /*html*/ `<!DOCTYPE html>
 <html lang="vi">
@@ -434,7 +454,9 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__MODEL_ID__ = "${selectedModel.id}";
     window.__AUDIO_BASE_URL__ = "${mediaUri('audio', voiceLanguage)}";
     window.__VOICE_LANGUAGE__ = "${voiceLanguage}";
+    window.__MESSAGE_LANGUAGE__ = "${messageLanguage}";
     window.__AUDIO_MUTED__ = ${muted ? 'true' : 'false'};
+    window.__VISIBLE_MODELS__ = ${JSON.stringify(visibleModels)};
   </script>
 
   <script src="${cubismCoreUri}"></script>
@@ -445,3 +467,4 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
 </html>`;
   }
 }
+

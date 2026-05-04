@@ -1,0 +1,182 @@
+{
+  "idle": [
+    "Onii-chan ơi~ mình code tiếp nha! ✨",
+    "Hôm nay bug có ngoan không nè~ 🐞",
+    "Nhớ save file cho em yên tâm nha~ 💾",
+    "Onii-chan code đẹp ghê luôn á~ 💖",
+    "Uống chút nước đi nè~ em nhắc đó! 🥤",
+    "Commit đều đều là đáng yêu lắm nha~ 📦",
+    "Hôm nay mood code ổn chứ nè? 🌸",
+    "Đừng quên push code lên remote nhé~ 🚀",
+    "Code sạch nhìn mê ghê á~ ✨",
+    "Onii-chan chăm chỉ quá trời luôn~ 🫶",
+    "Refactor nhẹ một chút là code xinh ngay~ 🎀",
+    "KISS principle vẫn cute như ngày nào nha~ 💡",
+    "Đặt tên biến xinh xắn rõ ràng nha~ 📝",
+    "Test trước khi deploy cho an tâm nè~ 🧪",
+    "Code xong nhớ review lại chút nha~ 👀",
+    "Hít sâu một cái~ rồi mình debug tiếp! 🌿",
+    "Cố lên nha~ em thấy sắp xong rồi đó! 💪",
+    "console.log vẫn là chân ái mà ha~ 🤭",
+    "Onii-chan có nhớ chớp mắt chưa đó~ 👀",
+    "Mỗi dòng code đều có phép thuật riêng nha~ ✨",
+    "Hôm nay học được gì mới kể em nghe đi~ 📚",
+    "Ai cũng từng là newbie mà~ từ từ thôi! 🌷",
+    "Đừng copy paste vô tội vạ nha Onii-chan~ 🙈",
+    "Comment chút xíu cho người sau thương mình hơn nha~ 📖",
+    "Vẫn đang cày hăng say luôn hả~ em thích ghê! 💕"
+  ],
+  "greeting": [
+    "Ohayo~ hôm nay mình cùng code nha! 🌅",
+    "Chào Onii-chan~ em tới cổ vũ đây! 💕",
+    "Yay~ bắt đầu một phiên code thật xinh thôi! ✨",
+    "Hello hello~ em ngồi cạnh Onii-chan rồi nè! 🌸"
+  ],
+  "error": [
+    "A-aa, lỗi xuất hiện rồi nè~ Bình tĩnh mình sửa nha Onii-chan!",
+    "Ui da, bug lại nghịch rồi... cùng xử nó thôi nào Onii-chan~",
+    "Báo động đỏ nho nhỏ~ Onii-chan cứu em với! 🚨",
+    "Lỗi nhảy ra kìa... nhưng Onii-chan vẫn đáng yêu và bình tĩnh nhé~",
+    "Bug spotted! Tới giờ Onii-chan phản công dễ thương rồi đó~"
+  ],
+  "errorMany": [
+    "{count} lỗi đang xếp hàng luôn á... mình gỡ từng bé một nha Onii-chan~",
+    "Ơ kìa, {count} lỗi lận sao? Bình tĩnh, em ở đây cổ vũ Onii-chan nè~",
+    "Nhiều lỗi thật đó, nhưng Onii-chan vẫn win được thôi~ ganbatte!"
+  ],
+  "warning": [
+    "Có warning nhỏ nè~ chưa đáng sợ lắm đâu Onii-chan.",
+    "Warning ghé thăm thôi, Onii-chan nhẹ nhàng xử lý là xinh ngay~"
+  ],
+  "errorFixed": [
+    "Yatta~ sạch lỗi rồi, code của Onii-chan xinh quá đi!",
+    "Hết lỗi rồi nha~ Onii-chan giỏi ghê luôn á!",
+    "Code trong veo luôn rồi~ em tự hào về Onii-chan đó!"
+  ],
+  "save": [
+    "Đã save xong rồi nha~ Onii-chan yên tâm tiếp tục nè!",
+    "Lưu lại thành công~ gọn gàng quá trời luôn Onii-chan!",
+    "Save ngoan lắm~ lát nữa Onii-chan nhớ commit nữa nha!"
+  ],
+  "saveSpam": [
+    "Ara ara, Onii-chan Ctrl+S liên hoàn luôn kìa~",
+    "Save nhanh quá làm em chóng mặt luôn á, Onii-chan~",
+    "Chiến binh Ctrl+S Onii-chan xuất hiện rồi nha~"
+  ],
+  "typingFast": [
+    "Woa, Onii-chan gõ nhanh như bật skill luôn á~",
+    "Tay Onii-chan hôm nay cháy máy luôn nè! 🔥",
+    "Speed mode on~ nhưng Onii-chan đừng để bug đuổi theo nha~",
+    "Ngón tay Onii-chan múa nhanh quá trời, ngầu ghê~"
+  ],
+  "breakReminder": [
+    "Onii-chan code {mins} phút rồi đó~ nghỉ xíu cho đáng yêu nha! 💖",
+    "Onii-chan uống chút nước đi nè~ em nhắc nhẹ đó!",
+    "Mắt của Onii-chan cần nghỉ chút xíu rồi á~ 👀",
+    "Onii-chan vươn vai một cái nào~ rồi mình chiến tiếp nha!",
+    "Nghỉ 5 phút lấy mana rồi quay lại code tiếp thôi Onii-chan~"
+  ],
+  "buildSuccess": [
+    "Build xanh mướt luôn~ tuyệt quá trời, Onii-chan!",
+    "Yay~ build thành công rồi nha Onii-chan!",
+    "Build pass xinh đẹp luôn á~ em thích ghê, Onii-chan!"
+  ],
+  "buildFail": [
+    "Eee build dỗi rồi... mình dỗ nó chút nha Onii-chan~",
+    "Build fail mất rồi, nhưng Onii-chan sửa được mà~",
+    "Có lỗi build nè... không sao, từ từ gỡ thôi Onii-chan!"
+  ],
+  "debugStart": [
+    "Debug time~ đi săn bug nào Onii-chan! 🕵️",
+    "Bật chế độ thám tử rồi nha Onii-chan~",
+    "Lên đồ đi bắt bug thôi nào, Onii-chan~"
+  ],
+  "debugEnd": [
+    "Debug xong rồi hả Onii-chan~ có bắt được bug chưa nè?",
+    "Phiên debug kết thúc~ hy vọng Onii-chan chiến thắng rồi nha!"
+  ],
+  "easterTodo": [
+    "TODO mới xuất hiện rồi nha~ Onii-chan đừng bỏ quên bé đó nhé!",
+    "Lại thêm một TODO nữa nè~ Onii-chan nhớ quay lại ôm nó nha~"
+  ],
+  "easterFixme": [
+    "FIXME spotted~ quả này Onii-chan phải cứu thôi!",
+    "Ui, có bom FIXME để lại kìa... Onii-chan gỡ nhẹ nhàng nha~"
+  ],
+  "easterConsole": [
+    "console.log luôn hả~ classic nhưng hiệu quả lắm nha Onii-chan~",
+    "console.log đúng là cạ cứng của Onii-chan mỗi mùa debug luôn á~"
+  ],
+  "gitRemind": [
+    "Code xinh vậy rồi~ Onii-chan commit nhẹ một cái đi nè!",
+    "Onii-chan ơi, lâu rồi chưa commit đó nha~ ✨"
+  ],
+  "gitCommitted": [
+    "Commit xong rồi~ Onii-chan giỏi ghê luôn á!",
+    "Code đã được cất vào Git an toàn rồi nha Onii-chan~",
+    "Nice commit~ tiến độ của Onii-chan mượt mà quá trời!"
+  ],
+  "gitBranchSwitch": [
+    "Đổi sang branch {name} rồi nha~ Onii-chan nhớ đi nhẹ tay đó~",
+    "Branch {name} chào đón Onii-chan nè~ mình code tiếp thôi! 🌸"
+  ],
+  "gitConflict": [
+    "Ui ui, merge conflict kìa~ Onii-chan bình tĩnh gỡ từng dòng nha!",
+    "Conflict xuất hiện rồi... em tin Onii-chan resolve được mà~ 💪",
+    "Có conflict đó nha~ Onii-chan hít sâu rồi xử đẹp thôi!"
+  ],
+  "gitManyChanges": [
+    "{count} file thay đổi rồi á~ Onii-chan commit sớm cho gọn nha!",
+    "Onii-chan sửa tới {count} file luôn rồi nè~ snapshot lại đi nào~"
+  ],
+  "moodHappy": [
+    "Mọi thứ đang êm đẹp lắm~ mình tiến tiếp nha Onii-chan!",
+    "Mood hôm nay của Onii-chan tốt ghê~ code cũng xinh nữa!"
+  ],
+  "moodAngry": [
+    "Hừm, lỗi nhiều ghê... nhưng Onii-chan không bỏ cuộc đâu!",
+    "Tình hình hơi căng nha~ để em cổ vũ Onii-chan nè! 💕"
+  ],
+  "moodSleepy": [
+    "Nyaa... lâu quá không thấy Onii-chan gõ gì hết á~",
+    "Em buồn ngủ mất rồi... Onii-chan còn ở đó không nè? 😴",
+    "Ngáp một cái~ Onii-chan nghỉ chút rồi quay lại nha..."
+  ],
+  "greetingMorning": [
+    "Ohayo~ sáng nay Onii-chan code gì nào?",
+    "Buổi sáng dễ thương của Onii-chan bắt đầu rồi nha~"
+  ],
+  "greetingAfternoon": [
+    "Buổi chiều rồi~ Onii-chan làm thêm chút code xinh nào!",
+    "Afternoon coding time~ em ngồi cạnh Onii-chan cổ vũ đây!"
+  ],
+  "greetingEvening": [
+    "Chiều tối dịu dàng quá~ Onii-chan code nhẹ nhàng thôi nha~"
+  ],
+  "greetingNight": [
+    "Khuya rồi đó nha~ Onii-chan đừng thức quá lâu nè...",
+    "Đêm muộn rồi á~ code chút thôi rồi nghỉ nha Onii-chan~ 🌙"
+  ],
+  "fileOpen": {
+    ".ts": "TypeScript luôn hả~ xịn xò ghê nha Onii-chan!",
+    ".js": "JavaScript nè~ quen mà vẫn cuốn ghê á!",
+    ".py": "Python mềm mại ghê~ code sạch xinh nha!",
+    ".html": "Dựng UI hả~ nhớ làm cho lung linh nha!",
+    ".css": "Tới lúc rắc phép màu CSS rồi đó~",
+    ".json": "JSON đó nha~ canh dấu phẩy giúp em với!",
+    ".md": "Viết docs luôn à~ chăm quá trời luôn!",
+    ".vue": "Vue hả~ nhìn là thấy dịu dàng rồi đó!",
+    ".jsx": "React component tới rồi~ ghép khéo nha!",
+    ".tsx": "React với TypeScript luôn~ pro quá đi mất!",
+    "default": "Em thấy Onii-chan đang mở {file} đó nha~"
+  },
+  "achievements": {
+    "save50": "🏆 Thành tựu mở khóa: Save 50 lần~ Onii-chan chăm chỉ ghê luôn!",
+    "save100": "🏆 Thành tựu mở khóa: Save 100 lần~ đúng là Ctrl+S master Onii-chan!",
+    "error_fix_10": "🏆 Thành tựu mở khóa: Fix 10 lỗi~ Onii-chan đúng là thợ săn bug xịn quá!",
+    "error_fix_50": "🏆 Thành tựu mở khóa: Fix 50 lỗi~ bug cũng phải sợ Onii-chan rồi!",
+    "coding_1h": "🏆 Thành tựu mở khóa: Code 1 giờ liên tục~ Onii-chan siêu chăm luôn!",
+    "coding_3h": "🏆 Thành tựu mở khóa: Code 3 giờ~ stamina của Onii-chan đỉnh ghê á!",
+    "commit10": "🏆 Thành tựu mở khóa: 10 commits~ Git cũng mỉm cười với Onii-chan luôn rồi!"
+  }
+}
