@@ -448,8 +448,8 @@ function setupModelPanel() {
   const panel = document.createElement('div');
   panel.className = 'companion-model-panel';
   // Source of truth is `window.__VISIBLE_MODELS__` injected by companion-view.ts.
-  // It already filters out experimental models when the setting is off, so the
-  // UI doesn't have to know about gating rules.
+  // The provider already merges built-in models with user-configured local
+  // models, so the UI only needs the final display list.
   const models = Array.isArray(window.__VISIBLE_MODELS__) && window.__VISIBLE_MODELS__.length > 0
     ? window.__VISIBLE_MODELS__
     : [{ id: 'hiyori', name: 'Hiyori', description: 'Live2D Sample' }];

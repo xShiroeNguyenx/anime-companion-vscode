@@ -181,37 +181,8 @@
         },
         "animeCompanion.model": {
           "type": "string",
-          "enum": [
-            "hiyori",
-            "haru",
-            "mao",
-            "miara",
-            "cheshire",
-            "icegirl",
-            "tsubaki",
-            "whiteangel",
-            "vivian",
-            "changli"
-          ],
-          "enumDescriptions": [
-            "Hiyori (Live2D Sample) — Cute schoolgirl",
-            "Haru (Live2D Sample) — Greeter girl",
-            "Mao (Live2D Sample) — Cat-eared shrine girl",
-            "Miara (Live2D Sample) — Magical girl",
-            "Cheshire (Azur Lane) — experimental, requires animeCompanion.experimentalModels",
-            "Ice Girl (TianYeLuLu) — experimental, requires animeCompanion.experimentalModels",
-            "Tsubaki (11月椿) — experimental, requires animeCompanion.experimentalModels",
-            "White Angel (白发天使) — experimental, requires animeCompanion.experimentalModels",
-            "Vivian (薇薇安) — experimental, requires animeCompanion.experimentalModels",
-            "Changli (长离) — experimental, requires animeCompanion.experimentalModels"
-          ],
           "default": "hiyori",
-          "description": "Choose the Live2D character model. Models marked 'experimental' are hidden from the inline picker unless `animeCompanion.experimentalModels` is enabled."
-        },
-        "animeCompanion.experimentalModels": {
-          "type": "boolean",
-          "default": false,
-          "description": "Show experimental Live2D models (Azur Lane, Wuthering Waves, fan-made) in the picker. These assets do not have explicit redistribution rights for the Marketplace — use only locally. See LICENSE-AUDIT.md."
+          "description": "Choose the current Live2D character model. Built-in ids: hiyori, haru, mao, miara. User-provided local model ids from `animeCompanion.customModels` also work here."
         },
         "animeCompanion.voiceLanguage": {
           "type": "string",
@@ -308,10 +279,23 @@
           "default": [],
           "description": "Extra phrases shown when new errors appear. Merged into the default error pool."
         },
+        "animeCompanion.customModels": {
+          "type": "object",
+          "default": {},
+          "description": "User-provided local Live2D models. Each property key becomes the model id. Example: { \"my-model\": { \"name\": \"My Model\", \"path\": \"D:/Live2D/MyModel\", \"modelFile\": \"MyModel.model3.json\", \"description\": \"Custom local model\" } }"
+        },
+        "animeCompanion.customModelRoots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Root folders to auto-scan for local Live2D models. Each direct child folder is treated as one model if it contains a `.model3.json` file. Example: [\"D:/model\"]"
+        },
         "animeCompanion.modelDownloadBaseUrl": {
           "type": "string",
           "default": "https://github.com/xShiroeNguyenx/anime-companion-vscode/releases/download/models-v1",
-          "description": "Base URL where lazy-loaded Live2D model zips are hosted. Each model is fetched as `{baseUrl}/{folder}.zip` (e.g. Vivian.zip). Override if you self-host."
+          "description": "Base URL where lazy-loaded built-in Live2D model zips are hosted. Each model is fetched as `{baseUrl}/{folder}.zip` (e.g. Haru.zip). Override if you self-host."
         },
         "animeCompanion.customKeywords": {
           "type": "object",

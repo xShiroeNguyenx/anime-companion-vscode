@@ -166,7 +166,11 @@ export async function activate(context: vscode.ExtensionContext) {
       if (event.affectsConfiguration('animeCompanion.model')) {
         statusBar.refresh();
       }
-      if (event.affectsConfiguration('animeCompanion.experimentalModels')) {
+      if (
+        event.affectsConfiguration('animeCompanion.customModels') ||
+        event.affectsConfiguration('animeCompanion.customModelRoots')
+      ) {
+        statusBar.refresh();
         provider.refreshView();
       }
     })

@@ -125,6 +125,7 @@ async function main() {
     const extension = require('../out/extension.js');
     const context = {
       extensionUri: { fsPath: path.resolve(__dirname, '..') },
+      globalStorageUri: { fsPath: path.resolve(__dirname, '..', '.tmp-test-storage') },
       extensionMode: mockVscode.ExtensionMode.Test,
       subscriptions: [],
       globalState: {

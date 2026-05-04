@@ -37,6 +37,10 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   // falls back to the bundled Hiyori so the view always renders something.
   private async _resolveModel(): Promise<ModelInfo> {
     const requested = getSelectedModel();
+    if (requested.customRoot) {
+      this._server.addRoot(requested.customRoot);
+      return requested;
+    }
     if (requested.bundled || this._downloader.isModelCached(requested.folder, requested.file)) {
       if (!requested.bundled) {
         this._server.addRoot(this._downloader.cacheRoot);
@@ -467,4 +471,3 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
 </html>`;
   }
 }
-

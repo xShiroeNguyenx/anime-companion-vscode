@@ -18,8 +18,35 @@ import {
 } from './ui.js';
 import { setupModel } from './interaction.js';
 
+function disposeCurrentModel() {
+  state.isLive2DReady = false;
+
+  if (state.model) {
+    try {
+      if (typeof state.model.destroy === 'function') {
+        state.model.destroy();
+      }
+    } catch (err) {
+      debugLog('Model destroy failed: ' + (err && err.message ? err.message : String(err)));
+    }
+    state.model = null;
+  }
+
+  if (state.app) {
+    try {
+      if (typeof state.app.destroy === 'function') {
+        state.app.destroy(true, { children: true, texture: false, baseTexture: false });
+      }
+    } catch (err) {
+      debugLog('PIXI app destroy failed: ' + (err && err.message ? err.message : String(err)));
+    }
+    state.app = null;
+  }
+}
+
 async function initLive2D() {
   try {
+    disposeCurrentModel();
     showLoading('Loading Live2D...');
     debugLog('Starting Live2D initialization...');
 

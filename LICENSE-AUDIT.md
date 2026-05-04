@@ -20,14 +20,14 @@
 
 ## Effective bundle for Marketplace v1
 
-Only **Hiyori** ships in the `.vsix`. The other 6 model folders that previously fetched lazily from the GitHub Release **must also be removed from the public Release tag `models-v1`** before Marketplace publish — Marketplace ToS attaches to bundle-and-fetch flows when they are presented as part of the extension experience.
+Only safe sample models should ship as part of the default extension experience. The other 6 model folders that previously fetched lazily from the GitHub Release **must also be removed from the public Release tag `models-v1`** before Marketplace publish — Marketplace ToS attaches to bundle-and-fetch flows when they are presented as part of the extension experience.
 
 Until creators / IP holders give explicit redistribution rights, the lazy-load feature ships disabled (no model in the picker beyond Hiyori), or the picker only offers Hiyori. The `ModelDownloader` code stays in place so it can be re-enabled per-model when a license is secured.
 
 ## Required actions before publish
 
 - [ ] Remove all non-Hiyori model folders from local `media/live2d/` working tree (or keep but excluded via `.vscodeignore` — already done).
-- [ ] Trim `MODEL_MAP` in [src/models.ts](src/models.ts) so the picker only offers Hiyori. Other entries stay in code, gated behind a setting `animeCompanion.experimentalModels: false` (default), so future re-enable is a one-line flip when licenses arrive.
+- [x] Remove risky non-sample entries from [src/models.ts](src/models.ts) and replace the old experimental toggle with user-supplied local model configuration via `animeCompanion.customModels`.
 - [ ] Delete the GitHub Release tag `models-v1` (or replace with a Hiyori-only / empty release) — the public assets there are now dead links.
 - [ ] Update default `animeCompanion.modelDownloadBaseUrl` to point to a placeholder, or remove the setting entirely if no model uses it for v1.
 - [ ] Add `VOICEVOX:四国めたん` credit to README and the extension's Output channel banner.
