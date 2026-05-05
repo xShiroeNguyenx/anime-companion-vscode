@@ -4,7 +4,7 @@
 
 > ⚠️ **Experimental — v0.1.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.1.26
+**Phiên bản hiện tại:** v0.1.27
 
 ## 📦 Cài đặt
 
@@ -181,7 +181,7 @@ Nếu muốn chỉnh riêng tên hiển thị, mô tả, hoặc chỉ định fi
 
 ### Từ file `.vsix` (hiện tại)
 ```bash
-code --install-extension anime-companion-vscode-0.1.26.vsix
+code --install-extension anime-companion-vscode-0.1.27.vsix
 ```
 
 ### Từ source

@@ -3,6 +3,16 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.27] - 2026-05-05
+
+### Added
+- Ambient background audio ngay trong companion với 3 preset built-in: `lofi`, `rain`, `cafe`, có thể bật/tắt nhanh từ menu chuột phải.
+- Hỗ trợ `animeCompanion.ambientVolume` để chỉnh âm lượng ambient riêng với phần voice/reaction audio.
+- Hỗ trợ `animeCompanion.customAmbientTracks` để user thêm track local của riêng mình vào Ambient panel.
+
+### Changed
+- README được cập nhật để phản ánh flow sử dụng ambient/background music và các setting liên quan.
+
 ## [0.1.26] - 2026-05-04
 
 ### Added
