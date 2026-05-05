@@ -1,122 +1,146 @@
-# 📅 Roadmap Phát Triển — Anime Companion
+# 📋 Roadmap Phát Triển — Anime Companion
 
-**Phiên bản hiện tại:** v0.1.20
-**Cập nhật:** 2026-04-29
+**Phiên bản hiện tại:** v0.1.27  
+**Cập nhật:** 2026-05-05
 
-Tài liệu này theo dõi định hướng phát triển của extension. Các tính năng đã ship được liệt kê trong [FEATURES.md](./FEATURES.md), tiến độ chi tiết ở [CHECKLIST.md](./CHECKLIST.md).
+Tài liệu này theo dõi định hướng phát triển của extension. Các tính năng đã ship được liệt kê chi tiết trong [FEATURES.md](./FEATURES.md), tiến độ task ở [CHECKLIST.md](./CHECKLIST.md), và lịch sử release ở [CHANGELOG.md](./CHANGELOG.md).
 
 ---
 
-## 1. 📍 Tình trạng hiện tại (v0.1.20)
+## 1. 📍 Tình trạng hiện tại (v0.1.27)
 
-**Đã ship và hoạt động ổn định:**
-- 🎭 Live2D renderer với 7 model (Hiyori, Cheshire, Ice Girl, Tsubaki, White Angel, Vivian, Changli) qua local HTTP server bypass CSP.
+**Đã ship và đang hoạt động ổn định:**
+- 🎭 Live2D renderer qua local HTTP server bypass CSP.
+- 🌸 4 model Live2D sample an toàn để ship: **Hiyori**, **Haru**, **Mao**, **Miara**.
+  - Hiyori bundled trong `.vsix`.
+  - Haru / Mao / Miara lazy download khi user chọn lần đầu.
 - 💫 Hệ thống tương tác: single click, multi-click, long-press headpat, spam click; expression blending mượt qua PIXI ticker.
-- 🔊 Hệ thống audio đa ngôn ngữ (`ja` / `vi` / `en`) + lipsync qua `model.speak()` + fallback HTML5 Audio. Legacy `ja-vi` đã được migrate runtime → `en` trong [extension.ts:108-112](src/extension.ts#L108-L112).
-- 🍅 Pomodoro Manager (work/break cycles, customizable interval) — countdown hiển thị trên status bar khi chạy.
-- 🤖 Reactive engine: phản ứng theo diagnostics (errors/warnings), save spam, typing speed, build success/fail, debug session, git branch switch / commit / merge conflict / many uncommitted changes; mood system 4 trạng thái (idle/happy/angry/sleepy); time-based greetings; Easter eggs cho `TODO`/`FIXME`/`console.log`.
-- 🎚️ Reactive toggles per-channel: `reactive.diagnostics` / `reactive.save` / `reactive.typing` / `reactive.git` + `quietHours` (mute message theo khung giờ) ở [package.json:186-214](package.json#L186-L214).
-- 🏆 Achievements primitive: `save50`, `save100`, `error_fix_10/50`, `coding_1h/3h`, `commit10`.
-- 🖱️ Custom right-click context menu (10 mục): **Run** (debug.restart), **Commit** / **Pull** / **Push**, **Model** (mở inline picker panel trên character), **Voice** (inline picker `ja`/`vi`/`en`), **Mute** (toggle ngay, label đổi theo state), **Poke**, **Pomodoro**, **Settings** (mở Settings UI đã filter). Bubble + audio "help" khi mở menu. Logic ở [media/webview/interaction.js:151-267](media/webview/interaction.js#L151-L267).
-- 📍 Status bar: hiển thị tên model + click toggle panel; tự đổi sang `🍅 MM:SS` / `☕ MM:SS` khi Pomodoro chạy ([extension.ts:43-95](src/extension.ts#L43-L95)).
-- 🆕 Version-change toast: khi user upgrade/lần đầu chạy, extension tự bắn info message để xác nhận build mới đã active mà không cần reload thủ công ([extension.ts:121-128](src/extension.ts#L121-L128)).
-- 🛠️ Build pipeline: `build-install.sh` bump version + package + auto install.
-- 📊 Output channel "Anime Companion" cho diagnostics.
+- 🔊 Audio đa ngôn ngữ (`ja` / `vi` / `en`) + lipsync qua `model.speak()` + fallback HTML5 Audio.
+- 💬 Bubble text i18n độc lập với voice qua `messageLanguage` (`vi` / `en` / `ja`).
+- 🪄 `customPhrases.idle/save/error` và `customKeywords` cho phép user mở rộng message/reactive text theo phong cách riêng.
+- 🤖 Reactive engine: phản ứng theo diagnostics, save spam, typing speed, build success/fail, debug session, git branch switch / commit / merge conflict / many uncommitted changes; mood system 4 trạng thái (idle/happy/angry/sleepy); time-based greetings; Easter eggs cho `TODO` / `FIXME` / `console.log`.
+- 🎚️ Reactive toggles per-channel: `reactive.diagnostics`, `reactive.save`, `reactive.typing`, `reactive.git` + `quietHours`.
+- 🏆 Achievements panel và stats dashboard đã có command/UI riêng trong VS Code.
+- 📊 Persistent stats store theo dõi saves, commits, errors fixed, coding time today / all-time.
+- 🗂️ Per-workspace model preference: model đang chọn được lưu theo workspace, có command reset về global setting.
+- 🎬 Motion picker: user có thể trigger nhanh `TapBody`, `TapHead`, `Idle` từ menu/context command.
+- 🍅 Pomodoro Manager với work/break cycles, custom interval, status bar countdown và visual ring overlay trên character.
+- 🎧 Ambient/background audio đã có:
+  - preset built-in `off`, `lofi`, `rain`, `cafe`
+  - setting `animeCompanion.ambientVolume`
+  - setting `animeCompanion.customAmbientTracks` cho track local
+- 🖱️ Custom right-click menu đã mở rộng, gồm các nhóm thao tác chính:
+  - debug / git (`Run`, `Commit`, `Pull`, `Push`)
+  - personalization (`Model`, `Voice`, `Messages`, `Ambient`)
+  - interaction (`Poke`, `Motion`)
+  - productivity (`Pomodoro`, `Achievements`, `Stats`, `Settings`)
+- 📍 Status bar hiển thị model hiện tại, countdown Pomodoro và toggle nhanh companion panel.
+- 🆕 Version-change toast khi user upgrade hoặc chạy lần đầu sau update.
+- 🛠️ Build/package flow local đã có `package`, `package:install`, cleanup `.vsix`, smoke test script và output channel `Anime Companion`.
 
-**Codebase đã được tách module:**
-- [src/extension.ts](src/extension.ts) còn ~280 dòng (xuống từ ~650). `AnimeCompanionViewProvider` đã ra [src/companion-view.ts](src/companion-view.ts).
-- `media/webview.js` mono-file đã được tách thành: [core.js](media/webview/core.js) · [interaction.js](media/webview/interaction.js) · [audio.js](media/webview/audio.js) · [expression.js](media/webview/expression.js) · [ui.js](media/webview/ui.js) · [main.js](media/webview/main.js).
+**CI/CD và publish hiện tại:**
+- ✅ GitHub Actions CI đã có trong [`.github/workflows/ci.yml`](./.github/workflows/ci.yml):
+  - chạy trên `pull_request` vào `main`
+  - chạy trên `push` lên `main`
+  - gồm `npm ci`, `npm run lint`, `npm run compile`, `npm test`, `vsce package`
+- ✅ Release workflow đã có trong [`.github/workflows/release.yml`](./.github/workflows/release.yml):
+  - trigger khi push tag dạng `vX.Y.Z`
+  - verify tag khớp `package.json.version`
+  - package `.vsix`
+  - auto-publish lên VS Code Marketplace qua `VSCE_PAT`
+  - auto-publish lên Open VSX qua `OVSX_PAT`
+  - tự tạo GitHub Release
+- ✅ Bản `v0.1.27` đã publish thành công theo flow tag release.
+
+**Codebase hiện tại đã được tách module ở mức ổn:**
+- [`src/extension.ts`](./src/extension.ts) giữ vai trò activate + orchestration chính.
+- [`src/companion-view.ts`](./src/companion-view.ts) xử lý webview view, panel state, ambient/model UI bridge.
+- Webview runtime đã tách module trong [`media/webview/`](./media/webview/): `main.js`, `core.js`, `interaction.js`, `audio.js`, `expression.js`, `ui.js`.
 - `tsconfig.json` đã bật `"strict": true`.
 
 ---
 
 ## 2. 🚧 Sprint hiện tại (1 tuần)
 
-Mục tiêu: hoàn tất các polish nhỏ còn nợ và mở đường cho marketplace prep.
+Mục tiêu: dọn debt còn lại sau mốc publish và làm cứng chất lượng cho các bản release tiếp theo.
 
 ### 2.1 Polish & cleanup còn nợ
-- [ ] Verify autoplay activation cho right-click → audio đôi khi không phát ở interaction đầu tiên (Chromium policy). Cân nhắc preload Audio và `play()` ngay trong `mousedown` thay vì `contextmenu`.
-- [ ] Dọn legacy folder [media/audio/ja-vi/](media/audio/ja-vi/) khỏi disk (runtime đã migrate, nhưng asset vẫn còn ship — phình bundle vô ích).
-- [ ] Sửa comment Vietnamese garbled còn sót (vd `KhÃ´ng cháº¡y...`) trong codebase.
-- [ ] Bổ sung MIME `audio/mpeg` trong `MIME_TYPES` map của `ModelFileServer` cho `media/audio/*.mp3`.
-- [ ] Verify/xoá launch config "📦 Đóng gói Extension (.vsix)" và "🚀 Antigravity" trong `.vscode/launch.json` nếu không còn dùng.
+- [ ] Verify autoplay activation cho right-click audio ở interaction đầu tiên (Chromium policy), tránh case click mở menu mà audio chưa unlock đúng lúc.
+- [ ] Dọn comment/text tiếng Việt bị lỗi encoding còn sót trong codebase và tài liệu cũ.
+- [ ] Bổ sung/verify MIME `audio/mpeg` trong `ModelFileServer` cho `media/audio/*.mp3` nếu vẫn còn chỗ thiếu.
+- [ ] Verify/xóa launch config cũ trong `.vscode/launch.json` nếu không còn dùng.
+- [ ] Rà lại ambient UX: fallback khi track local lỗi, messaging khi URL/file không phát được, và hành vi khi user đang mute.
 
-### 2.2 Smoke test & lint
-- [ ] Smoke test activation + command registration (chạy được bằng `vscode-test` headless). Hiện tại extension chưa có test nào.
-- [ ] `eslint` config thực tế + bật `npm run lint` hoạt động đầy đủ. Hiện script có nhưng không enforce gì.
+### 2.2 CI / test hardening
+- [ ] Siết `npm run lint` để không còn `continue-on-error` trong CI khi rule set đã đủ sạch.
+- [ ] Mở rộng smoke test activation + command registration để cover thêm các command mới như stats / achievements / motion / ambient.
+- [ ] Cập nhật GitHub Actions đang chạy Node.js 20 sang version/action phù hợp hơn trước mốc deprecation trên GitHub-hosted runners.
 
 ---
 
-## 3. 📅 Roadmap ngắn (2–4 tuần)
+## 3. 📝 Roadmap ngắn (2–4 tuần)
 
-Tính năng mở rộng dựa trên hệ thống đã có, không cần infrastructure mới.
+Các hướng mở rộng tiếp theo nên tận dụng nền hiện có, ưu tiên nâng giá trị sử dụng thay vì mở thêm infrastructure lớn.
 
-### 3.1 UX customization
-- **Custom user phrases**: `animeCompanion.customPhrases.idle/save/error` cho user thêm câu của riêng mình (merge vào pool default).
-- **Per-language reactive messages**: hiện toàn bộ message trong [reactive.ts](src/reactive.ts) là tiếng Việt. Tách ra `media/messages/{lang}.json` cho `ja` / `en` / `vi` và load theo `voiceLanguage`.
-- **Custom keyword reactions**: setting cho user định nghĩa `keyword → message` riêng (mở rộng từ Easter egg `TODO`/`FIXME`/`console.log`).
+### 3.1 UX customization tiếp theo
+- **Custom reactive presets import/export**: cho user chia sẻ bộ phrase/keyword config của riêng mình.
+- **Per-workspace message personality**: cho mỗi project có thể dùng style câu thoại khác nhau, không chỉ model khác nhau.
+- **Better onboarding cho custom local models / custom ambient tracks**: thêm helper UI hoặc command để validate path và preview metadata trước khi dùng.
 
-### 3.2 Reveal hidden value
-- **Achievements panel**: webview view nhỏ (sibling với main companion) hiển thị danh sách achievement đã/chưa unlock kèm tiến độ. Logic core đã wire ở [reactive.ts:117-123 & 502-520](src/reactive.ts#L117).
-- **Coding stats dashboard**: command palette `Anime Companion: Show Stats` mở quick pick hoặc panel hiển thị: tổng saves, commits, hours coded today/week, errors fixed.
-- **Per-workspace model preference**: lưu `selectedModel` ở `workspaceState` thay vì global → mỗi project có thể chọn waifu khác. Thêm fallback về global setting nếu workspace chưa chọn.
-- **Live2D motion picker**: thêm submenu "Play Motion" trong right-click menu để user tự trigger motion (TapBody, TapHead, Idle…).
+### 3.2 Reveal more value
+- **Achievements/stats UX polish**: làm UI dễ đọc hơn, có grouping theo milestone / coding habits.
+- **Stats breakdown theo ngày/tuần**: ngoài all-time, cho xem xu hướng gần đây.
+- **Contextual recommendations**: companion gợi ý hành động phù hợp hơn dựa trên trạng thái hiện tại, ví dụ nhiều lỗi liên tục, Pomodoro break đến hạn, hoặc repo bẩn quá lâu.
 
-### 3.3 Pomodoro nâng cao
-- Visual ring/countdown overlay trên character (ngoài status bar đã có).
-- Custom interval per workspace.
-- Sound cue khác nhau cho start work / start break.
+### 3.3 Ambient follow-up
+- **Richer ambient library**: thêm nhiều preset/playlist hơn ngoài `lofi`, `rain`, `cafe`.
+- **Background/theme sync theo ambient preset**: đổi background hoặc visual treatment của companion theo track đang phát.
+- **Pomodoro-aware ambient behavior**: auto-pause / ducking / switch preset giữa work và break nếu UX hợp lý.
 
 ---
 
 ## 4. 🎯 Roadmap trung hạn (1–3 tháng)
 
-### 4.1 Chuẩn bị publish Marketplace
+### 4.1 Publish & release maturity
 
-Đây là khối công việc lớn nhất, ưu tiên cao vì sẽ publish (sau này). Bundle hiện tại vẫn ~130 MB → block publish.
+Marketplace publish đã hoạt động, nên trọng tâm không còn là “có publish được hay không” mà là “publish ổn định và dễ bảo trì”.
 
-- [ ] **Shrink bundle size** (hiện ~130 MB):
-  - Lazy-load Live2D model: chỉ ship model mặc định (Hiyori), các model khác download khi user chọn (qua HTTP từ release asset hoặc CDN).
-  - Hoặc: tách thành **extension pack** — `anime-companion-core` + `anime-companion-models-azurlane` + …
-  - Downscale textures: Ice Girl 8192px → 4096px.
-  - Loại trừ asset không dùng (vd `media/audio/ja-vi/` legacy) khỏi `.vscodeignore`.
-- [ ] **License audit cho assets**:
-  - Cubism Core SDK: kiểm tra license redistribution.
-  - Mỗi Live2D model: trace nguồn, license, attribution required.
-  - Audio files VoiceVox: kiểm tra điều khoản phát hành lại.
-- [ ] **Marketplace polish**:
-  - README dạng marketplace: hero image, animated GIF demo, feature list with screenshots.
-  - Icon 128×128 chuẩn marketplace.
-  - Banner color + gallery banner.
-  - `categories`, `keywords` tối ưu SEO (hiện chỉ có `Other`).
-  - Changelog rõ ràng (CHANGELOG.md) — chưa có.
-- [ ] **CI/CD**:
-  - GitHub Actions: lint + typecheck + `vsce package` mỗi PR.
-  - Auto-publish khi tag `vX.Y.Z`.
-- [ ] **Build optimization**: chuyển từ `tsc` sang `esbuild` để bundle nhanh và nhỏ hơn.
+- [ ] **CI/CD hardening**
+  - bỏ `continue-on-error` cho lint khi repo đã sạch
+  - thêm artifact/step summary rõ hơn cho package size và publish outputs
+  - cập nhật action/runtime để tránh warning Node.js 20 deprecation
+- [ ] **Marketplace polish tiếp**
+  - README dạng marketplace: hero image, GIF demo, screenshots tốt hơn
+  - icon / banner / gallery visuals chỉn chu hơn
+  - tối ưu `categories`, `keywords`, copywriting để dễ discover hơn
+- [ ] **Release process hygiene**
+  - checklist rõ ràng cho bump version → changelog → tag → verify publish
+  - cân nhắc release notes template ngắn gọn, nhất quán hơn
+- [ ] **Build optimization**
+  - cân nhắc chuyển từ `tsc` sang `esbuild` nếu giúp bundle nhanh hơn / nhỏ hơn mà không tăng complexity quá mức
 
 ### 4.2 Real-time TTS (chỉ làm nếu khả thi)
 
-Mục cũ "VoiceVox runtime" giờ feasible hơn vì:
-- Có thể auto-detect VoiceVox local (probe `localhost:50021/version` lúc activate).
-- Fallback proxy `api.tts.quest` nếu user không cài local (đã verify hoạt động ở v0.1.6).
-- Bundled MP3 vẫn là last resort.
+Voice hiện tại đã usable, nhưng vẫn có dư địa để tiến tới câu thoại động hơn.
 
-Phrase template system: `{filename}`, `{branch}`, `{error_count}` — sinh audio runtime cho câu nói động kiểu "đã save xong file `extension.ts`!".
+- Auto-detect VoiceVox local lúc activate.
+- Có fallback service khi user không cài local runtime.
+- Phrase template system kiểu `{filename}`, `{branch}`, `{error_count}` để sinh audio runtime cho message động.
+- Giữ bundled MP3 như fallback cuối cùng để extension vẫn hoạt động offline/cơ bản.
 
-### 4.3 Lofi Music Player + ambient
-- Webview audio player với playlist lofi/rain/cafe.
-- Background của character thay đổi theo nhạc đang phát.
-- Volume control + auto-pause khi pomodoro break.
+### 4.3 Custom content ecosystem nhẹ
+- Trải nghiệm thêm model local và ambient local cần mượt hơn, ít cấu hình tay hơn.
+- Cân nhắc command scan/rescan assets hoặc diagnostics panel mini cho custom content.
+- Nếu sau này có catalog mở rộng, ưu tiên metadata đơn giản và local-first, tránh backend nặng sớm.
 
 ---
 
 ## 5. 🌌 Vision dài hạn (chưa cam kết)
 
-Các mục này có giá trị cao nhưng scope lớn / risk cao. Không đưa vào sprint, đánh dấu rõ là **tham vọng**.
+Các mục này có giá trị cao nhưng scope lớn hoặc risk cao. Không đưa vào sprint gần.
 
-- **Floating Desktop Pet**: companion chạy ngoài VS Code, dạng Tauri sidecar + IPC bridge với extension. Vision dài hạn, không POC sớm.
-- **AI/LLM chat (BYOK)**: tích hợp Anthropic/OpenAI/Gemini, user dán API key, companion thành chat assistant. Tạm gác — giữ ở đây để không quên.
+- **Floating Desktop Pet**: companion chạy ngoài VS Code, dạng Tauri sidecar + IPC bridge với extension.
+- **AI/LLM chat (BYOK)**: tích hợp Anthropic/OpenAI/Gemini, user dán API key, companion thành chat assistant.
 - **Multi-character interaction**: 2 model trên cùng panel tương tác lẫn nhau.
 - **Live2D motion editor**: UI cho user tự gán motion vào event.
 
@@ -124,37 +148,36 @@ Các mục này có giá trị cao nhưng scope lớn / risk cao. Không đưa v
 
 ## 6. ❌ Đã loại / Re-scope
 
-Để tài liệu này không phình ra, các mục dưới đây đã được loại khỏi roadmap kèm lý do.
+Để tài liệu không phình ra, các mục dưới đây đã được loại khỏi roadmap hoặc scope-down rõ ràng.
 
-- **Leaderboard so sánh giờ code giữa user**: cần backend public, vướng GDPR / privacy / spam. ROI thấp cho extension cá nhân hoá.
-- **Asset Store mua skin bằng EXP**: cần backend, content moderation, payment. Quá nặng.
-- **Hệ thống cấp độ RPG full**: scope-down → giữ achievements primitive đã có, không build XP/level mechanics.
-- **Legacy voice option `ja-vi`**: đã migrate runtime sang `en` ở activate. Còn lại: gỡ folder asset `media/audio/ja-vi/` (xem §2.1) là xong.
+- **Leaderboard so sánh giờ code giữa user**: cần backend public, vướng privacy/GDPR, ROI thấp.
+- **Asset Store mua skin bằng EXP**: cần backend, moderation, payment; quá nặng so với scope hiện tại.
+- **Hệ thống cấp độ RPG full**: scope-down, giữ achievements primitive + stats là đủ ở giai đoạn này.
+- **Legacy voice option `ja-vi`**: đã migrate runtime sang `en`; không định revive lại flow cũ.
 
 ---
 
 ## 7. 🧹 Technical debt
 
-Trạng thái cập nhật theo thực tế codebase v0.1.20.
+Trạng thái cập nhật theo codebase và workflow hiện tại của v0.1.27.
 
 | Khoản nợ | Mức độ | Ghi chú |
 |---|---|---|
-| Bundle size ~130 MB | 🔴 Cao | Block marketplace publish. Xem §4.1. |
-| Không có unit/integration test | 🟡 Trung | Cần ít nhất smoke test cho activation + command registration. Xem §2.2. |
-| `eslint` config trống / không enforce | 🟡 Trung | `npm run lint` chưa hoạt động đầy đủ. Xem §2.2. |
-| `reactive.ts` 522 dòng | 🟡 Trung | Đã chứa quá nhiều concern (diagnostics, save, typing, build, debug, git, achievements, mood, greetings, Easter eggs). Cân nhắc tách theo nhóm khi mở `customPhrases` / `messages/{lang}.json`. |
-| `companion-view.ts` 447 dòng | 🟢 Thấp | OK ở mức hiện tại nhưng cần để mắt khi thêm motion picker / language submenu. |
-| Legacy `media/audio/ja-vi/` còn trên disk | 🟢 Thấp | Runtime đã migrate, asset vẫn ship. Xem §2.1. |
-| Comment Vietnamese garbled (`KhÃ´ng cháº¡y...`) | 🟢 Thấp | Encoding bug — dọn khi đụng tới file. |
-| Audio MIME types thiếu | 🟢 Thấp | `media/audio/*.mp3` cần `audio/mpeg` trong `MIME_TYPES` map của `ModelFileServer`. |
-| Dead launch config "📦 Đóng gói Extension (.vsix)" / "🚀 Antigravity" | 🟢 Thấp | Verify xem còn dùng không, xoá nếu không. |
+| `eslint` chưa enforce chặt trong CI | 🟡 Trung | `npm run lint` vẫn đang `continue-on-error` trong workflow CI. |
+| Smoke test coverage còn mỏng | 🟡 Trung | Đã có `npm test`, nhưng coverage cho command/UI mới vẫn còn hạn chế. |
+| Warning Node.js 20 trong GitHub Actions | 🟡 Trung | Release vừa chạy OK, nhưng action/runtime hiện tại đã có warning deprecation từ GitHub. |
+| `reactive.ts` còn ôm nhiều concern | 🟡 Trung | Diagnostics, save, typing, build, debug, git, achievements, mood, greetings, Easter eggs vẫn nằm khá dày trong một module. |
+| `companion-view.ts` tiếp tục phình | 🟡 Trung | Đã gánh thêm ambient/model/menu bridge; nên để mắt nếu tiếp tục thêm UI panel logic. |
+| Comment/text tiếng Việt bị lỗi encoding còn sót | 🟢 Thấp | Dọn dần khi chạm vào các file liên quan. |
+| Audio MIME / local file edge cases cần verify kỹ hơn | 🟢 Thấp | Nhất là với ambient/custom local tracks và fallback playback path. |
+| Launch config cũ có thể đã lỗi thời | 🟢 Thấp | Cần xác minh rồi xóa nếu không còn giá trị. |
 
-**Đã trả nợ kể từ v0.1.7:**
-- ~~`media/webview.js` mono-file 700+ dòng~~ → đã tách thành 6 module trong [media/webview/](media/webview/).
-- ~~`extension.ts` ~650 dòng~~ → còn ~280 dòng, `AnimeCompanionViewProvider` đã ra [src/companion-view.ts](src/companion-view.ts).
-- ~~`tsconfig.json` strict mode?~~ → đã bật `"strict": true`.
-- ~~Reload-after-install friction~~ → có version-change toast ở activate.
+**Đã trả nợ đáng kể từ các mốc trước:**
+- ~~Bundle size ~130 MB block marketplace publish~~ → đã chuyển sang flow 4 model sample an toàn để ship + lazy download; bản `0.1.27` đóng gói thực tế nhỏ hơn nhiều.
+- ~~Chưa có CI/CD~~ → đã có `ci.yml` và `release.yml`.
+- ~~Chưa có publish theo tag~~ → đã auto-publish thành công với `v0.1.27`.
+- ~~Roadmap ambient còn ở mức ý tưởng~~ → ambient/background audio đã ship bản đầu, còn lại là polish và follow-up.
 
 ---
 
-*Quy ước: ✅ done · 🚧 đang làm · 📅 lên lịch · 🌌 vision · ❌ đã loại*
+*Quy ước: ✅ done · 🚧 đang làm · 📝 lên lịch · 🌌 vision · ❌ đã loại*
