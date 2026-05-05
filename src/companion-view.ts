@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import * as path from 'path';
 import { ReactiveManager } from './reactive';
 import { log } from './log';
@@ -6,9 +7,10 @@ import { getSelectedModel, setWorkspaceModel, HIYORI, ModelInfo, listVisibleMode
 import { ModelFileServer } from './model-server';
 import { ModelDownloader } from './model-downloader';
 import { pullWithFeedback, pushWithFeedback, commitWithFeedback } from './git-ops';
-import { getMessageBank, MessageKey } from './messages';
+import { getMessageBank, MessageKey, ResolvedPhrase } from './messages';
 import { StatsStore } from './stats';
 import { PomodoroState } from './pomodoro';
+import { AmbientPreset, getAmbientPreset, listAmbientPresets, resolveCustomAmbientTracks } from './ambient-presets';
 
 export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'animeCompanion.live2dView';
@@ -87,6 +89,11 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   // never serves a 404 to PIXI's loader.
   private async _renderWith(webviewView: vscode.WebviewView) {
     this._resolvedModel = await this._resolveModel();
+    const customAmbientTracks = this._getCustomAmbientTracks();
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: this._getWebviewResourceRoots(customAmbientTracks),
+    };
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
     setTimeout(() => {
       this._sendMessage(this._pickMessage('greeting'));
@@ -102,19 +109,14 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     void token;
     this._view = webviewView;
 
-    webviewView.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'media')],
-    };
-
     void this._renderWith(webviewView);
 
     this._startMessageTimer();
 
     this._reactive?.dispose();
     this._reactive = new ReactiveManager(
-      (text, motion) => {
-        this._sendMessage(text);
+      (phrase, motion) => {
+        this._sendResolvedPhrase(phrase);
         if (motion && this._view) {
           this._view.webview.postMessage({ command: 'playMotion', group: motion });
         }
@@ -130,7 +132,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.onDidReceiveMessage((message) => {
       // Pause idle timer when the user interacts
-      if (['poke', 'headpat', 'spamClick', 'multiClick', 'runCommand', 'setVoiceLanguage', 'setMessageLanguage', 'setModel', 'setMuted', 'confirmDialogResult', 'inputDialogResult'].includes(message.command)) {
+      if (['poke', 'headpat', 'spamClick', 'multiClick', 'runCommand', 'setVoiceLanguage', 'setMessageLanguage', 'setModel', 'setMuted', 'setAmbientPreset', 'confirmDialogResult', 'inputDialogResult'].includes(message.command)) {
         this._startMessageTimer(10000);
       }
 
@@ -235,8 +237,23 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
             vscode.workspace.getConfiguration('animeCompanion')
               .update('muted', message.muted, vscode.ConfigurationTarget.Global)
               .then(() => {
-                this.refreshView();
+                this.postMessage({ command: 'setMutedState', muted: message.muted });
                 this._sendMessage(message.muted ? 'Em sẽ ngoan ngoãn im lặng một chút nha~' : 'Yay~ em có thể ríu rít với Onii-chan lại rồi nè!');
+              });
+          }
+          break;
+        case 'setAmbientPreset':
+          if (typeof message.preset === 'string') {
+            const preset = getAmbientPreset(message.preset, this._getCustomAmbientTracks());
+            vscode.workspace.getConfiguration('animeCompanion')
+              .update('ambientPreset', preset.id, vscode.ConfigurationTarget.Global)
+              .then(() => {
+                this.postMessage({ command: 'setAmbientPreset', preset: preset.id });
+                this._sendMessage(
+                  preset.id === 'off'
+                    ? 'Em tắt ambient rồi nha~ mình nghe yên tĩnh một chút nè.'
+                    : `Em bật ${preset.label} cho Onii-chan rồi nha~`
+                );
               });
           }
           break;
@@ -282,7 +299,9 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       if (editor && this._view?.visible && Math.random() < 0.15) {
         const fileName = path.basename(editor.document.fileName);
         const ext = path.extname(fileName);
-        this._sendMessage(getMessageBank().pickFileMessage(ext, fileName));
+        this._sendMessage(getMessageBank().pickFileMessage(ext, fileName), {
+          speak: true,
+        });
       }
     });
   }
@@ -318,10 +337,34 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private _sendMessage(text: string) {
+  private _sendMessage(text: string, options?: { speak?: boolean }) {
     if (this._view) {
-      this._view.webview.postMessage({ command: 'showMessage', text });
+      this._view.webview.postMessage({
+        command: 'showMessage',
+        text,
+        speakText: options?.speak ? text : undefined,
+      });
     }
+  }
+
+  private _sendResolvedPhrase(phrase: ResolvedPhrase) {
+    if (!this._view || !phrase.text) {
+      return;
+    }
+
+    const shouldSpeak =
+      phrase.fromCustom ||
+      phrase.hasPlaceholders ||
+      Object.keys(phrase.vars ?? {}).length > 0;
+
+    this._view.webview.postMessage({
+      command: 'showMessage',
+      text: phrase.text,
+      speakText: shouldSpeak ? phrase.text : undefined,
+      phraseKey: phrase.key,
+      phraseTemplate: phrase.template,
+      phraseVars: phrase.vars,
+    });
   }
 
   private _requestProtectedBranchConfirm(branch: string): Promise<boolean> {
@@ -378,6 +421,54 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     return getMessageBank().pick(key);
   }
 
+  private _getCustomAmbientTracks(): AmbientPreset[] {
+    const rawTracks = vscode.workspace.getConfiguration('animeCompanion').get<unknown>('customAmbientTracks', []);
+    return resolveCustomAmbientTracks(rawTracks).filter((track) => {
+      if (!track.localPath) {
+        return false;
+      }
+
+      try {
+        return fs.existsSync(track.localPath) && fs.statSync(track.localPath).isFile();
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  private _getWebviewResourceRoots(customAmbientTracks: AmbientPreset[]): vscode.Uri[] {
+    const roots = [vscode.Uri.joinPath(this._extensionUri, 'media')];
+    const seen = new Set(roots.map((root) => root.fsPath.toLowerCase()));
+
+    for (const track of customAmbientTracks) {
+      if (!track.localPath) continue;
+      const dir = path.dirname(track.localPath);
+      if (!dir) continue;
+      const key = dir.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      roots.push(vscode.Uri.file(dir));
+    }
+
+    return roots;
+  }
+
+  private _ambientTrackUrl(webview: vscode.Webview, preset: AmbientPreset): string | undefined {
+    if (preset.remoteUrl) {
+      return preset.remoteUrl;
+    }
+
+    if (preset.filename) {
+      return webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'ambient', preset.filename)).toString();
+    }
+
+    if (preset.localPath) {
+      return webview.asWebviewUri(vscode.Uri.file(preset.localPath)).toString();
+    }
+
+    return undefined;
+  }
+
   private _getHtmlForWebview(webview: vscode.Webview): string {
     const mediaUri = (...segments: string[]) =>
       webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', ...segments));
@@ -396,6 +487,14 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     const voiceLanguage = configuredVoiceLanguage === 'ja-vi' ? 'en' : configuredVoiceLanguage;
     const messageLanguage = config.get<string>('messageLanguage', 'vi');
     const muted = config.get<boolean>('muted', false);
+    const customAmbientTracks = this._getCustomAmbientTracks();
+    const ambientPreset = getAmbientPreset(config.get<string>('ambientPreset', 'off'), customAmbientTracks);
+    const ambientVolume = config.get<number>('ambientVolume', 30);
+    const ambientTracks = listAmbientPresets(customAmbientTracks).map((preset) => ({
+      ...preset,
+      url: this._ambientTrackUrl(webview, preset),
+    }));
+    const webviewStrings = getMessageBank().getWebviewStrings();
     // Slim down to only what the picker UI needs.
     const visibleModels = listVisibleModels().map((m) => ({
       id: m.id,
@@ -414,7 +513,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     script-src ${webview.cspSource} 'unsafe-eval' 'unsafe-inline';
     style-src ${webview.cspSource} 'unsafe-inline' https://fonts.googleapis.com;
     connect-src ${webview.cspSource} http://127.0.0.1:${this._server.port};
-    media-src ${webview.cspSource};
+    media-src ${webview.cspSource} https:;
     worker-src ${webview.cspSource} blob:;
     font-src ${webview.cspSource} https://fonts.gstatic.com;
   ">
@@ -460,7 +559,11 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__VOICE_LANGUAGE__ = "${voiceLanguage}";
     window.__MESSAGE_LANGUAGE__ = "${messageLanguage}";
     window.__AUDIO_MUTED__ = ${muted ? 'true' : 'false'};
+    window.__AMBIENT_PRESET__ = "${ambientPreset.id}";
+    window.__AMBIENT_VOLUME__ = ${ambientVolume};
+    window.__AMBIENT_TRACKS__ = ${JSON.stringify(ambientTracks)};
     window.__VISIBLE_MODELS__ = ${JSON.stringify(visibleModels)};
+    window.__WEBVIEW_STRINGS__ = ${JSON.stringify(webviewStrings)};
   </script>
 
   <script src="${cubismCoreUri}"></script>

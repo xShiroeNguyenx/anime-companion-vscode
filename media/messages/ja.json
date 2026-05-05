@@ -178,5 +178,72 @@
     "coding_1h": "🏆 アチーブメント解除: 1時間連続コーディング〜 すごい集中！",
     "coding_3h": "🏆 アチーブメント解除: 3時間コーディング〜 伝説のスタミナ！",
     "commit10": "🏆 アチーブメント解除: 10コミット〜 Gitもにっこりだね！"
+  },
+  "webview": {
+    "dblClickMessages": [
+      "きゃー、コンボすごくいい感じだよ〜 ✨",
+      "ダブルタップ早すぎるよ〜 ドキッとしちゃった！ 💖"
+    ],
+    "bubbles": {
+      "headpat": "えへへ〜 やさしくなでなでしてくれてうれしい〜 😚",
+      "spamClick": "えぇ〜 そんなに連続でつつかないで〜 目が回っちゃうよ！ 😵",
+      "singleClick": "えっ、ちょんってされてびっくりしたよ〜 🥺",
+      "contextHint": "なにか手伝おうか？ いつでも準備OKだよ〜 💕",
+      "startServer": "すぐに起動しなおすね〜 🚀",
+      "commit": "きれいにコミットしちゃおうね〜 ✨",
+      "pull": "最新コードを取ってこようね〜 📦",
+      "push": "安心できるようにリモートへ push するね〜 ☁️",
+      "pomodoro": "ポモドーロ始めるね〜 時間はまかせて！ 🍅",
+      "changeModel": "ここでモデルを切り替えるね〜 🌸",
+      "changeVoice": "もっとかわいい声に変えようか〜 🗣️",
+      "changeMessages": "文字の言語を変えるね〜 💬",
+      "ambient": "Ambient をつけるね〜",
+      "muteOn": "少し静かにしてるね〜 🤫",
+      "muteOff": "またおしゃべりするね〜 🎀",
+      "settings": "設定を開くね〜 ⚙️",
+      "motion": "どのモーションにするか選んでね〜 🎬"
+    },
+    "menu": {
+      "run": "Run",
+      "commit": "Commit",
+      "pull": "Pull",
+      "push": "Push",
+      "model": "Model",
+      "voice": "Voice",
+      "messages": "Messages",
+      "ambient": "Ambient",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "poke": "Poke",
+      "motion": "Motion",
+      "pomodoro": "Pomodoro",
+      "achievements": "Achievements",
+      "stats": "Stats",
+      "settings": "Settings",
+      "all": "All"
+    },
+    "panels": {
+      "voiceTitle": "Voice",
+      "voiceJaLabel": "Japanese",
+      "voiceJaDesc": "VoiceVox anime",
+      "voiceViLabel": "Tiếng Việt",
+      "voiceViDesc": "Google TTS",
+      "voiceEnLabel": "English",
+      "voiceEnDesc": "Google TTS",
+      "messageTitle": "Messages",
+      "messageViLabel": "Tiếng Việt",
+      "messageViDesc": "Vietnamese bubble text",
+      "messageEnLabel": "English",
+      "messageEnDesc": "English bubble text",
+      "messageJaLabel": "日本語",
+      "messageJaDesc": "Japanese bubble text",
+      "ambientTitle": "Ambient",
+      "ambientFootnote": "Volume: <code>animeCompanion.ambientVolume</code> | custom files: <code>animeCompanion.customAmbientTracks</code>",
+      "modelTitle": "Model",
+      "motionTitle": "Motion",
+      "motionTapBodyDesc": "Body tap",
+      "motionTapHeadDesc": "Head pat",
+      "motionIdleDesc": "Default idle"
+    }
   }
 }

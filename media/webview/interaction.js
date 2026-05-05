@@ -1,6 +1,6 @@
-import { state, vscode, debugLog } from './core.js';
+﻿import { state, vscode, debugLog } from './core.js';
 import { setExpression, updateExpressionTick } from './expression.js';
-import { playAudio } from './audio.js';
+import { playAudio, setAmbientPreset, setGlobalAudioMuted } from './audio.js';
 import { showBubble, createSparkle } from './ui.js';
 
 const HEART_CURSOR_SVG = `
@@ -20,10 +20,41 @@ const HEART_CURSOR_SVG = `
 </svg>`;
 const MODEL_HEART_CURSOR = `url("data:image/svg+xml;utf8,${encodeURIComponent(HEART_CURSOR_SVG)}") 4 4, pointer`;
 
-const DBLCLICK_MESSAGES = [
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char]));
+}
+
+const WEBVIEW_STRINGS = window.__WEBVIEW_STRINGS__ || {};
+
+function getWebviewValue(path, fallback) {
+  let current = WEBVIEW_STRINGS;
+  for (const part of path.split('.')) {
+    if (!current || typeof current !== 'object' || !(part in current)) return fallback;
+    current = current[part];
+  }
+  return current ?? fallback;
+}
+
+function t(path, fallback) {
+  const value = getWebviewValue(path, fallback);
+  return typeof value === 'string' ? value : fallback;
+}
+
+function tList(path, fallback) {
+  const value = getWebviewValue(path, fallback);
+  return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : fallback;
+}
+
+const DBLCLICK_MESSAGES = tList('dblClickMessages', [
   'Kyaa~ combo đẹp ghê luôn á! ✨',
   'Double tap nhanh quá~ tim em lỡ nhịp luôn nè! 💖',
-];
+]);
 
 // Fits the model into the panel and wires up pointer interaction + context menu.
 export function setupModel() {
@@ -58,7 +89,7 @@ export function setupModel() {
       setExpression('shy', 2000);
       setTimeout(() => setExpression('love', 3000), 2000);
 
-      showBubble('Ehehe~ vuốt đầu dịu dàng quá đi~ 😊');
+      showBubble(t('bubbles.headpat', 'Ehehe~ vuốt đầu dịu dàng quá đi~ 😚'));
       playAudio('headpat.mp3');
       vscode.postMessage({ command: 'headpat' });
       createSparkle();
@@ -88,7 +119,7 @@ export function setupModel() {
         debugLog('Spam click: ' + clickCount);
         try { state.model.motion('TapBody'); } catch (_) { /* ignore */ }
         setExpression('angry', 3000);
-        showBubble('Eee đừng chọc liên tục nữa mà~ em chóng mặt mất! 😵');
+        showBubble(t('bubbles.spamClick', 'Eee đừng chọc liên tục nữa mà~ em chóng mặt mất! 😵'));
         playAudio('spam.mp3');
         vscode.postMessage({ command: 'spamClick', count: clickCount });
         createSparkle();
@@ -110,7 +141,7 @@ export function setupModel() {
           try { state.model.motion('Idle'); } catch (__) { /* ignore */ }
         }
         setExpression('surprised', 2000);
-        showBubble('Eh~ chạm nhẹ vậy làm em giật mình đó nha! 🥺');
+        showBubble(t('bubbles.singleClick', 'Eh~ chạm nhẹ vậy làm em giật mình đó nha! 🥺'));
         playAudio('poke.mp3');
         vscode.postMessage({ command: 'poke' });
         createSparkle();
@@ -133,9 +164,10 @@ export function setupModel() {
   state.app.ticker.add(() => updateExpressionTick());
   debugLog('Expression system started');
 
-  setupContextMenu();
+  setupCompactContextMenu();
   setupVoicePanel();
   setupMessagePanel();
+  setupAmbientPanel();
   setupModelPanel();
   setupMotionPanel();
 }
@@ -187,58 +219,61 @@ function setupContextMenu() {
   menu.className = 'companion-context-menu';
   menu.innerHTML = `
     <div class="companion-menu-item" data-action="start-server">
-      <span style="font-size: 11px;">🚀</span> Run
+      <span style="font-size: 11px;">🚀</span> ${t('menu.run', 'Run')}
     </div>
     <div class="companion-menu-separator"></div>
     <div class="companion-menu-item" data-action="commit">
-      <span style="font-size: 11px;">📦</span> Commit
+      <span style="font-size: 11px;">📦</span> ${t('menu.commit', 'Commit')}
     </div>
     <div class="companion-menu-item" data-action="pull">
-      <span style="font-size: 11px;">⬇️</span> Pull
+      <span style="font-size: 11px;">⬇️</span> ${t('menu.pull', 'Pull')}
     </div>
     <div class="companion-menu-item" data-action="push">
-      <span style="font-size: 11px;">⬆️</span> Push
+      <span style="font-size: 11px;">⬆️</span> ${t('menu.push', 'Push')}
     </div>
     <div class="companion-menu-separator"></div>
     <div class="companion-menu-item" data-action="change-model">
-      <span style="font-size: 11px;">🌸</span> Model
+      <span style="font-size: 11px;">🌸</span> ${t('menu.model', 'Model')}
     </div>
     <div class="companion-menu-item" data-action="change-voice">
-      <span style="font-size: 11px;">🗣️</span> Voice
+      <span style="font-size: 11px;">🗣️</span> ${t('menu.voice', 'Voice')}
     </div>
     <div class="companion-menu-item" data-action="change-message-language">
-      <span style="font-size: 11px;">💬</span> Messages
+      <span style="font-size: 11px;">💬</span> ${t('menu.messages', 'Messages')}
+    </div>
+    <div class="companion-menu-item" data-action="ambient">
+      <span style="font-size: 11px;">🎧</span> ${t('menu.ambient', 'Ambient')}
     </div>
     <div class="companion-menu-item" data-action="toggle-mute">
-      <span class="companion-mute-icon" style="font-size: 11px;">🔇</span> <span class="companion-mute-label">Mute</span>
+      <span class="companion-mute-icon" style="font-size: 11px;">🔇</span> <span class="companion-mute-label">${t('menu.mute', 'Mute')}</span>
     </div>
     <div class="companion-menu-separator"></div>
     <div class="companion-menu-item" data-action="poke">
-      <span style="font-size: 11px;">👉</span> Poke
+      <span style="font-size: 11px;">👉</span> ${t('menu.poke', 'Poke')}
     </div>
     <div class="companion-menu-item" data-action="play-motion">
-      <span style="font-size: 11px;">🎬</span> Motion
+      <span style="font-size: 11px;">🎬</span> ${t('menu.motion', 'Motion')}
     </div>
     <div class="companion-menu-item" data-action="pomodoro">
-      <span style="font-size: 11px;">🍅</span> Pomodoro
+      <span style="font-size: 11px;">🍅</span> ${t('menu.pomodoro', 'Pomodoro')}
     </div>
     <div class="companion-menu-separator"></div>
     <div class="companion-menu-item" data-action="achievements">
-      <span style="font-size: 11px;">🏆</span> Achievements
+      <span style="font-size: 11px;">🏆</span> ${t('menu.achievements', 'Achievements')}
     </div>
     <div class="companion-menu-item" data-action="stats">
-      <span style="font-size: 11px;">📊</span> Stats
+      <span style="font-size: 11px;">📊</span> ${t('menu.stats', 'Stats')}
     </div>
     <div class="companion-menu-separator"></div>
     <div class="companion-menu-item" data-action="settings">
-      <span style="font-size: 11px;">⚙️</span> Settings
+      <span style="font-size: 11px;">⚙️</span> ${t('menu.settings', 'Settings')}
     </div>
   `;
   document.body.appendChild(menu);
 
   window.addEventListener('mousedown', (e) => {
     if (e.button !== 2) return;
-    showBubble('Onii-chan cần em giúp gì hả~ em luôn sẵn sàng nè! 💕');
+    showBubble(t('bubbles.contextHint', 'Onii-chan cần em giúp gì hả~ em luôn sẵn sàng nè! 💕'));
     try { playAudio('help.mp3'); } catch (err) { console.error('[AnimeCompanion] playAudio err', err); }
     setExpression('shy', 2500);
     if (state.model) {
@@ -279,43 +314,48 @@ function setupContextMenu() {
     menu.classList.remove('show');
 
     if (action === 'start-server') {
-      showBubble('Để em khởi động lại cho Onii-chan liền nha~ 🚀');
+      showBubble(t('bubbles.startServer', 'Để em khởi động lại cho Onii-chan liền nha~ 🚀'));
       try { playAudio('server.mp3'); } catch (err) { console.error('[AnimeCompanion] playAudio err', err); }
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.runProject' });
     } else if (action === 'commit') {
-      showBubble('Commit gọn gàng một cái cho xinh nha~ ✨');
+      showBubble(t('bubbles.commit', 'Commit gọn gàng một cái cho xinh nha~ ✨'));
       vscode.postMessage({ command: 'runCommand', action: 'git.commit' });
     } else if (action === 'pull') {
-      showBubble('Mình kéo code mới về thôi nào~ 📦');
+      showBubble(t('bubbles.pull', 'Mình kéo code mới về thôi nào~ 📦'));
       vscode.postMessage({ command: 'runCommand', action: 'git.pull' });
     } else if (action === 'push') {
-      showBubble('Push code lên remote cho an tâm nha~ ☁️');
+      showBubble(t('bubbles.push', 'Push code lên remote cho an tâm nha~ ☁️'));
       vscode.postMessage({ command: 'runCommand', action: 'git.push' });
     } else if (action === 'pomodoro') {
-      showBubble('Bắt đầu Pomodoro nha~ em canh giờ giúp Onii-chan! 🍅');
+      showBubble(t('bubbles.pomodoro', 'Bắt đầu Pomodoro nha~ em canh giờ giúp Onii-chan! 🍅'));
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.startPomodoro' });
     } else if (action === 'poke') {
       if (state.model) { try { state.model.motion('TapBody'); } catch (_) { /* ignore */ } }
       vscode.postMessage({ command: 'poke' });
     } else if (action === 'change-model') {
-      showBubble('Đổi model ngay trên companion luôn nha~ 🌸');
+      showBubble(t('bubbles.changeModel', 'Đổi model ngay trên companion luôn nha~ 🌸'));
       showModelPanel();
     } else if (action === 'change-voice') {
-      showBubble('Đổi giọng dễ thương hơn một chút nha~ 🗣️');
+      showBubble(t('bubbles.changeVoice', 'Đổi giọng dễ thương hơn một chút nha~ 🗣️'));
       showVoicePanel();
     } else if (action === 'change-message-language') {
-      showBubble('Đổi ngôn ngữ chữ nha~ em sẽ nói kiểu khác đó! 💬');
+      showBubble(t('bubbles.changeMessages', 'Đổi ngôn ngữ chữ nha~ em sẽ nói kiểu khác đó! 💬'));
       showMessagePanel();
+    } else if (action === 'ambient') {
+      showBubble(t('bubbles.ambient', 'Bật ambient nha~'));
+      showAmbientPanel();
     } else if (action === 'toggle-mute') {
       const nextMuted = !window.__AUDIO_MUTED__;
-      window.__AUDIO_MUTED__ = nextMuted;
-      showBubble(nextMuted ? 'Em sẽ im lặng một chút nha~ 🤫' : 'Em ríu rít lại rồi nè~ 🎀');
+      setGlobalAudioMuted(nextMuted);
+      showBubble(nextMuted
+        ? t('bubbles.muteOn', 'Em sẽ im lặng một chút nha~ 🤫')
+        : t('bubbles.muteOff', 'Em ríu rít lại rồi nè~ 🎀'));
       vscode.postMessage({ command: 'setMuted', muted: nextMuted });
     } else if (action === 'settings') {
-      showBubble('Mở Settings ra cho Onii-chan liền nha~ ⚙️');
+      showBubble(t('bubbles.settings', 'Mở Settings ra cho Onii-chan liền nha~ ⚙️'));
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.openSettings' });
     } else if (action === 'play-motion') {
-      showBubble('Chọn motion cho em diễn nha~ 🎬');
+      showBubble(t('bubbles.motion', 'Chọn motion cho em diễn nha~ 🎬'));
       showMotionPanel();
     } else if (action === 'achievements') {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showAchievements' });
@@ -325,12 +365,211 @@ function setupContextMenu() {
   });
 }
 
+function setupCompactContextMenu() {
+  const menu = document.createElement('div');
+  const settingsMenu = document.createElement('div');
+  menu.className = 'companion-context-menu';
+  settingsMenu.className = 'companion-context-menu companion-context-submenu';
+
+  menu.innerHTML = `
+    <div class="companion-menu-item" data-action="start-server">
+      <span style="font-size: 11px;">🚀</span> ${t('menu.run', 'Run')}
+    </div>
+    <div class="companion-menu-separator"></div>
+    <div class="companion-menu-item" data-action="commit">
+      <span style="font-size: 11px;">📦</span> ${t('menu.commit', 'Commit')}
+    </div>
+    <div class="companion-menu-item" data-action="pull">
+      <span style="font-size: 11px;">⬇️</span> ${t('menu.pull', 'Pull')}
+    </div>
+    <div class="companion-menu-item" data-action="push">
+      <span style="font-size: 11px;">⬆️</span> ${t('menu.push', 'Push')}
+    </div>
+    <div class="companion-menu-item" data-action="pomodoro">
+      <span style="font-size: 11px;">🍅</span> ${t('menu.pomodoro', 'Pomodoro')}
+    </div>
+    <div class="companion-menu-separator"></div>
+    <div class="companion-menu-item" data-action="achievements">
+      <span style="font-size: 11px;">🏆</span> ${t('menu.achievements', 'Achievements')}
+    </div>
+    <div class="companion-menu-separator"></div>
+    <div class="companion-menu-item" data-action="settings">
+      <span style="font-size: 11px;">⚙️</span> ${t('menu.settings', 'Settings')}
+      <span class="companion-submenu-arrow">&#x203A;</span>
+    </div>
+  `;
+
+  settingsMenu.innerHTML = `
+    <div class="companion-menu-item" data-action="change-model">
+      <span style="font-size: 11px;">🌸</span> ${t('menu.model', 'Model')}
+    </div>
+    <div class="companion-menu-item" data-action="change-voice">
+      <span style="font-size: 11px;">🗣️</span> ${t('menu.voice', 'Voice')}
+    </div>
+    <div class="companion-menu-item" data-action="change-message-language">
+      <span style="font-size: 11px;">💬</span> ${t('menu.messages', 'Messages')}
+    </div>
+    <div class="companion-menu-item" data-action="ambient">
+      <span style="font-size: 11px;">🎧</span> ${t('menu.ambient', 'Ambient')}
+    </div>
+    <div class="companion-menu-item" data-action="toggle-mute">
+      <span class="companion-mute-icon" style="font-size: 11px;">🔇</span> <span class="companion-mute-label">${t('menu.mute', 'Mute')}</span>
+    </div>
+    <div class="companion-menu-item" data-action="poke">
+      <span style="font-size: 11px;">👉</span> ${t('menu.poke', 'Poke')}
+    </div>
+    <div class="companion-menu-item" data-action="play-motion">
+      <span style="font-size: 11px;">🎬</span> ${t('menu.motion', 'Motion')}
+    </div>
+    <div class="companion-menu-item" data-action="stats">
+      <span style="font-size: 11px;">📊</span> ${t('menu.stats', 'Stats')}
+    </div>
+    <div class="companion-menu-separator"></div>
+    <div class="companion-menu-item" data-action="open-all-settings">
+      <span style="font-size: 11px;">⚙️</span> ${t('menu.all', 'All')}
+    </div>
+  `;
+
+  document.body.appendChild(menu);
+  document.body.appendChild(settingsMenu);
+
+  const closeContextMenus = () => {
+    menu.classList.remove('show');
+    settingsMenu.classList.remove('show');
+  };
+
+  const positionMenu = (targetMenu, left, top) => {
+    const margin = 4;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const mw = targetMenu.offsetWidth;
+    const mh = targetMenu.offsetHeight;
+    let nextLeft = left;
+    let nextTop = top;
+    if (nextLeft + mw + margin > vw) nextLeft = Math.max(margin, vw - mw - margin);
+    if (nextTop + mh + margin > vh) nextTop = Math.max(margin, vh - mh - margin);
+    targetMenu.style.left = nextLeft + 'px';
+    targetMenu.style.top = nextTop + 'px';
+  };
+
+  const handleMenuAction = (action) => {
+    if (!action) return;
+
+    if (action === 'settings') {
+      syncMuteMenuLabel(settingsMenu);
+      const settingsItem = menu.querySelector('[data-action="settings"]');
+      const menuRect = menu.getBoundingClientRect();
+      const itemRect = settingsItem ? settingsItem.getBoundingClientRect() : menuRect;
+      menu.classList.remove('show');
+      settingsMenu.classList.add('show');
+      positionMenu(settingsMenu, menuRect.right + 6, itemRect.top);
+      return;
+    }
+
+    closeContextMenus();
+
+    if (action === 'start-server') {
+      showBubble(t('bubbles.startServer', 'Để em khởi động lại cho Onii-chan liền nha~ 🚀'));
+      try { playAudio('server.mp3'); } catch (err) { console.error('[AnimeCompanion] playAudio err', err); }
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.runProject' });
+    } else if (action === 'commit') {
+      showBubble(t('bubbles.commit', 'Commit gọn gàng một cái cho xinh nha~ ✨'));
+      vscode.postMessage({ command: 'runCommand', action: 'git.commit' });
+    } else if (action === 'pull') {
+      showBubble(t('bubbles.pull', 'Mình kéo code mới về thôi nào~ 📦'));
+      vscode.postMessage({ command: 'runCommand', action: 'git.pull' });
+    } else if (action === 'push') {
+      showBubble(t('bubbles.push', 'Push code lên remote cho an tâm nha~ ☁️'));
+      vscode.postMessage({ command: 'runCommand', action: 'git.push' });
+    } else if (action === 'pomodoro') {
+      showBubble(t('bubbles.pomodoro', 'Bắt đầu Pomodoro nha~ em canh giờ giúp Onii-chan! 🍅'));
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.startPomodoro' });
+    } else if (action === 'poke') {
+      if (state.model) { try { state.model.motion('TapBody'); } catch (_) { /* ignore */ } }
+      vscode.postMessage({ command: 'poke' });
+    } else if (action === 'change-model') {
+      showBubble(t('bubbles.changeModel', 'Đổi model ngay trên companion luôn nha~ 🌸'));
+      showModelPanel();
+    } else if (action === 'change-voice') {
+      showBubble(t('bubbles.changeVoice', 'Đổi giọng dễ thương hơn một chút nha~ 🗣️'));
+      showVoicePanel();
+    } else if (action === 'change-message-language') {
+      showBubble(t('bubbles.changeMessages', 'Đổi ngôn ngữ chữ nha~ em sẽ nói kiểu khác đó! 💬'));
+      showMessagePanel();
+    } else if (action === 'ambient') {
+      showBubble(t('bubbles.ambient', 'Bật ambient nha~'));
+      showAmbientPanel();
+    } else if (action === 'toggle-mute') {
+      const nextMuted = !window.__AUDIO_MUTED__;
+      setGlobalAudioMuted(nextMuted);
+      showBubble(nextMuted
+        ? t('bubbles.muteOn', 'Em sẽ im lặng một chút nha~ 🤫')
+        : t('bubbles.muteOff', 'Em ríu rít lại rồi nè~ 🎀'));
+      vscode.postMessage({ command: 'setMuted', muted: nextMuted });
+    } else if (action === 'open-all-settings') {
+      showBubble(t('bubbles.settings', 'Mở Settings ra cho Onii-chan liền nha~ ⚙️'));
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.openSettings' });
+    } else if (action === 'play-motion') {
+      showBubble(t('bubbles.motion', 'Chọn motion cho em diễn nha~ 🎬'));
+      showMotionPanel();
+    } else if (action === 'achievements') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showAchievements' });
+    } else if (action === 'stats') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showStats' });
+    }
+  };
+
+  window.addEventListener('mousedown', (e) => {
+    if (e.button !== 2) return;
+    showBubble(t('bubbles.contextHint', 'Onii-chan cần em giúp gì hả~ em luôn sẵn sàng nè! 💕'));
+    try { playAudio('help.mp3'); } catch (err) { console.error('[AnimeCompanion] playAudio err', err); }
+    setExpression('shy', 2500);
+    if (state.model) {
+      try { state.model.motion('TapBody'); } catch (_) {
+        try { state.model.motion('Idle'); } catch (__) { /* ignore */ }
+      }
+    }
+    createSparkle();
+  }, true);
+
+  window.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    syncMuteMenuLabel(menu);
+    syncMuteMenuLabel(settingsMenu);
+    menu.classList.add('show');
+    settingsMenu.classList.remove('show');
+    positionMenu(menu, e.clientX, e.clientY);
+  }, true);
+
+  window.addEventListener('click', (e) => {
+    if (!menu.contains(e.target) && !settingsMenu.contains(e.target)) closeContextMenus();
+  }, true);
+
+  menu.addEventListener('click', (e) => {
+    const item = e.target.closest('.companion-menu-item');
+    if (!item) return;
+    const action = item.getAttribute('data-action');
+    console.log('[AnimeCompanion] menu click action=' + action);
+    handleMenuAction(action);
+  });
+
+  settingsMenu.addEventListener('click', (e) => {
+    const item = e.target.closest('.companion-menu-item');
+    if (!item) return;
+    const action = item.getAttribute('data-action');
+    console.log('[AnimeCompanion] settings menu click action=' + action);
+    handleMenuAction(action);
+  });
+}
+
 function syncMuteMenuLabel(menu) {
   const icon = menu.querySelector('.companion-mute-icon');
   const label = menu.querySelector('.companion-mute-label');
   if (!label || !icon) return;
   icon.textContent = window.__AUDIO_MUTED__ ? '🔊' : '🔇';
-  label.textContent = window.__AUDIO_MUTED__ ? 'Unmute' : 'Mute';
+  label.textContent = window.__AUDIO_MUTED__
+    ? t('menu.unmute', 'Unmute')
+    : t('menu.mute', 'Mute');
 }
 
 function setupVoicePanel() {
@@ -340,18 +579,18 @@ function setupVoicePanel() {
   const panel = document.createElement('div');
   panel.className = 'companion-voice-panel';
   panel.innerHTML = `
-    <div class="companion-voice-title">Voice</div>
+    <div class="companion-voice-title">${t('panels.voiceTitle', 'Voice')}</div>
     <button class="companion-voice-option" data-voice="ja">
-      <span class="companion-voice-label">Japanese</span>
-      <span class="companion-voice-desc">VoiceVox anime</span>
+      <span class="companion-voice-label">${t('panels.voiceJaLabel', 'Japanese')}</span>
+      <span class="companion-voice-desc">${t('panels.voiceJaDesc', 'VoiceVox anime')}</span>
     </button>
     <button class="companion-voice-option" data-voice="vi">
-      <span class="companion-voice-label">Tiếng Việt</span>
-      <span class="companion-voice-desc">Google TTS</span>
+      <span class="companion-voice-label">${t('panels.voiceViLabel', 'Tiếng Việt')}</span>
+      <span class="companion-voice-desc">${t('panels.voiceViDesc', 'Google TTS')}</span>
     </button>
     <button class="companion-voice-option" data-voice="en">
-      <span class="companion-voice-label">English</span>
-      <span class="companion-voice-desc">Google TTS</span>
+      <span class="companion-voice-label">${t('panels.voiceEnLabel', 'English')}</span>
+      <span class="companion-voice-desc">${t('panels.voiceEnDesc', 'Google TTS')}</span>
     </button>
   `;
   wrapper.appendChild(panel);
@@ -378,6 +617,7 @@ function showVoicePanel() {
   if (!panel) return;
   document.querySelector('.companion-model-panel')?.classList.remove('show');
   document.querySelector('.companion-message-panel')?.classList.remove('show');
+  document.querySelector('.companion-ambient-panel')?.classList.remove('show');
   document.querySelector('.companion-motion-panel')?.classList.remove('show');
 
   const current = window.__VOICE_LANGUAGE__ || 'ja';
@@ -394,18 +634,18 @@ function setupMessagePanel() {
   const panel = document.createElement('div');
   panel.className = 'companion-message-panel';
   panel.innerHTML = `
-    <div class="companion-message-title">Messages</div>
+    <div class="companion-message-title">${t('panels.messageTitle', 'Messages')}</div>
     <button class="companion-message-option" data-message-language="vi">
-      <span class="companion-message-label">Tiếng Việt</span>
-      <span class="companion-message-desc">Vietnamese bubble text</span>
+      <span class="companion-message-label">${t('panels.messageViLabel', 'Tiếng Việt')}</span>
+      <span class="companion-message-desc">${t('panels.messageViDesc', 'Vietnamese bubble text')}</span>
     </button>
     <button class="companion-message-option" data-message-language="en">
-      <span class="companion-message-label">English</span>
-      <span class="companion-message-desc">English bubble text</span>
+      <span class="companion-message-label">${t('panels.messageEnLabel', 'English')}</span>
+      <span class="companion-message-desc">${t('panels.messageEnDesc', 'English bubble text')}</span>
     </button>
     <button class="companion-message-option" data-message-language="ja">
-      <span class="companion-message-label">日本語</span>
-      <span class="companion-message-desc">Japanese bubble text</span>
+      <span class="companion-message-label">${t('panels.messageJaLabel', '日本語')}</span>
+      <span class="companion-message-desc">${t('panels.messageJaDesc', 'Japanese bubble text')}</span>
     </button>
   `;
   wrapper.appendChild(panel);
@@ -432,11 +672,64 @@ function showMessagePanel() {
   if (!panel) return;
   document.querySelector('.companion-voice-panel')?.classList.remove('show');
   document.querySelector('.companion-model-panel')?.classList.remove('show');
+  document.querySelector('.companion-ambient-panel')?.classList.remove('show');
   document.querySelector('.companion-motion-panel')?.classList.remove('show');
 
   const current = window.__MESSAGE_LANGUAGE__ || 'vi';
   panel.querySelectorAll('.companion-message-option').forEach((option) => {
     option.classList.toggle('active', option.getAttribute('data-message-language') === current);
+  });
+  panel.classList.add('show');
+}
+
+function setupAmbientPanel() {
+  const wrapper = document.getElementById('characterWrapper');
+  if (!wrapper) return;
+
+  const panel = document.createElement('div');
+  panel.className = 'companion-ambient-panel';
+  const tracks = Array.isArray(window.__AMBIENT_TRACKS__) ? window.__AMBIENT_TRACKS__ : [];
+  panel.innerHTML = `
+    <div class="companion-ambient-title">${t('panels.ambientTitle', 'Ambient')}</div>
+    ${tracks.map((track) => `
+      <button class="companion-ambient-option" data-ambient-preset="${escapeHtml(track.id)}">
+        <span class="companion-ambient-label">${escapeHtml(track.label)}</span>
+        <span class="companion-ambient-desc">${escapeHtml(track.description)}</span>
+      </button>
+    `).join('')}
+    <div class="companion-ambient-footnote">${t('panels.ambientFootnote', 'Volume: <code>animeCompanion.ambientVolume</code> | custom files: <code>animeCompanion.customAmbientTracks</code>')}</div>
+  `;
+  wrapper.appendChild(panel);
+
+  panel.addEventListener('click', (e) => {
+    const option = e.target.closest('.companion-ambient-option');
+    if (!option) return;
+    const preset = option.getAttribute('data-ambient-preset');
+    if (!preset) return;
+
+    panel.classList.remove('show');
+    setAmbientPreset(preset);
+    vscode.postMessage({ command: 'setAmbientPreset', preset });
+  });
+
+  window.addEventListener('click', (e) => {
+    if (!panel.contains(e.target)) {
+      panel.classList.remove('show');
+    }
+  }, true);
+}
+
+function showAmbientPanel() {
+  const panel = document.querySelector('.companion-ambient-panel');
+  if (!panel) return;
+  document.querySelector('.companion-voice-panel')?.classList.remove('show');
+  document.querySelector('.companion-message-panel')?.classList.remove('show');
+  document.querySelector('.companion-model-panel')?.classList.remove('show');
+  document.querySelector('.companion-motion-panel')?.classList.remove('show');
+
+  const current = window.__AMBIENT_PRESET__ || 'off';
+  panel.querySelectorAll('.companion-ambient-option').forEach((option) => {
+    option.classList.toggle('active', option.getAttribute('data-ambient-preset') === current);
   });
   panel.classList.add('show');
 }
@@ -453,7 +746,6 @@ function setupModelPanel() {
   const models = Array.isArray(window.__VISIBLE_MODELS__) && window.__VISIBLE_MODELS__.length > 0
     ? window.__VISIBLE_MODELS__
     : [{ id: 'hiyori', name: 'Hiyori', description: 'Live2D Sample' }];
-  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const buttons = models.map((m) =>
     `<button class="companion-model-option" data-model="${escapeHtml(m.id)}">` +
     `<span class="companion-model-label">${escapeHtml(m.name)}</span>` +
@@ -461,7 +753,7 @@ function setupModelPanel() {
     `</button>`
   ).join('');
   panel.innerHTML = `
-    <div class="companion-model-title">Model</div>
+    <div class="companion-model-title">${t('panels.modelTitle', 'Model')}</div>
     ${buttons}
   `;
   wrapper.appendChild(panel);
@@ -488,6 +780,7 @@ function showModelPanel() {
   if (!panel) return;
   document.querySelector('.companion-voice-panel')?.classList.remove('show');
   document.querySelector('.companion-message-panel')?.classList.remove('show');
+  document.querySelector('.companion-ambient-panel')?.classList.remove('show');
   document.querySelector('.companion-motion-panel')?.classList.remove('show');
 
   const current = window.__MODEL_ID__ || 'hiyori';
@@ -504,10 +797,10 @@ function setupMotionPanel() {
   const panel = document.createElement('div');
   panel.className = 'companion-motion-panel';
   panel.innerHTML = `
-    <div class="companion-motion-title">Motion</div>
-    <button class="companion-motion-option" data-motion="TapBody"><span class="companion-motion-label">TapBody</span><span class="companion-motion-desc">Body tap</span></button>
-    <button class="companion-motion-option" data-motion="TapHead"><span class="companion-motion-label">TapHead</span><span class="companion-motion-desc">Head pat</span></button>
-    <button class="companion-motion-option" data-motion="Idle"><span class="companion-motion-label">Idle</span><span class="companion-motion-desc">Default idle</span></button>
+    <div class="companion-motion-title">${t('panels.motionTitle', 'Motion')}</div>
+    <button class="companion-motion-option" data-motion="TapBody"><span class="companion-motion-label">TapBody</span><span class="companion-motion-desc">${t('panels.motionTapBodyDesc', 'Body tap')}</span></button>
+    <button class="companion-motion-option" data-motion="TapHead"><span class="companion-motion-label">TapHead</span><span class="companion-motion-desc">${t('panels.motionTapHeadDesc', 'Head pat')}</span></button>
+    <button class="companion-motion-option" data-motion="Idle"><span class="companion-motion-label">Idle</span><span class="companion-motion-desc">${t('panels.motionIdleDesc', 'Default idle')}</span></button>
   `;
   wrapper.appendChild(panel);
 
@@ -540,6 +833,7 @@ function showMotionPanel() {
   if (!panel) return;
   document.querySelector('.companion-voice-panel')?.classList.remove('show');
   document.querySelector('.companion-message-panel')?.classList.remove('show');
+  document.querySelector('.companion-ambient-panel')?.classList.remove('show');
   document.querySelector('.companion-model-panel')?.classList.remove('show');
   panel.classList.add('show');
 }

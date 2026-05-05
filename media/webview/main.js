@@ -1,7 +1,7 @@
-import { state, vscode, debugLog } from './core.js';
+﻿import { state, vscode, debugLog } from './core.js';
 import { setExpression } from './expression.js';
 import { updateMoodIndicator } from './expression.js';
-import { playAudio } from './audio.js';
+import { initAmbientAudio, playAudio, setAmbientPreset, setGlobalAudioMuted, speakText } from './audio.js';
 import {
   showBubble,
   showError,
@@ -133,6 +133,15 @@ window.addEventListener('message', (event) => {
   switch (command) {
     case 'showMessage':
       showBubble(text);
+      if (event.data.speakText) {
+        void speakText(event.data.speakText);
+      }
+      break;
+    case 'setAmbientPreset':
+      setAmbientPreset(event.data.preset);
+      break;
+    case 'setMutedState':
+      setGlobalAudioMuted(event.data.muted);
       break;
     case 'playMotion':
       playMotion(event.data.group, event.data.index);
@@ -148,7 +157,7 @@ window.addEventListener('message', (event) => {
     case 'pomodoroBreak':
       setExpression('sleepy', null);
       showBubble('🍅 Xong một phiên rồi nè~ nghỉ tay và uống nước chút nha!');
-      // Different sound cue for break vs work — break uses headpat (gentler)
+      // Different sound cue for break vs work ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â break uses headpat (gentler)
       playAudio('headpat.mp3');
       if (state.model) {
         try {
@@ -193,4 +202,5 @@ window.addEventListener('message', (event) => {
 });
 
 debugLog('Webview script loaded');
+initAmbientAudio();
 initLive2D();

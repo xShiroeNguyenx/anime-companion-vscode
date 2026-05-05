@@ -168,7 +168,11 @@ export async function activate(context: vscode.ExtensionContext) {
       }
       if (
         event.affectsConfiguration('animeCompanion.customModels') ||
-        event.affectsConfiguration('animeCompanion.customModelRoots')
+        event.affectsConfiguration('animeCompanion.customModelRoots') ||
+        event.affectsConfiguration('animeCompanion.customAmbientTracks') ||
+        event.affectsConfiguration('animeCompanion.ambientVolume') ||
+        event.affectsConfiguration('animeCompanion.ambientPreset') ||
+        event.affectsConfiguration('animeCompanion.muted')
       ) {
         statusBar.refresh();
         provider.refreshView();

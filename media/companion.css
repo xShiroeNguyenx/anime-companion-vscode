@@ -310,6 +310,10 @@ body {
   animation: fadeIn 0.1s ease-out;
 }
 
+.companion-context-submenu {
+  min-width: 140px;
+}
+
 .companion-menu-item {
   padding: 4px 12px 4px 9px;
   cursor: pointer;
@@ -317,6 +321,11 @@ body {
   align-items: center;
   gap: 6px;
   transition: background 0.1s;
+}
+
+.companion-submenu-arrow {
+  margin-left: auto;
+  opacity: 0.7;
 }
 
 .companion-menu-item:hover {
@@ -351,7 +360,8 @@ body {
 }
 
 .companion-voice-panel,
-.companion-message-panel {
+.companion-message-panel,
+.companion-ambient-panel {
   position: absolute;
   left: 50%;
   bottom: 18px;
@@ -377,14 +387,16 @@ body {
 }
 
 .companion-voice-panel.show,
-.companion-message-panel.show {
+.companion-message-panel.show,
+.companion-ambient-panel.show {
   opacity: 1;
   pointer-events: auto;
   transform: translate(-50%, 0) scale(1);
 }
 
 .companion-voice-title,
-.companion-message-title {
+.companion-message-title,
+.companion-ambient-title {
   font-family: 'Mochiy Pop One', 'Segoe UI', sans-serif;
   font-size: 12px;
   color: #7a2950;
@@ -392,7 +404,8 @@ body {
 }
 
 .companion-voice-option,
-.companion-message-option {
+.companion-message-option,
+.companion-ambient-option {
   width: 100%;
   border: 1px solid rgba(206, 109, 154, 0.22);
   border-radius: 14px;
@@ -406,7 +419,9 @@ body {
 .companion-voice-option:hover,
 .companion-voice-option.active,
 .companion-message-option:hover,
-.companion-message-option.active {
+.companion-message-option.active,
+.companion-ambient-option:hover,
+.companion-ambient-option.active {
   transform: translateY(-1px);
   border-color: rgba(196, 73, 134, 0.45);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 225, 238, 0.92));
@@ -414,7 +429,8 @@ body {
 }
 
 .companion-voice-label,
-.companion-message-label {
+.companion-message-label,
+.companion-ambient-label {
   display: block;
   color: #5f2140;
   font-size: 12px;
@@ -422,11 +438,19 @@ body {
 }
 
 .companion-voice-desc,
-.companion-message-desc {
+.companion-message-desc,
+.companion-ambient-desc {
   display: block;
   margin-top: 2px;
   color: #8a5671;
   font-size: 10px;
+}
+
+.companion-ambient-footnote {
+  color: #8a5671;
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .companion-model-panel {
@@ -653,7 +677,8 @@ body {
 
 @media (prefers-color-scheme: dark) {
   .companion-voice-panel,
-  .companion-message-panel {
+  .companion-message-panel,
+  .companion-ambient-panel {
     border-color: rgba(221, 144, 181, 0.24);
     background:
       radial-gradient(circle at top, rgba(76, 39, 61, 0.96), rgba(53, 28, 44, 0.94)),
@@ -664,12 +689,14 @@ body {
   }
 
   .companion-voice-title,
-  .companion-message-title {
+  .companion-message-title,
+  .companion-ambient-title {
     color: #ffd1e3;
   }
 
   .companion-voice-option,
-  .companion-message-option {
+  .companion-message-option,
+  .companion-ambient-option {
     border-color: rgba(221, 144, 181, 0.16);
     background: rgba(255, 255, 255, 0.04);
   }
@@ -677,18 +704,26 @@ body {
   .companion-voice-option:hover,
   .companion-voice-option.active,
   .companion-message-option:hover,
-  .companion-message-option.active {
+  .companion-message-option.active,
+  .companion-ambient-option:hover,
+  .companion-ambient-option.active {
     border-color: rgba(255, 171, 205, 0.44);
     background: linear-gradient(135deg, rgba(100, 54, 80, 0.7), rgba(78, 40, 61, 0.76));
   }
 
   .companion-voice-label,
-  .companion-message-label {
+  .companion-message-label,
+  .companion-ambient-label {
     color: #ffe4ef;
   }
 
   .companion-voice-desc,
-  .companion-message-desc {
+  .companion-message-desc,
+  .companion-ambient-desc {
+    color: #d9a8be;
+  }
+
+  .companion-ambient-footnote {
     color: #d9a8be;
   }
 

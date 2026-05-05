@@ -178,5 +178,72 @@
     "coding_1h": "🏆 Achievement unlocked: 1 hour of coding~ super dedicated!",
     "coding_3h": "🏆 Achievement unlocked: 3 hours of coding~ legendary stamina!",
     "commit10": "🏆 Achievement unlocked: 10 commits~ Git is smiling at you!"
+  },
+  "webview": {
+    "dblClickMessages": [
+      "Kyaa~ what a cute combo! ✨",
+      "That double tap was so fast~ my heart skipped a beat! 💖"
+    ],
+    "bubbles": {
+      "headpat": "Ehehe~ such a gentle headpat~ 😚",
+      "spamClick": "Eee, no more poking so fast~ you're making me dizzy! 😵",
+      "singleClick": "Eh~ that little poke surprised me! 🥺",
+      "contextHint": "Need my help, Onii-chan? I'm always ready! 💕",
+      "startServer": "I'll restart it for you right away~ 🚀",
+      "commit": "Let's make one neat little commit~ ✨",
+      "pull": "Let's pull the latest code first~ 📦",
+      "push": "Pushing code to remote for peace of mind~ ☁️",
+      "pomodoro": "Pomodoro time~ I'll keep track for you! 🍅",
+      "changeModel": "Let's switch the model right here~ 🌸",
+      "changeVoice": "Let's pick an even cuter voice~ 🗣️",
+      "changeMessages": "Let's change the text language~ 💬",
+      "ambient": "Turning on ambient mode~",
+      "muteOn": "I'll stay quiet for a little while~ 🤫",
+      "muteOff": "I'm chirping again~ 🎀",
+      "settings": "Opening Settings for you~ ⚙️",
+      "motion": "Pick a motion for me to perform~ 🎬"
+    },
+    "menu": {
+      "run": "Run",
+      "commit": "Commit",
+      "pull": "Pull",
+      "push": "Push",
+      "model": "Model",
+      "voice": "Voice",
+      "messages": "Messages",
+      "ambient": "Ambient",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "poke": "Poke",
+      "motion": "Motion",
+      "pomodoro": "Pomodoro",
+      "achievements": "Achievements",
+      "stats": "Stats",
+      "settings": "Settings",
+      "all": "All"
+    },
+    "panels": {
+      "voiceTitle": "Voice",
+      "voiceJaLabel": "Japanese",
+      "voiceJaDesc": "VoiceVox anime",
+      "voiceViLabel": "Tiếng Việt",
+      "voiceViDesc": "Google TTS",
+      "voiceEnLabel": "English",
+      "voiceEnDesc": "Google TTS",
+      "messageTitle": "Messages",
+      "messageViLabel": "Tiếng Việt",
+      "messageViDesc": "Vietnamese bubble text",
+      "messageEnLabel": "English",
+      "messageEnDesc": "English bubble text",
+      "messageJaLabel": "日本語",
+      "messageJaDesc": "Japanese bubble text",
+      "ambientTitle": "Ambient",
+      "ambientFootnote": "Volume: <code>animeCompanion.ambientVolume</code> | custom files: <code>animeCompanion.customAmbientTracks</code>",
+      "modelTitle": "Model",
+      "motionTitle": "Motion",
+      "motionTapBodyDesc": "Body tap",
+      "motionTapHeadDesc": "Head pat",
+      "motionIdleDesc": "Default idle"
+    }
   }
 }

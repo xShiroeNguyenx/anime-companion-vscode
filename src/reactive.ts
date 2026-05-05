@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getMessageBank, MessageKey } from './messages';
+import { getMessageBank, MessageKey, ResolvedPhrase } from './messages';
 import { StatsStore } from './stats';
 
 export type CompanionMood = 'idle' | 'happy' | 'angry' | 'sleepy';
@@ -10,7 +10,7 @@ const CODING_GAP_CAP_MS = 60_000;
 
 // Reactive manager
 export class ReactiveManager {
-  private _sendMessageImpl: (text: string, motion?: string) => void;
+  private _sendMessageImpl: (phrase: ResolvedPhrase, motion?: string) => void;
   private _sendMood: (mood: CompanionMood) => void;
   private _stats: StatsStore;
   private _disposables: vscode.Disposable[] = [];
@@ -30,7 +30,7 @@ export class ReactiveManager {
   private _prevCommitCount = 0;
 
   constructor(
-    sendMessage: (text: string, motion?: string) => void,
+    sendMessage: (phrase: ResolvedPhrase, motion?: string) => void,
     sendMood: (mood: CompanionMood) => void,
     stats: StatsStore
   ) {
@@ -39,8 +39,8 @@ export class ReactiveManager {
     this._stats = stats;
   }
 
-  private _pick(key: MessageKey, vars?: Record<string, string | number>): string {
-    return getMessageBank().pick(key, vars);
+  private _pick(key: MessageKey, vars?: Record<string, string | number>): ResolvedPhrase {
+    return getMessageBank().pickResolved(key, vars);
   }
 
   // Settings gates
@@ -79,10 +79,10 @@ export class ReactiveManager {
   // Wrapper that respects quietHours. All internal calls go through this so
   // the quiet-hour gate is applied uniformly. Mood/expression updates skip
   // this gate (handled directly via _sendMood).
-  private _sendMessage(text: string, motion?: string) {
-    if (!text) return;
+  private _sendMessage(phrase: ResolvedPhrase, motion?: string) {
+    if (!phrase.text) return;
     if (this._isQuietHour()) return;
-    this._sendMessageImpl(text, motion);
+    this._sendMessageImpl(phrase, motion);
   }
 
   public activate() {
@@ -120,9 +120,9 @@ export class ReactiveManager {
 
         if (errors > this._prevErrorCount) {
           if (errors >= 5) {
-            this._sendMessage(this._pick('errorMany', { count: errors }), 'TapBody');
+            this._sendMessage(this._pick('errorMany', { count: errors, error_count: errors }), 'TapBody');
           } else {
-            this._sendMessage(this._pick('error'), 'TapBody');
+            this._sendMessage(this._pick('error', { count: errors, error_count: errors }), 'TapBody');
           }
         } else if (errors === 0 && this._prevErrorCount > 0) {
           const fixed = this._prevErrorCount;
@@ -141,10 +141,14 @@ export class ReactiveManager {
   // 3. Save reactions
   private _hookFileSave() {
     this._disposables.push(
-      vscode.workspace.onDidSaveTextDocument(() => {
+      vscode.workspace.onDidSaveTextDocument((document) => {
         if (!this._isEnabled('save')) return;
         this._resetActivity();
         const now = Date.now();
+        const fileName = vscode.workspace.asRelativePath(document.uri, false) || document.fileName;
+        const extension = document.uri.scheme === 'file'
+          ? document.fileName.split('.').pop() || ''
+          : '';
         this._saveTimes.push(now);
         // Keep only last 10 saves
         if (this._saveTimes.length > 10) this._saveTimes.shift();
@@ -152,9 +156,15 @@ export class ReactiveManager {
         // Detect spam save (3+ saves in 5 seconds)
         const recent = this._saveTimes.filter(t => now - t < 5000);
         if (recent.length >= 3) {
-          this._sendMessage(this._pick('saveSpam'));
+          this._sendMessage(this._pick('saveSpam', {
+            filename: fileName,
+            extension,
+          }));
         } else if (Math.random() < 0.3) {
-          this._sendMessage(this._pick('save'));
+          this._sendMessage(this._pick('save', {
+            filename: fileName,
+            extension,
+          }));
         }
 
         void this._stats.incSave().then((total) => {
@@ -194,8 +204,14 @@ export class ReactiveManager {
             for (const { keyword, messages } of customKeywords) {
               if (!keyword) continue;
               if (upper.includes(keyword.toUpperCase()) && Math.random() < 0.5) {
-                const msg = messages[Math.floor(Math.random() * messages.length)];
-                this._sendMessage(msg);
+                const template = messages[Math.floor(Math.random() * messages.length)];
+                this._sendMessage({
+                  key: 'typingFast',
+                  text: template,
+                  template,
+                  fromCustom: true,
+                  hasPlaceholders: /\{[a-zA-Z0-9_]+\}/.test(template),
+                });
                 break;
               }
             }
@@ -284,7 +300,10 @@ export class ReactiveManager {
         // Track branch changes
         const currentBranch = repo.state.HEAD?.name || '';
         if (this._prevBranch && currentBranch && currentBranch !== this._prevBranch) {
-          this._sendMessage(this._pick('gitBranchSwitch', { name: currentBranch }));
+          this._sendMessage(this._pick('gitBranchSwitch', {
+            name: currentBranch,
+            branch: currentBranch,
+          }));
         }
         this._prevBranch = currentBranch;
 
@@ -307,7 +326,7 @@ export class ReactiveManager {
         // Track uncommitted changes
         const changes = repo.state.workingTreeChanges.length + repo.state.indexChanges.length;
         if (changes > 10 && Math.random() < 0.3) {
-          this._sendMessage(this._pick('gitManyChanges', { count: changes }));
+          this._sendMessage(this._pick('gitManyChanges', { count: changes, error_count: changes }));
         } else if (changes > 5 && Math.random() < 0.2) {
           this._sendMessage(this._pick('gitRemind'));
         }
@@ -397,8 +416,14 @@ export class ReactiveManager {
   private async _tryUnlock(type: 'save' | 'commit' | 'error_fix' | 'coding', count: number) {
     const def = await this._stats.tryUnlockByThreshold(type, count);
     if (def) {
-      const msg = getMessageBank().pickAchievement(def.id);
-      this._sendMessage(msg ?? `🏆 ${def.title}`);
+      const template = getMessageBank().pickAchievement(def.id) ?? `🏆 ${def.title}`;
+      this._sendMessage({
+        key: 'moodHappy',
+        text: template,
+        template,
+        fromCustom: false,
+        hasPlaceholders: /\{[a-zA-Z0-9_]+\}/.test(template),
+      });
     }
   }
 }

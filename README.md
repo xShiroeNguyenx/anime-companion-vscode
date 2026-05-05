@@ -48,6 +48,12 @@ Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroen
 - Bubble message và voice tách riêng: có thể để voice `ja` nhưng text `vi` / `en` / `ja`.
 - Tự động nhép môi qua `model.speak()`, fallback HTML5 Audio nếu PIXI Audio plugin gặp sự cố.
 
+### 🎧 Background Ambient
+- Có sẵn **3 preset ambient**: **Lofi**, **Rain**, **Cafe** để bật nhạc nền/không khí làm việc ngay trong companion.
+- Ambient phát loop riêng với voice của companion, nên vẫn nghe được reaction voice + nhạc nền cùng lúc.
+- Có thể tắt hẳn bằng preset `off` hoặc chỉnh volume bằng `animeCompanion.ambientVolume`.
+- Hỗ trợ thêm **custom local ambient tracks** qua setting `animeCompanion.customAmbientTracks`.
+
 ### 🤖 Reactive Engine — phản ứng theo môi trường code
 | Sự kiện | Phản ứng |
 |---|---|
@@ -81,7 +87,7 @@ Mỗi kênh đều có thể bật/tắt độc lập qua settings.
 - Có overlay ring ngay trên companion.
 - Click status bar để stop nhanh.
 
-### 🖱️ Custom Right-click Menu (14 mục)
+### 🖱️ Custom Right-click Menu (15 mục)
 Click chuột phải lên companion để mở menu inline — không phải mở Command Palette:
 
 - 🚀 **Run** — restart-or-start debug session
@@ -90,6 +96,7 @@ Click chuột phải lên companion để mở menu inline — không phải m�
 - 🌸 **Model** — inline picker panel chọn model ngay trên character
 - 🗣️ **Voice** — inline picker `ja` / `vi` / `en`
 - 💬 **Messages** — đổi ngôn ngữ bubble `vi` / `en` / `ja`
+- 🎧 **Ambient** — mở panel chọn `off` / `lofi` / `rain` / `cafe` và các track custom
 - 🔇 **Mute** — toggle audio (label tự đổi `Mute` ↔ `Unmute`)
 - 👉 **Poke** — chạm model
 - 🎬 **Motion** — play nhanh `TapBody` / `TapHead` / `Idle`
@@ -123,6 +130,25 @@ Hoặc thêm keyword reaction riêng:
   "refactor": ["Refactor gọn gàng nha~"],
   "NOTE": ["Có note mới rồi đó!"]
 }
+```
+
+### 🎵 Custom Ambient Tracks
+Bạn có thể thêm track local của riêng mình để hiện trong Ambient panel:
+
+```json
+"animeCompanion.customAmbientTracks": [
+  {
+    "label": "My Lofi",
+    "path": "D:/Music/lofi.mp3",
+    "description": "Personal focus mix"
+  }
+]
+```
+
+Sau đó mở menu chuột phải → **Ambient** để chọn track. Volume dùng chung setting:
+
+```json
+"animeCompanion.ambientVolume": 30
 ```
 
 ### 📁 Custom Local Models
@@ -183,6 +209,9 @@ Mở Settings (`Ctrl+,`) → tìm `Anime Companion`, hoặc click **Settings** t
 | `animeCompanion.voiceLanguage` | `ja` | `ja` / `vi` / `en` cho audio. |
 | `animeCompanion.messageLanguage` | `vi` | `vi` / `en` / `ja` cho bubble text. |
 | `animeCompanion.muted` | `false` | Tắt toàn bộ audio. |
+| `animeCompanion.ambientPreset` | `off` | Ambient hiện tại: `off` / `lofi` / `rain` / `cafe` hoặc track custom. |
+| `animeCompanion.ambientVolume` | `30` | Âm lượng ambient từ `0` đến `100`. |
+| `animeCompanion.customAmbientTracks` | `[]` | Danh sách track ambient local tự thêm. |
 | `animeCompanion.characterSize` | `medium` | `small` / `medium` / `large`. |
 | `animeCompanion.showOnStartup` | `true` | Tự hiện panel khi VS Code khởi động. |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Khoảng cách giữa các idle bubble (giây). |

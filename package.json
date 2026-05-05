@@ -219,6 +219,44 @@
           "default": false,
           "description": "Mute all companion audio playback."
         },
+        "animeCompanion.ambientPreset": {
+          "type": "string",
+          "default": "off",
+          "description": "Background ambience preset for the companion. Built-in values: off, lofi, rain, cafe. Custom values can be selected from the Ambient panel when using animeCompanion.customAmbientTracks."
+        },
+        "animeCompanion.ambientVolume": {
+          "type": "number",
+          "default": 30,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Volume for background ambience, from 0 to 100."
+        },
+        "animeCompanion.customAmbientTracks": {
+          "type": "array",
+          "default": [],
+          "description": "Extra local ambient tracks shown in the Ambient menu. Example: [{ \"label\": \"My Lofi\", \"path\": \"D:/Music/lofi.mp3\", \"description\": \"Personal focus mix\" }].",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Optional stable id for this track."
+              },
+              "label": {
+                "type": "string",
+                "description": "Display name shown in the Ambient menu."
+              },
+              "description": {
+                "type": "string",
+                "description": "Short subtitle shown below the label."
+              },
+              "path": {
+                "type": "string",
+                "description": "Absolute path to a local audio file such as D:/Music/lofi.mp3."
+              }
+            }
+          }
+        },
         "animeCompanion.breakReminderMinutes": {
           "type": "number",
           "default": 30,
@@ -269,7 +307,7 @@
             "type": "string"
           },
           "default": [],
-          "description": "Extra phrases shown after a successful save. Merged into the default save pool."
+          "description": "Extra phrases shown after a successful save. Merged into the default save pool. Supports placeholders like {filename} and {extension}."
         },
         "animeCompanion.customPhrases.error": {
           "type": "array",
@@ -277,7 +315,7 @@
             "type": "string"
           },
           "default": [],
-          "description": "Extra phrases shown when new errors appear. Merged into the default error pool."
+          "description": "Extra phrases shown when new errors appear. Merged into the default error pool. Supports placeholders like {error_count}."
         },
         "animeCompanion.customModels": {
           "type": "object",

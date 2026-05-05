@@ -39,6 +39,7 @@ dist-models/**
 
 # Asset legacy đã migrate runtime sang en
 media/audio/ja-vi/**
+media/ambient/**
 
 # Lazy-loaded Live2D models — downloaded on first selection.
 # Hiyori is the only bundled model; everything else fetches from
