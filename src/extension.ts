@@ -11,6 +11,7 @@ import {
 } from './models';
 import { ModelFileServer } from './model-server';
 import { ModelDownloader } from './model-downloader';
+import { DesktopPetDownloader } from './desktop-pet-downloader';
 import { AnimeCompanionViewProvider } from './companion-view';
 import { DesktopPetBridge } from './desktop-pet-bridge';
 import { initMessageBank } from './messages';
@@ -221,6 +222,7 @@ export async function activate(context: vscode.ExtensionContext) {
   initCompanionPosition(context);
   const stats = new StatsStore(context);
   const downloader = new ModelDownloader(context);
+  const desktopPetDownloader = new DesktopPetDownloader(context);
 
   // Pre-register the cache root with the file server so already-downloaded
   // models work even if the user never selects them via the UI flow.
@@ -242,7 +244,13 @@ export async function activate(context: vscode.ExtensionContext) {
   let host: CompanionHost;
 
   if (desktopPetEnabled) {
-    bridge = new DesktopPetBridge(context.extensionUri, modelServer, stats, downloader);
+    bridge = new DesktopPetBridge(
+      context.extensionUri,
+      modelServer,
+      stats,
+      downloader,
+      desktopPetDownloader
+    );
     bridge.start();
     context.subscriptions.push(bridge);
     host = bridge;

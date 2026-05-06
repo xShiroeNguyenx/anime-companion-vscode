@@ -3,6 +3,20 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.40] - 2026-05-06
+
+### Added
+- Desktop Companion sidecar giờ được lazy-download thật ở runtime từ `animeCompanion.desktopCompanion.downloadBaseUrl` khi máy user chưa có binary cache.
+- Có progress notification trong lúc tải Desktop Companion, rồi hiện thông báo khi download/extract xong và chuẩn bị launch.
+
+### Changed
+- Desktop Companion sidecar cache theo version extension trong `globalStorage`, để update version không bị dùng lẫn binary cũ.
+- Ưu tiên resolve binary theo thứ tự: `devBinaryPath` -> binary đã cache -> local build fallback, giúp bản publish dùng lazy-download còn dev local vẫn test nhanh được.
+
+### Fixed
+- Bản publish không còn phụ thuộc vào việc ship sẵn `desktop-pet/target/release/anime-companion-pet.exe` trong `.vsix`.
+- `desktopCompanion.downloadBaseUrl` giờ phản ánh đúng behavior runtime thay vì chỉ là setting placeholder.
+
 ## [0.1.39] - 2026-05-06
 
 ### Fixed

@@ -6,6 +6,7 @@ import * as path from 'path';
 import { WebSocketServer, WebSocket } from 'ws';
 import { ModelFileServer } from './model-server';
 import { ModelDownloader } from './model-downloader';
+import { DesktopPetDownloader } from './desktop-pet-downloader';
 import { ReactiveManager } from './reactive';
 import { StatsStore } from './stats';
 import { WebSocketTransport } from './companion-transport';
@@ -35,6 +36,7 @@ export class DesktopPetBridge implements vscode.Disposable {
   private _server: ModelFileServer;
   private _stats: StatsStore;
   private _downloader: ModelDownloader;
+  private _desktopPetDownloader: DesktopPetDownloader;
   private _extensionUri: vscode.Uri;
 
   private _wss: WebSocketServer | null = null;
@@ -61,12 +63,14 @@ export class DesktopPetBridge implements vscode.Disposable {
     extensionUri: vscode.Uri,
     server: ModelFileServer,
     stats: StatsStore,
-    downloader: ModelDownloader
+    downloader: ModelDownloader,
+    desktopPetDownloader: DesktopPetDownloader
   ) {
     this._extensionUri = extensionUri;
     this._server = server;
     this._stats = stats;
     this._downloader = downloader;
+    this._desktopPetDownloader = desktopPetDownloader;
     this._token = crypto.randomBytes(32).toString('hex');
   }
 
@@ -143,7 +147,7 @@ export class DesktopPetBridge implements vscode.Disposable {
     // Spawn the Tauri sidecar. If the binary isn't available, leave the WS
     // server running so the user can open the bootstrap URL in Chrome
     // instead — useful for dev / Phase B verification.
-    this._spawnSidecar();
+    void this._spawnSidecar();
   }
 
   private _onClientConnected(ws: WebSocket) {
@@ -257,15 +261,20 @@ export class DesktopPetBridge implements vscode.Disposable {
 
   // Resolve which binary to spawn. Order:
   //   1. animeCompanion.desktopCompanion.devBinaryPath (if set + exists)
-  //   2. {extensionUri}/desktop-pet/target/release/<exeName> (local build)
-  //   3. {globalStorage}/desktop-pet/<platform>/<exeName>   (Phase D download cache)
+  //   2. {globalStorage}/desktop-pet/<version>/<platform>/<exeName> (download cache)
+  //   3. {extensionUri}/desktop-pet/target/release/<exeName> (local build fallback)
   // Returns null if none exist; caller logs a fallback hint.
-  private _resolveSidecarBinary(): string | null {
+  private _resolveSidecarBinary(platformId: string): string | null {
     const exeName = process.platform === 'win32' ? 'anime-companion-pet.exe' : 'anime-companion-pet';
 
     const devPath = this._getDesktopCompanionSetting('devBinaryPath', '').trim();
     if (devPath && this._isFile(devPath)) {
       return devPath;
+    }
+
+    const cached = this._desktopPetDownloader.getCachedBinaryPath(platformId);
+    if (this._isFile(cached)) {
+      return cached;
     }
 
     const localBuild = path.join(
@@ -279,17 +288,6 @@ export class DesktopPetBridge implements vscode.Disposable {
       return localBuild;
     }
 
-    // Phase D will populate this. Left here so the resolver doesn't need
-    // to change later.
-    const platformId = this._platformId();
-    if (platformId) {
-      // globalStorageUri is owned by the extension host; we don't have it
-      // directly here — bridge is constructed with extensionUri only. The
-      // downloader (Phase D) will pass the resolved binary path into the
-      // bridge instead of the bridge looking it up itself, so leaving null
-      // here is fine for now.
-      void platformId;
-    }
     return null;
   }
 
@@ -308,10 +306,11 @@ export class DesktopPetBridge implements vscode.Disposable {
     return null;
   }
 
-  private _spawnSidecar(): void {
+  private async _spawnSidecar(): Promise<void> {
     if (this._disposed || this._sidecar || this._sidecarRestartGivenUp) return;
 
-    if (!this._platformId()) {
+    const platformId = this._platformId();
+    if (!platformId) {
       log(
         `DesktopPet: platform ${process.platform}/${process.arch} not supported in v1 — ` +
           `Windows-only. Use the bootstrap URL in Chrome to test: ${this.bootstrapUrl}`
@@ -319,12 +318,24 @@ export class DesktopPetBridge implements vscode.Disposable {
       return;
     }
 
-    const binary = this._resolveSidecarBinary();
+    let binary = this._resolveSidecarBinary(platformId);
+    if (!binary) {
+      try {
+        binary = await this._desktopPetDownloader.ensureSidecar(platformId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        log(`DesktopPet: sidecar download failed — ${msg}`);
+        void vscode.window.showErrorMessage(
+          `Anime Companion couldn't download Desktop Companion (${msg}).`
+        );
+        return;
+      }
+    }
+
     if (!binary) {
       log(
-        `DesktopPet: sidecar binary not found. Build it locally with:\n` +
-          `  cd desktop-pet && cargo build --release\n` +
-          `or set animeCompanion.desktopCompanion.devBinaryPath. ` +
+        `DesktopPet: sidecar binary still not found after cache + local fallback. ` +
+          `Set animeCompanion.desktopCompanion.devBinaryPath or verify the published zip. ` +
           `Open this URL in Chrome to test the bridge in the meantime: ${this.bootstrapUrl}`
       );
       return;
@@ -389,7 +400,7 @@ export class DesktopPetBridge implements vscode.Disposable {
         }
 
         // Brief backoff so we don't hammer if the binary fails immediately.
-        setTimeout(() => this._spawnSidecar(), 1000);
+        setTimeout(() => void this._spawnSidecar(), 1000);
       });
 
       proc.on('error', (err) => {

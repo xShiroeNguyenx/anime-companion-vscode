@@ -1,10 +1,10 @@
-# Public Release Guide (v0.1.39)
+# Public Release Guide (v0.1.40)
 
 Mục tiêu của guide này là giúp public bản hiện tại với feature **Desktop Companion (Windows v1)** theo flow an toàn, dễ lặp lại.
 
 ## 1. Scope release hiện tại
 
-- Extension version public: `0.1.39`
+- Extension version public: `0.1.40`
 - Feature headline: `Desktop Companion (Windows v1)`
 - Platform support cho desktop companion: `Windows`
 - Extension vẫn cài được trên VS Code/Cursor/VSCodium như cũ
@@ -22,11 +22,10 @@ Trong Marketplace / GitHub Release / post giới thiệu nên nói ngắn gọn 
 
 ## 3. Pre-publish checklist
 
-- `package.json` là `0.1.39`
+- `package.json` là `0.1.40`
 - `README.md` đã phản ánh Desktop Companion + setting mới
-- `CHANGELOG.md` có entry `0.1.39`
+- `CHANGELOG.md` có entry `0.1.40`
 - Có file `.vsix` bản cuối cùng cần phát hành
-- Đã build sidecar bằng `npm run build:desktop-pet`
 - Đã chuẩn bị asset sidecar release cho URL `desktop-pet-v1/win-x64.zip`
 - Đã test clean flow trên Windows:
   - cài extension
@@ -41,8 +40,8 @@ Trong Marketplace / GitHub Release / post giới thiệu nên nói ngắn gọn 
 1. Build và upload desktop companion asset lên GitHub Release tag `desktop-pet-v1`.
 2. Verify `animeCompanion.desktopCompanion.downloadBaseUrl` đang trỏ đúng release asset thật.
 3. Package extension `.vsix`.
-4. Publish extension `v0.1.39` lên VS Code Marketplace / Open VSX.
-5. Tạo GitHub Release `v0.1.39` kèm release notes ngắn gọn.
+4. Publish extension `v0.1.40` lên VS Code Marketplace / Open VSX.
+5. Tạo GitHub Release `v0.1.40` kèm release notes ngắn gọn.
 
 Lý do đi theo thứ tự này:
 
@@ -52,15 +51,15 @@ Lý do đi theo thứ tự này:
 ## 5. Release notes mẫu
 
 ```md
-## Anime Companion v0.1.39
+## Anime Companion v0.1.40
 
-This release introduces Desktop Companion (Windows v1).
+This release completes the first real lazy-download flow for Desktop Companion (Windows v1).
 
 - Run your Live2D companion as a floating desktop window outside VS Code
 - Toggle with `animeCompanion.desktopCompanion.enabled`
 - First launch lazy-downloads the Windows sidecar from GitHub Releases
 - Added Desktop Companion settings for always-on-top, click-through, size, position, and opacity
-- Updated docs and configuration names to the public `desktopCompanion.*` namespace
+- Added download progress / completion feedback for the sidecar
 
 Notes:
 - Desktop Companion v1 is currently Windows-only
@@ -69,8 +68,8 @@ Notes:
 
 ## 6. Post-publish verification
 
-- Marketplace page hiện đúng version `0.1.39`
-- Open VSX hiện đúng version `0.1.39`
+- Marketplace page hiện đúng version `0.1.40`
+- Open VSX hiện đúng version `0.1.40`
 - GitHub Release có `.vsix`
 - GitHub Release `desktop-pet-v1` có asset sidecar Windows
 - README render đúng section Desktop Companion
