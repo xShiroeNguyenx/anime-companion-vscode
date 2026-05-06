@@ -1,0 +1,3 @@
+/target
+# icons/icon.ico is generated from ../media/icon.png by scripts/build-desktop-pet.js.
+/icons/icon.ico

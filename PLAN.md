@@ -139,7 +139,7 @@ Voice hiện tại đã usable, nhưng vẫn có dư địa để tiến tới c
 
 Các mục này có giá trị cao nhưng scope lớn hoặc risk cao. Không đưa vào sprint gần.
 
-- **Floating Desktop Pet**: companion chạy ngoài VS Code, dạng Tauri sidecar + IPC bridge với extension.
+- **Desktop Companion**: companion chạy ngoài VS Code, dạng Tauri sidecar + IPC bridge với extension.
 - **AI/LLM chat (BYOK)**: tích hợp Anthropic/OpenAI/Gemini, user dán API key, companion thành chat assistant.
 - **Multi-character interaction**: 2 model trên cùng panel tương tác lẫn nhau.
 - **Live2D motion editor**: UI cho user tự gán motion vào event.

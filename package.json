@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.1.27",
+  "version": "0.1.38",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -45,6 +45,28 @@
   },
   "activationEvents": [
     "onStartupFinished"
+  ],
+  "files": [
+    "out/*.js",
+    "media/audio/en/**",
+    "media/audio/ja/**",
+    "media/audio/vi/**",
+    "media/character.png",
+    "media/companion.css",
+    "media/icon.png",
+    "media/lib/**",
+    "media/live2d/Hiyori/**",
+    "media/messages/**",
+    "media/webview/**",
+    "desktop-pet/web/**",
+    "desktop-pet/target/release/anime-companion-pet.exe",
+    "node_modules/adm-zip/**",
+    "node_modules/ws/**",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE*",
+    "THIRDPARTY.md",
+    "AMBIENT_SOURCES.md"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -116,6 +138,16 @@
         "command": "animeCompanion.resetWorkspaceModel",
         "title": "Anime Companion: Reset Workspace Model",
         "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.resetPosition",
+        "title": "Anime Companion: Reset Companion Position",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "claude-vscode.terminal.open",
+        "title": "Claude VSCode: Open Terminal",
+        "category": "Claude VSCode Compatibility"
       }
     ],
     "viewsContainers": {
@@ -345,6 +377,73 @@
           },
           "default": {},
           "description": "User-defined keyword reactions. Each key is a substring (case-insensitive) to watch for in typed text; the value is a pool of messages picked when matched. Example: { \"NOTE\": [\"Ghi chú thêm rồi nha~\"], \"refactor\": [\"Refactor là yêu lắm đó!\"] }."
+        },
+        "animeCompanion.desktopCompanion.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run the companion as a floating Desktop Companion window (Tauri sidecar) instead of in the VS Code panel. Windows-only in v1; Mac/Linux planned for v1.1+. Requires reload after toggling."
+        },
+        "animeCompanion.desktopCompanion.alwaysOnTop": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep the Desktop Companion window above other windows."
+        },
+        "animeCompanion.desktopCompanion.clickThrough": {
+          "type": "boolean",
+          "default": false,
+          "description": "Make the Desktop Companion window ignore mouse clicks (clicks pass through to apps behind). Toggle from the tray icon."
+        },
+        "animeCompanion.desktopCompanion.size": {
+          "type": "string",
+          "enum": [
+            "small",
+            "medium",
+            "large"
+          ],
+          "default": "medium",
+          "description": "Size of the Desktop Companion window."
+        },
+        "animeCompanion.desktopCompanion.position": {
+          "type": "object",
+          "default": {
+            "anchor": "bottom-right"
+          },
+          "description": "Initial position of the Desktop Companion window. `anchor` snaps to a screen corner; `x`/`y` (optional) override with absolute coordinates persisted after dragging.",
+          "properties": {
+            "anchor": {
+              "type": "string",
+              "enum": [
+                "top-left",
+                "top-right",
+                "bottom-left",
+                "bottom-right"
+              ],
+              "default": "bottom-right"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          }
+        },
+        "animeCompanion.desktopCompanion.opacity": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0.5,
+          "maximum": 1,
+          "description": "Window opacity for the Desktop Companion (0.5 = half-transparent, 1 = fully opaque)."
+        },
+        "animeCompanion.desktopCompanion.downloadBaseUrl": {
+          "type": "string",
+          "default": "https://github.com/xShiroeNguyenx/anime-companion-vscode/releases/download/desktop-pet-v1",
+          "description": "Base URL where the Desktop Companion sidecar binary zips are hosted. Each platform is fetched as `{baseUrl}/{platform}.zip` (e.g. win-x64.zip)."
+        },
+        "animeCompanion.desktopCompanion.devBinaryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to a locally-built sidecar binary. When set, overrides the lazy-download flow. Useful for development before the official binary is published. Example: D:/anime-companion-vscode/desktop-pet/target/release/anime-companion-pet.exe"
         }
       }
     }
@@ -356,6 +455,7 @@
     "lint": "eslint src --ext ts",
     "test": "npm run compile && node ./scripts/smoke-test.js",
     "cleanup:vsix": "node scripts/cleanup-vsix.js",
+    "build:desktop-pet": "node scripts/build-desktop-pet.js",
     "package": "vsce package --allow-missing-repository && npm run cleanup:vsix",
     "package:install": "vsce package --allow-missing-repository && npm run cleanup:vsix && \"%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\bin\\code.cmd\" --install-extension \"%npm_package_name%-%npm_package_version%.vsix\" --force",
     "publish:vsce": "vsce publish",
@@ -365,6 +465,7 @@
     "@types/adm-zip": "^0.5.8",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "@vscode/vsce": "^2.19.0",
@@ -376,6 +477,7 @@
     "undici": "5.28.4"
   },
   "dependencies": {
-    "adm-zip": "^0.5.17"
+    "adm-zip": "^0.5.17",
+    "ws": "^8.20.0"
   }
 }

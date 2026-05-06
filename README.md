@@ -4,7 +4,7 @@
 
 > ⚠️ **Experimental — v0.1.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.1.27
+**Phiên bản hiện tại:** v0.1.38
 
 ## 📦 Cài đặt
 
@@ -32,8 +32,16 @@ Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroen
 - Render bằng `pixi-live2d-display` + Cubism Core qua local HTTP server (bypass CSP của VS Code).
 - Có fallback ảnh tĩnh nếu Live2D load lỗi.
 - Expression blending mượt qua PIXI ticker — chuyển trạng thái cảm xúc không bị giật.
-- Có thể thêm model local do chính user tự tải về qua setting `animeCompanion.customModelRoots` hoặc `animeCompanion.customModels` (xem [LICENSE-AUDIT.md](LICENSE-AUDIT.md)).
+- Có thể thêm model local do chính user tự tải về qua setting `animeCompanion.customModelRoots` hoặc `animeCompanion.customModels` (xem [MODEL_LICENSE_AUDIT.md](MODEL_LICENSE_AUDIT.md)).
 - Nếu đang mở workspace, model được lưu theo từng workspace; có command reset về global model.
+
+### 🪟 Desktop Companion (Windows v1)
+- Có thể chạy companion thành **cửa sổ desktop nổi riêng** thay vì chỉ nằm trong panel của VS Code.
+- Bật bằng setting `animeCompanion.desktopCompanion.enabled`, sau đó reload window để áp dụng.
+- Khi Desktop Companion bật, panel trong VS Code sẽ tự ẩn để tránh chạy 2 instance Live2D cùng lúc.
+- Binary desktop pet được **lazy download** từ GitHub Releases ở lần bật đầu tiên; có thể override bằng `animeCompanion.desktopCompanion.devBinaryPath` khi test local.
+- Hỗ trợ các tùy chọn `alwaysOnTop`, `clickThrough`, `size`, `position`, `opacity`.
+- v1 hiện **Windows-only**. Mac/Linux chưa ship binary chính thức ở bản này.
 
 ### 💫 Tương tác đa dạng
 - **Single Click** — chạm nhẹ (Surprised).
@@ -181,7 +189,7 @@ Nếu muốn chỉnh riêng tên hiển thị, mô tả, hoặc chỉ định fi
 
 ### Từ file `.vsix` (hiện tại)
 ```bash
-code --install-extension anime-companion-vscode-0.1.27.vsix
+code --install-extension anime-companion-vscode-0.1.38.vsix
 ```
 
 ### Từ source
@@ -226,6 +234,14 @@ Mở Settings (`Ctrl+,`) → tìm `Anime Companion`, hoặc click **Settings** t
 | `animeCompanion.customPhrases.save` | `[]` | Thêm câu cho save reaction. |
 | `animeCompanion.customPhrases.error` | `[]` | Thêm câu cho error reaction. |
 | `animeCompanion.customKeywords` | `{}` | Map keyword → list message custom. |
+| `animeCompanion.desktopCompanion.enabled` | `false` | Bật companion dạng cửa sổ desktop nổi thay cho panel VS Code. |
+| `animeCompanion.desktopCompanion.alwaysOnTop` | `true` | Giữ cửa sổ Desktop Companion luôn nổi trên các cửa sổ khác. |
+| `animeCompanion.desktopCompanion.clickThrough` | `false` | Cho phép click xuyên qua cửa sổ Desktop Companion. |
+| `animeCompanion.desktopCompanion.size` | `medium` | Kích thước cửa sổ desktop: `small` / `medium` / `large`. |
+| `animeCompanion.desktopCompanion.position` | `{ "anchor": "bottom-right" }` | Vị trí khởi tạo của Desktop Companion. |
+| `animeCompanion.desktopCompanion.opacity` | `1` | Độ trong suốt của Desktop Companion, từ `0.5` đến `1`. |
+| `animeCompanion.desktopCompanion.downloadBaseUrl` | GitHub Releases URL | Base URL để lazy-download binary desktop companion. |
+| `animeCompanion.desktopCompanion.devBinaryPath` | `""` | Đường dẫn tuyệt đối tới binary local để test Desktop Companion. |
 
 ---
 
@@ -245,6 +261,7 @@ Mở Command Palette (`Ctrl+Shift+P`) và gõ `Anime Companion`:
 | `Anime Companion: Show Stats` | Mở quick stats |
 | `Anime Companion: Show Achievements` | Mở danh sách achievements |
 | `Anime Companion: Play Motion` | Chạy nhanh `TapBody` / `TapHead` / `Idle` |
+| `Anime Companion: Reset Companion Position` | Reset vị trí companion trong panel mode |
 | `Anime Companion: Open Settings` | Mở Settings đã filter |
 
 ---
@@ -305,7 +322,7 @@ media/
 - [PLAN.md](./PLAN.md) — Roadmap (sprint hiện tại, ngắn hạn, trung hạn, vision).
 - [CHECKLIST.md](./CHECKLIST.md) — Tiến độ từng task.
 - [DECISIONS.md](./DECISIONS.md) — Ghi chú kiến trúc + technical decisions.
-- [LICENSE-AUDIT.md](./LICENSE-AUDIT.md) — Ghi chú license/re-distribution cho model và audio.
+- [MODEL_LICENSE_AUDIT.md](./MODEL_LICENSE_AUDIT.md) — Ghi chú license/re-distribution cho model và audio.
 
 ---
 
@@ -313,7 +330,7 @@ media/
 
 [MIT License](./LICENSE).
 
-Live2D Cubism SDK, các model Live2D, và audio VoiceVox/Google TTS có license riêng. Các model không có quyền redistribute rõ ràng không còn được ship trong extension; nếu user tự tải về để dùng local thì cấu hình qua `animeCompanion.customModelRoots` hoặc `animeCompanion.customModels` — xem [LICENSE-AUDIT.md](./LICENSE-AUDIT.md).
+Live2D Cubism SDK, các model Live2D, và audio VoiceVox/Google TTS có license riêng. Các model không có quyền redistribute rõ ràng không còn được ship trong extension; nếu user tự tải về để dùng local thì cấu hình qua `animeCompanion.customModelRoots` hoặc `animeCompanion.customModels` — xem [MODEL_LICENSE_AUDIT.md](./MODEL_LICENSE_AUDIT.md).
 
 ---
 

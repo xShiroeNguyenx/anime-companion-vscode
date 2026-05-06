@@ -56,6 +56,11 @@ const DBLCLICK_MESSAGES = tList('dblClickMessages', [
   'Double tap nhanh quá~ tim em lỡ nhịp luôn nè! 💖',
 ]);
 
+// Pixels of mouse travel before a pending click upgrades into a drag. Tuned
+// loose enough that ordinary clicks don't trip it, tight enough that the
+// drag feels responsive once intent is clear.
+const DRAG_THRESHOLD_PX = 6;
+
 // Fits the model into the panel and wires up pointer interaction + context menu.
 export function setupModel() {
   if (!state.model || !state.app) return;
@@ -68,11 +73,106 @@ export function setupModel() {
   let longPressTimer = null;
   let isLongPress = false;
   let isCooldown = false;
+  let isWindowDragging = false;
+
+  // Drag-vs-click decision state. Populated on mousedown, watched by a
+  // window-level mousemove listener; once the cursor has moved past the
+  // threshold we cancel the pending click logic and hand off to either
+  // Tauri's window drag or the panel's CSS reposition.
+  let pendingDrag = null;
+  let panelDragState = null;
+
+  const canvas = document.getElementById('live2dCanvas');
+  const isDesktopPet = document.body.classList.contains('desktop-pet-mode');
+  const tauriWindow = isDesktopPet ? (
+    window.__TAURI__?.window?.getCurrentWindow?.() ||
+    window.__TAURI__?.webviewWindow?.getCurrentWebviewWindow?.() ||
+    window.__TAURI__?.webviewWindow?.getCurrent?.()
+  ) : null;
+  debugLog(
+    'Drag init: desktopPet=' + isDesktopPet +
+    ', canvas=' + Boolean(canvas) +
+    ', tauriWindow=' + Boolean(tauriWindow) +
+    ', startDragging=' + Boolean(tauriWindow?.startDragging)
+  );
+
+  // Cancel the pending-click bookkeeping when a drag actually starts so we
+  // don't fire a poke / longpress / spam reaction on mouseup.
+  function cancelClickBookkeeping() {
+    clearTimeout(longPressTimer);
+    clearTimeout(clickTimer);
+    clickCount = 0;
+    isLongPress = false;
+  }
+
+  // Promote a pending click into an active drag. Called from the window-level
+  // mousemove listener once the cursor has moved past DRAG_THRESHOLD_PX.
+  function beginDrag(clientX, clientY) {
+    cancelClickBookkeeping();
+    isWindowDragging = true;
+    debugLog('beginDrag: desktopPet=' + isDesktopPet + ', x=' + clientX + ', y=' + clientY);
+
+    if (tauriWindow?.startDragging) {
+      // OS owns the drag from here on. Our mousemove/mouseup may not fire
+      // again until the user releases; clear pending state.
+      pendingDrag = null;
+      debugLog('Calling tauriWindow.startDragging()');
+      void tauriWindow.startDragging().then(() => {
+        debugLog('tauriWindow.startDragging() resolved');
+      }).catch((err) => {
+        debugLog('tauriWindow.startDragging() failed: ' + (err?.message || String(err)));
+        isWindowDragging = false;
+      });
+      return;
+    }
+
+    // Panel mode: switch the container into absolute positioning so we can
+    // move it freely. Remember the offset between cursor and container origin
+    // so the drag feels anchored to where the user grabbed.
+    const container = document.querySelector('.companion-container');
+    if (!container) {
+      pendingDrag = null;
+      isWindowDragging = false;
+      return;
+    }
+    const rect = container.getBoundingClientRect();
+    panelDragState = {
+      container,
+      offsetX: clientX - rect.left,
+      offsetY: clientY - rect.top,
+    };
+    container.classList.add('companion-container--dragging');
+    // Pin via fixed positioning so subsequent left/top are viewport-relative
+    // and don't fight with the flex parent layout.
+    container.style.position = 'fixed';
+    container.style.width = rect.width + 'px';
+    container.style.height = rect.height + 'px';
+    container.style.left = rect.left + 'px';
+    container.style.top = rect.top + 'px';
+    pendingDrag = null;
+  }
+
+  // Track every potential drag origin so the global mousemove watcher can
+  // decide. Both PIXI's pointerdown on the model AND a raw canvas mousedown
+  // (transparent areas of the canvas) feed into this.
+  function recordPotentialDragStart(clientX, clientY) {
+    pendingDrag = { startX: clientX, startY: clientY };
+    debugLog('recordPotentialDragStart: x=' + clientX + ', y=' + clientY);
+  }
 
   state.model.on('pointerdown', (e) => {
     const btn = e?.data?.button ?? e?.data?.originalEvent?.button;
+    const altKey = !!(e?.data?.originalEvent?.altKey ?? e?.altKey);
+    debugLog('pointerdown: btn=' + btn + ', alt=' + altKey + ', cooldown=' + isCooldown + ', dragging=' + isWindowDragging);
     if (btn === 2) return;
     if (isCooldown) return;
+    if (isWindowDragging) return;
+
+    const oe = e?.data?.originalEvent;
+    if (oe && typeof oe.clientX === 'number') {
+      recordPotentialDragStart(oe.clientX, oe.clientY);
+    }
+
     debugLog('Pointer down');
     isLongPress = false;
 
@@ -101,6 +201,10 @@ export function setupModel() {
     const btn = e?.data?.button ?? e?.data?.originalEvent?.button;
     if (btn === 2) return;
     if (isCooldown) return;
+    if (isWindowDragging) {
+      isWindowDragging = false;
+      return;
+    }
     clearTimeout(longPressTimer);
 
     if (isLongPress) {
@@ -156,6 +260,75 @@ export function setupModel() {
   applyModelHoverCursor();
 
   const wrapper = document.getElementById('characterWrapper');
+
+  // Drag also from transparent areas of the canvas (where Live2D's hit
+  // detection won't fire pointerdown on the model). Same threshold rules.
+  if (canvas) {
+    canvas.addEventListener('mousedown', (event) => {
+      debugLog('canvas mousedown: btn=' + event.button + ', alt=' + event.altKey + ', x=' + event.clientX + ', y=' + event.clientY);
+      if (event.button !== 0) return;
+      if (isCooldown || isWindowDragging) return;
+      recordPotentialDragStart(event.clientX, event.clientY);
+    }, true);
+  }
+
+  // Single global drag watcher. Promotes a pending mousedown into a real
+  // drag once the cursor crosses the threshold; live-updates panel mode
+  // until mouseup.
+  window.addEventListener('mousemove', (event) => {
+    if (panelDragState) {
+      const c = panelDragState.container;
+      const newLeft = event.clientX - panelDragState.offsetX;
+      const newTop = event.clientY - panelDragState.offsetY;
+      // Constrain to the viewport so the model can't be lost off-screen.
+      const rect = c.getBoundingClientRect();
+      const maxLeft = Math.max(0, window.innerWidth - rect.width);
+      const maxTop = Math.max(0, window.innerHeight - rect.height);
+      const x = Math.min(Math.max(0, newLeft), maxLeft);
+      const y = Math.min(Math.max(0, newTop), maxTop);
+      c.style.left = x + 'px';
+      c.style.top = y + 'px';
+      return;
+    }
+    if (!pendingDrag) return;
+    const dx = event.clientX - pendingDrag.startX;
+    const dy = event.clientY - pendingDrag.startY;
+    if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
+      beginDrag(event.clientX, event.clientY);
+    }
+  }, true);
+
+  // Reset on mouseup. In Tauri mode the OS may eat events until release —
+  // the listener still fires when control returns, clearing the flag.
+  // In panel mode this is also where we persist the final position.
+  window.addEventListener('mouseup', () => {
+    debugLog(
+      'mouseup: panelDrag=' + Boolean(panelDragState) +
+      ', pendingDrag=' + Boolean(pendingDrag) +
+      ', isWindowDragging=' + isWindowDragging
+    );
+    if (panelDragState) {
+      const c = panelDragState.container;
+      c.classList.remove('companion-container--dragging');
+      const rect = c.getBoundingClientRect();
+      vscode.postMessage({
+        command: 'setCompanionPosition',
+        x: Math.round(rect.left),
+        y: Math.round(rect.top),
+      });
+      panelDragState = null;
+    }
+    pendingDrag = null;
+    // Defer slightly so a click event fired by the same release is suppressed
+    // by the existing isWindowDragging guards in pointerup.
+    setTimeout(() => { isWindowDragging = false; }, 50);
+  }, true);
+
+  // Apply any persisted position right away so the user's chosen spot
+  // survives reloads. Bridge mode injects this via the init payload; panel
+  // mode injects via the HTML inline script.
+  applyStoredPanelPosition();
+
   if (wrapper) {
     const resizeObserver = new ResizeObserver(() => fitModel());
     resizeObserver.observe(wrapper);
@@ -170,6 +343,27 @@ export function setupModel() {
   setupAmbientPanel();
   setupModelPanel();
   setupMotionPanel();
+}
+
+// Reads window.__COMPANION_POSITION__ (set by extension when persisted) and
+// pins the container at that x/y. Skipped on desktop pet mode where the
+// position is OS window position, not intra-window coords.
+function applyStoredPanelPosition() {
+  if (document.body.classList.contains('desktop-pet-mode')) return;
+  const pos = window.__COMPANION_POSITION__;
+  if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') return;
+  const container = document.querySelector('.companion-container');
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  const maxLeft = Math.max(0, window.innerWidth - rect.width);
+  const maxTop = Math.max(0, window.innerHeight - rect.height);
+  const x = Math.min(Math.max(0, pos.x), maxLeft);
+  const y = Math.min(Math.max(0, pos.y), maxTop);
+  container.style.position = 'fixed';
+  container.style.width = rect.width + 'px';
+  container.style.height = rect.height + 'px';
+  container.style.left = x + 'px';
+  container.style.top = y + 'px';
 }
 
 function applyModelHoverCursor() {
@@ -207,9 +401,9 @@ export function fitModel() {
   const scale = Math.min(scaleX, scaleY) * 0.9;
 
   state.model.scale.set(scale);
+  state.model.anchor.set(0.5, 1.0);
   state.model.x = w / 2;
   state.model.y = h;
-  state.model.anchor.set(0.5, 1.0);
 
   debugLog('Fit: scale=' + scale.toFixed(4) + ', pos=(' + state.model.x + ',' + state.model.y + ')');
 }

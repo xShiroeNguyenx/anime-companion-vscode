@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<!--
+  Desktop Companion entry page. Loaded by the Tauri sidecar (and by Chrome
+  during Phase B verification) from http://127.0.0.1:{port}/desktop-pet/index.html.
+
+  The bootstrap below mirrors the panel webview's HTML init: it gathers all
+  `window.__*__` globals the Live2D runtime expects, except those values arrive
+  over the WebSocket bridge in an `init` payload instead of being baked into
+  the HTML by VS Code. After the init message, libs (cubism, pixi) and the
+  module entry (main.js) are appended in order so the existing webview runtime
+  runs unchanged.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anime Companion - Floating</title>
+  <link rel="stylesheet" href="/media/companion.css" />
+  <style>
+    html, body { background: transparent; height: 100%; }
+  </style>
+</head>
+<body class="desktop-pet-mode">
+  <div class="companion-container" data-tauri-drag-region>
+    <div class="chat-bubble" id="chatBubble" data-tauri-drag-region>
+      <span class="bubble-text" id="bubbleText" data-tauri-drag-region>Connecting...</span>
+      <div class="bubble-tail" data-tauri-drag-region></div>
+    </div>
+
+    <div class="character-wrapper" id="characterWrapper">
+      <div class="drag-pad drag-pad-top" data-tauri-drag-region></div>
+      <div class="drag-pad drag-pad-left" data-tauri-drag-region></div>
+      <div class="drag-pad drag-pad-right" data-tauri-drag-region></div>
+      <div class="drag-pad drag-pad-bottom" data-tauri-drag-region></div>
+      <canvas id="live2dCanvas" style="display: none;"></canvas>
+      <img
+        id="fallbackImg"
+        src="/media/character.png"
+        alt="Anime Companion"
+        class="character-img"
+        draggable="false"
+        style="display: none;"
+      />
+      <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">Loading Live2D...</span>
+      </div>
+      <div class="particles" id="particles"></div>
+    </div>
+
+    <div class="status-bar" data-tauri-drag-region>
+      <span class="status-dot" data-tauri-drag-region></span>
+      <span class="status-text" data-tauri-drag-region>Live2D</span>
+    </div>
+  </div>
+
+  <script>
+    // Mark this document so the runtime can branch behavior on transport mode
+    // (e.g. enable click-drag-window-move via Tauri startDragging instead of
+    // the panel's CSS-based reposition).
+    document.body.classList.add('desktop-pet-mode');
+
+    (function bootstrap() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const bubble = document.getElementById('bubbleText');
+
+      if (!token) {
+        bubble.textContent = 'Missing ?token= in URL.';
+        return;
+      }
+
+      const wsUrl =
+        'ws://' + window.location.hostname + ':' + window.location.port +
+        '/ws?token=' + encodeURIComponent(token);
+
+      const ws = new WebSocket(wsUrl);
+
+      window.__VS_CODE_BRIDGE__ = {
+        postMessage(message) {
+          const payload = JSON.stringify(message);
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(payload);
+          } else {
+            ws.addEventListener('open', () => ws.send(payload), { once: true });
+          }
+        },
+      };
+
+      ws.addEventListener('open', () => {
+        console.log('[bootstrap] WebSocket connected to', wsUrl);
+      });
+
+      if (window.__TAURI__ && window.__TAURI__.event) {
+        window.__TAURI__.event.listen('anime-pet:open-settings', () => {
+          if (window.__VS_CODE_BRIDGE__) {
+            window.__VS_CODE_BRIDGE__.postMessage({
+              command: 'runCommand',
+              action: 'animeCompanion.openSettings',
+            });
+          }
+        });
+      }
+
+      ws.addEventListener('error', (e) => {
+        console.error('[bootstrap] WebSocket error', e);
+        bubble.textContent = 'Connection error. Check VS Code log.';
+      });
+
+      ws.addEventListener('close', () => {
+        console.warn('[bootstrap] WebSocket closed');
+      });
+
+      let initialized = false;
+      ws.addEventListener('message', (event) => {
+        let parsed;
+        try {
+          parsed = JSON.parse(event.data);
+        } catch (err) {
+          console.error('[bootstrap] Bad JSON', err);
+          return;
+        }
+
+        if (parsed && parsed.command === 'init') {
+          if (initialized) {
+            window.location.reload();
+            return;
+          }
+          initialized = true;
+          const s = parsed.state || {};
+          window.__MODEL_URL__ = s.modelUrl;
+          window.__MODEL_ID__ = s.modelId;
+          window.__AUDIO_BASE_URL__ = s.audioBaseUrl;
+          window.__VOICE_LANGUAGE__ = s.voiceLanguage;
+          window.__MESSAGE_LANGUAGE__ = s.messageLanguage;
+          window.__AUDIO_MUTED__ = s.muted;
+          window.__AMBIENT_PRESET__ = s.ambientPreset;
+          window.__AMBIENT_VOLUME__ = s.ambientVolume;
+          window.__AMBIENT_TRACKS__ = s.ambientTracks;
+          window.__VISIBLE_MODELS__ = s.visibleModels;
+          window.__WEBVIEW_STRINGS__ = s.webviewStrings;
+          loadLive2DRuntime();
+          return;
+        }
+
+        window.dispatchEvent(new MessageEvent('message', { data: parsed }));
+      });
+
+      function loadLive2DRuntime() {
+        const scripts = [
+          '/media/lib/live2dcubismcore.min.js',
+          '/media/lib/pixi.min.js',
+          '/media/lib/cubism4.min.js',
+        ];
+        let i = 0;
+        function next() {
+          if (i >= scripts.length) {
+            const m = document.createElement('script');
+            m.type = 'module';
+            m.src = '/media/webview/main.js';
+            m.onerror = () => console.error('[bootstrap] main.js failed to load');
+            document.body.appendChild(m);
+            return;
+          }
+          const s = document.createElement('script');
+          s.src = scripts[i++];
+          s.onload = next;
+          s.onerror = () => console.error('[bootstrap] Failed to load', s.src);
+          document.body.appendChild(s);
+        }
+        next();
+      }
+    })();
+  </script>
+</body>
+</html>

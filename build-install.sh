@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Bump version -> package .vsix -> keep latest 10 -> install into VS Code
+# Build Desktop Companion sidecar -> bump version -> package .vsix
+# -> keep latest 10 -> install into VS Code
 # Usage:
 #   ./build-install.sh              -> patch bump (0.1.4 -> 0.1.5)
 #   ./build-install.sh minor        -> minor bump (0.1.4 -> 0.2.0)
@@ -10,9 +11,30 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+REPO_ROOT="$(pwd)"
 BUMP_TYPE="${1:-patch}"
 
-# 1. Bump version
+# Keep build scratch files off the default system temp so packaging still works
+# when the C: drive is tight on space.
+TMP_BUILD_DIR="${REPO_ROOT}/.tmp-build"
+TMP_NPM_CACHE_DIR="${REPO_ROOT}/.tmp-npm-cache"
+mkdir -p "$TMP_BUILD_DIR" "$TMP_NPM_CACHE_DIR"
+export TEMP="$TMP_BUILD_DIR"
+export TMP="$TMP_BUILD_DIR"
+export npm_config_cache="$TMP_NPM_CACHE_DIR"
+
+if [[ -x "./node_modules/.bin/vsce" ]]; then
+  VSCE="./node_modules/.bin/vsce"
+else
+  VSCE="npx vsce"
+fi
+
+# 1. Build the Desktop Companion sidecar first so the packaged VSIX contains
+# the newest binary.
+echo "-> Building Desktop Companion sidecar"
+npm run build:desktop-pet
+
+# 2. Bump version
 if [[ "$BUMP_TYPE" == "--no-bump" ]]; then
   echo "-> Skipping version bump"
 else
@@ -26,11 +48,11 @@ VSIX="${NAME}-${VERSION}.vsix"
 
 echo "-> Building ${VSIX}"
 
-# 2. Package and prune old VSIX files
-npx vsce package --allow-missing-repository --out "$VSIX"
+# 3. Package and prune old VSIX files
+$VSCE package --allow-missing-repository --out "$VSIX"
 node scripts/cleanup-vsix.js
 
-# 3. Locate the VS Code CLI
+# 4. Locate the VS Code CLI
 USER_NAME="${USER:-${USERNAME:-}}"
 CODE_CLI=""
 for candidate in \
@@ -50,7 +72,7 @@ if [[ -z "$CODE_CLI" ]]; then
   exit 1
 fi
 
-# 4. Install
+# 5. Install
 echo "-> Installing via: $CODE_CLI"
 "$CODE_CLI" --install-extension "$VSIX" --force
 

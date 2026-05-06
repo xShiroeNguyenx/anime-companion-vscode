@@ -3,19 +3,22 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ReactiveManager } from './reactive';
 import { log } from './log';
-import { getSelectedModel, setWorkspaceModel, HIYORI, ModelInfo, listVisibleModels } from './models';
+import { getSelectedModel, HIYORI, ModelInfo, listVisibleModels } from './models';
 import { ModelFileServer } from './model-server';
 import { ModelDownloader } from './model-downloader';
-import { pullWithFeedback, pushWithFeedback, commitWithFeedback } from './git-ops';
 import { getMessageBank, MessageKey, ResolvedPhrase } from './messages';
 import { StatsStore } from './stats';
 import { PomodoroState } from './pomodoro';
 import { AmbientPreset, getAmbientPreset, listAmbientPresets, resolveCustomAmbientTracks } from './ambient-presets';
+import { WebviewTransport } from './companion-transport';
+import { dispatchRuntimeMessage } from './companion-message-dispatcher';
+import { getStoredPanelPosition, savePanelPosition } from './companion-position';
 
 export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'animeCompanion.live2dView';
 
   private _view?: vscode.WebviewView;
+  private _transport = new WebviewTransport();
   private _messageTimer?: NodeJS.Timeout;
   private _extensionUri: vscode.Uri;
   private _server: ModelFileServer;
@@ -26,6 +29,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   private _confirmCounter = 0;
   private _pendingConfirms = new Map<string, (approved: boolean) => void>();
   private _pendingInputs = new Map<string, (value: string | undefined) => void>();
+  private _transportSubscriptions: vscode.Disposable[] = [];
 
   constructor(extensionUri: vscode.Uri, server: ModelFileServer, stats: StatsStore, downloader: ModelDownloader) {
     this._extensionUri = extensionUri;
@@ -74,9 +78,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   }
 
   public postMessage(message: any) {
-    if (this._view) {
-      this._view.webview.postMessage(message);
-    }
+    this._transport.post(message);
   }
 
   public refreshView() {
@@ -108,6 +110,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     void context;
     void token;
     this._view = webviewView;
+    this._transport.attach(webviewView);
 
     void this._renderWith(webviewView);
 
@@ -117,180 +120,48 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     this._reactive = new ReactiveManager(
       (phrase, motion) => {
         this._sendResolvedPhrase(phrase);
-        if (motion && this._view) {
-          this._view.webview.postMessage({ command: 'playMotion', group: motion });
+        if (motion) {
+          this.postMessage({ command: 'playMotion', group: motion });
         }
       },
       (mood) => {
-        if (this._view) {
-          this._view.webview.postMessage({ command: 'setMood', mood });
-        }
+        this.postMessage({ command: 'setMood', mood });
       },
       this._stats
     );
     this._reactive.activate();
 
-    webviewView.webview.onDidReceiveMessage((message) => {
-      // Pause idle timer when the user interacts
-      if (['poke', 'headpat', 'spamClick', 'multiClick', 'runCommand', 'setVoiceLanguage', 'setMessageLanguage', 'setModel', 'setMuted', 'setAmbientPreset', 'confirmDialogResult', 'inputDialogResult'].includes(message.command)) {
-        this._startMessageTimer(10000);
-      }
+    this._disposeTransportSubscriptions();
+    this._transportSubscriptions.push(this._transport.onMessage((message) => {
+      dispatchRuntimeMessage(message, {
+        postMessage: (msg) => this.postMessage(msg),
+        sendBubble: (text, options) => this._sendMessage(text, options),
+        refresh: () => this.refreshView(),
+        pendingConfirms: this._pendingConfirms,
+        pendingInputs: this._pendingInputs,
+        requestProtectedBranchConfirm: (branch) => this._requestProtectedBranchConfirm(branch),
+        requestStageAllConfirm: (count) => this._requestStageAllConfirm(count),
+        requestCommitMessage: (count) => this._requestCommitMessage(count),
+        onInteraction: () => this._startMessageTimer(10000),
+        getCustomAmbientTracks: () => this._getCustomAmbientTracks(),
+        saveCompanionPosition: (x, y) => { void savePanelPosition(x, y); },
+      });
+    }));
 
-      switch (message.command) {
-        case 'poke':
-          break;
-        case 'headpat':
-          console.log('🌸 Head pat!');
-          break;
-        case 'spamClick':
-          console.log('🌸 Spam click: ' + message.count);
-          break;
-        case 'multiClick':
-          console.log('🌸 Multi click: ' + message.count);
-          break;
-        case 'live2dReady':
-          console.log('🌸 Live2D model loaded!');
-          break;
-        case 'runCommand':
-          log(`runCommand received: action="${message.action}"`);
-
-          // Git pull/push need true async + before/after diff to give the user
-          // a real "succeeded / nothing to do / failed" signal. Route to our
-          // helpers which use the Git extension API directly instead of the
-          // fire-and-forget executeCommand('git.pull').
-          if (message.action === 'git.pull') {
-            pullWithFeedback((text) => this._sendMessage(text));
-            return;
-          }
-          if (message.action === 'git.push') {
-            pushWithFeedback((text) => this._sendMessage(text));
-            return;
-          }
-          if (message.action === 'git.commit') {
-            commitWithFeedback(
-              (text) => this._sendMessage(text),
-              (branch) => this._requestProtectedBranchConfirm(branch),
-              (unstagedCount) => this._requestStageAllConfirm(unstagedCount),
-              (stagedCount) => this._requestCommitMessage(stagedCount)
-            );
-            return;
-          }
-
-          if (message.action === 'animeCompanion.runProject') {
-            this._sendMessage('Em gọi server dậy cho Onii-chan liền đây~ chờ em xíu nha!');
-            if (this._view) {
-              this._view.webview.postMessage({ command: 'setExpression', expression: 'happy', duration: 3000 });
-              this._view.webview.postMessage({ command: 'playMotion', group: 'TapBody' });
-            }
-          }
-
-          vscode.commands.executeCommand(message.action).then(
-            (result) => {
-              log(`Command "${message.action}" resolved with: ${JSON.stringify(result)}`);
-            },
-            (error) => {
-              const details = error instanceof Error ? error.message : String(error);
-              log(`Command "${message.action}" FAILED: ${details}`);
-              console.error(`🌸 Failed to execute command "${message.action}":`, error);
-              vscode.window.showErrorMessage(`Anime Companion: ${message.action} loi - ${details}`);
-              this._sendMessage(`Khong chay duoc lenh: ${details}`);
-            }
-          );
-          break;
-        case 'setVoiceLanguage':
-          if (typeof message.voiceLanguage === 'string' && ['ja', 'vi', 'en'].includes(message.voiceLanguage)) {
-            vscode.workspace.getConfiguration('animeCompanion')
-              .update('voiceLanguage', message.voiceLanguage, vscode.ConfigurationTarget.Global)
-              .then(() => {
-                this.refreshView();
-                this._sendMessage(`Giọng ${message.voiceLanguage.toUpperCase()} sẵn sàng rồi nha~ nghe dễ thương chứ?`);
-              });
-          }
-          break;
-        case 'setMessageLanguage':
-          if (typeof message.messageLanguage === 'string' && ['vi', 'en', 'ja'].includes(message.messageLanguage)) {
-            vscode.workspace.getConfiguration('animeCompanion')
-              .update('messageLanguage', message.messageLanguage, vscode.ConfigurationTarget.Global)
-              .then(() => {
-                this.refreshView();
-                this._sendMessage(getMessageBank().pick('greeting'));
-              });
-          }
-          break;
-        case 'setModel':
-          if (typeof message.modelId === 'string') {
-            // Save in workspaceState if a workspace is open (per-project waifu),
-            // else fall through to global config so the choice still sticks.
-            const hasWorkspace = !!vscode.workspace.workspaceFolders?.length;
-            const persist = hasWorkspace
-              ? setWorkspaceModel(message.modelId)
-              : vscode.workspace.getConfiguration('animeCompanion')
-                  .update('model', message.modelId, vscode.ConfigurationTarget.Global);
-            Promise.resolve(persist).then(() => {
-              this.refreshView();
-              this._sendMessage(`Em đổi sang model ${message.modelId} rồi nè~ hợp gu Onii-chan không?`);
-            });
-          }
-          break;
-        case 'setMuted':
-          if (typeof message.muted === 'boolean') {
-            vscode.workspace.getConfiguration('animeCompanion')
-              .update('muted', message.muted, vscode.ConfigurationTarget.Global)
-              .then(() => {
-                this.postMessage({ command: 'setMutedState', muted: message.muted });
-                this._sendMessage(message.muted ? 'Em sẽ ngoan ngoãn im lặng một chút nha~' : 'Yay~ em có thể ríu rít với Onii-chan lại rồi nè!');
-              });
-          }
-          break;
-        case 'setAmbientPreset':
-          if (typeof message.preset === 'string') {
-            const preset = getAmbientPreset(message.preset, this._getCustomAmbientTracks());
-            vscode.workspace.getConfiguration('animeCompanion')
-              .update('ambientPreset', preset.id, vscode.ConfigurationTarget.Global)
-              .then(() => {
-                this.postMessage({ command: 'setAmbientPreset', preset: preset.id });
-                this._sendMessage(
-                  preset.id === 'off'
-                    ? 'Em tắt ambient rồi nha~ mình nghe yên tĩnh một chút nè.'
-                    : `Em bật ${preset.label} cho Onii-chan rồi nha~`
-                );
-              });
-          }
-          break;
-        case 'confirmDialogResult':
-          if (typeof message.requestId === 'string') {
-            const resolver = this._pendingConfirms.get(message.requestId);
-            if (resolver) {
-              this._pendingConfirms.delete(message.requestId);
-              resolver(Boolean(message.approved));
-            }
-          }
-          break;
-        case 'inputDialogResult':
-          if (typeof message.requestId === 'string') {
-            const resolver = this._pendingInputs.get(message.requestId);
-            if (resolver) {
-              this._pendingInputs.delete(message.requestId);
-              resolver(typeof message.value === 'string' ? message.value : undefined);
-            }
-          }
-          break;
-      }
-    });
-
-    webviewView.onDidChangeVisibility(() => {
-      if (webviewView.visible) {
+    this._transportSubscriptions.push(this._transport.onVisibilityChange((visible) => {
+      if (visible) {
         this._startMessageTimer();
       } else {
         this._stopMessageTimer();
       }
-    });
+    }));
 
     webviewView.onDidDispose(() => {
       this._stopMessageTimer();
       this._reactive?.dispose();
       this._pendingConfirms.clear();
       this._pendingInputs.clear();
+      this._disposeTransportSubscriptions();
       this._view = undefined;
     });
 
@@ -338,17 +209,15 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   }
 
   private _sendMessage(text: string, options?: { speak?: boolean }) {
-    if (this._view) {
-      this._view.webview.postMessage({
-        command: 'showMessage',
-        text,
-        speakText: options?.speak ? text : undefined,
-      });
-    }
+    this.postMessage({
+      command: 'showMessage',
+      text,
+      speakText: options?.speak ? text : undefined,
+    });
   }
 
   private _sendResolvedPhrase(phrase: ResolvedPhrase) {
-    if (!this._view || !phrase.text) {
+    if (!phrase.text) {
       return;
     }
 
@@ -357,7 +226,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       phrase.hasPlaceholders ||
       Object.keys(phrase.vars ?? {}).length > 0;
 
-    this._view.webview.postMessage({
+    this.postMessage({
       command: 'showMessage',
       text: phrase.text,
       speakText: shouldSpeak ? phrase.text : undefined,
@@ -365,6 +234,12 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       phraseTemplate: phrase.template,
       phraseVars: phrase.vars,
     });
+  }
+
+  private _disposeTransportSubscriptions() {
+    while (this._transportSubscriptions.length) {
+      this._transportSubscriptions.pop()?.dispose();
+    }
   }
 
   private _requestProtectedBranchConfirm(branch: string): Promise<boolean> {
@@ -386,14 +261,10 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   }
 
   private _requestCommitMessage(stagedCount: number): Promise<string | undefined> {
-    if (!this._view) {
-      return Promise.resolve(undefined);
-    }
-
     const requestId = `input-${++this._confirmCounter}`;
     return new Promise<string | undefined>((resolve) => {
       this._pendingInputs.set(requestId, resolve);
-      this._view?.webview.postMessage({
+      this.postMessage({
         command: 'showCommitMessageInput',
         requestId,
         stagedCount,
@@ -402,14 +273,10 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   }
 
   private _requestConfirmDialog(command: string, payload: Record<string, unknown>): Promise<boolean> {
-    if (!this._view) {
-      return Promise.resolve(false);
-    }
-
     const requestId = `confirm-${++this._confirmCounter}`;
     return new Promise<boolean>((resolve) => {
       this._pendingConfirms.set(requestId, resolve);
-      this._view?.webview.postMessage({
+      this.postMessage({
         command,
         requestId,
         ...payload,
@@ -564,6 +431,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__AMBIENT_TRACKS__ = ${JSON.stringify(ambientTracks)};
     window.__VISIBLE_MODELS__ = ${JSON.stringify(visibleModels)};
     window.__WEBVIEW_STRINGS__ = ${JSON.stringify(webviewStrings)};
+    window.__COMPANION_POSITION__ = ${JSON.stringify(getStoredPanelPosition() ?? null)};
   </script>
 
   <script src="${cubismCoreUri}"></script>

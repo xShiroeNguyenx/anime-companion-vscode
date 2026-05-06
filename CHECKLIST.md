@@ -2,7 +2,31 @@
 
 Bảng theo dõi tiến độ phát triển của Anime Companion. Chi tiết roadmap ở [PLAN.md](./PLAN.md).
 
-**Phiên bản hiện tại:** v0.1.20 — *cập nhật 2026-04-29*
+**Phiên bản hiện tại:** v0.1.38 — *cập nhật 2026-05-06*
+
+## 🚀 Public release readiness (Desktop Companion / Windows v1)
+
+### Tài liệu & public-facing
+- [x] README phản ánh version hiện tại `v0.1.38`.
+- [x] README có section riêng cho `Desktop Companion (Windows v1)`.
+- [x] Cấu hình public đã dùng namespace `animeCompanion.desktopCompanion.*`.
+- [x] CHANGELOG có entry cho `0.1.38`.
+- [ ] Bổ sung GIF/screenshots cho Marketplace mô tả Desktop Companion ngoài VS Code.
+- [ ] Viết release notes public ngắn gọn cho `v0.1.38`.
+
+### Packaging & publish
+- [x] `package.json` đang ở `0.1.38`.
+- [x] Repo đã có workflow `.github/workflows/release.yml` để package `.vsix` và publish khi tag `v*.*.*`.
+- [x] Repo đã có script `npm run build:desktop-pet` cho sidecar Windows.
+- [ ] Tạo / cập nhật GitHub Release asset cho desktop companion (`desktop-pet-v1`) trước khi public rộng rãi.
+- [ ] Verify URL trong `animeCompanion.desktopCompanion.downloadBaseUrl` trỏ đúng asset release thực tế.
+- [ ] Smoke test clean install trên Windows máy mới: bật `desktopCompanion.enabled` -> reload -> binary download -> floating window xuất hiện.
+
+### Known limitations cần nói rõ khi public
+- [x] Desktop Companion v1 là **Windows-only**.
+- [x] Toggle `desktopCompanion.enabled` cần **Reload Window** để áp dụng.
+- [x] Khi Desktop Companion bật, panel trong VS Code sẽ auto-hide.
+- [x] Nếu chưa ký code signing, Windows SmartScreen có thể hiện warning ở lần chạy đầu.
 
 ---
 
@@ -122,7 +146,9 @@ Bảng theo dõi tiến độ phát triển của Anime Companion. Chi tiết ro
 
 ## 🌌 Vision dài hạn (PLAN §5)
 
-- [ ] Floating Desktop Pet (Tauri sidecar).
+- [x] Desktop Companion (Tauri sidecar) cho Windows v1.
+- [ ] Mac support cho Desktop Companion.
+- [ ] Linux support cho Desktop Companion.
 - [ ] AI/LLM chat BYOK.
 - [ ] Multi-character interaction.
 - [ ] Live2D motion editor.

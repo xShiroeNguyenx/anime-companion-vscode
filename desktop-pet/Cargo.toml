@@ -1,0 +1,29 @@
+[package]
+name = "anime-companion-pet"
+version = "0.1.0"
+edition = "2021"
+description = "Floating Live2D companion sidecar for the Anime Companion VS Code extension"
+license = "MIT"
+
+# Pin to a specific minor so the build is reproducible. Bump deliberately
+# when adopting new Tauri APIs; floating between minors risks API drift
+# (e.g. tray menu / window event renames in early 2.x).
+[build-dependencies]
+tauri-build = { version = "2.1", features = [] }
+
+[dependencies]
+# `tray-icon` for the system tray; `image-png` so Image::from_bytes can decode
+# the tray PNG bundled via include_bytes!.
+tauri = { version = "2.1", features = ["tray-icon", "image-png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2"
+
+# Smaller release binary at the cost of slower builds. The sidecar ships with
+# every install so size matters more than incremental build speed.
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+panic = "abort"
+codegen-units = 1

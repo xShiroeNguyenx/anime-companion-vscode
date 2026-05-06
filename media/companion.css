@@ -103,6 +103,45 @@ body {
   justify-content: center;
 }
 
+.drag-pad {
+  position: absolute;
+  z-index: 2;
+  background: transparent;
+  cursor: grab;
+}
+
+.drag-pad:active {
+  cursor: grabbing;
+}
+
+.drag-pad-top {
+  top: 0;
+  left: 20%;
+  width: 60%;
+  height: 22px;
+}
+
+.drag-pad-left {
+  left: 0;
+  top: 18%;
+  width: 28px;
+  height: 58%;
+}
+
+.drag-pad-right {
+  right: 0;
+  top: 18%;
+  width: 28px;
+  height: 58%;
+}
+
+.drag-pad-bottom {
+  left: 18%;
+  bottom: 0;
+  width: 64%;
+  height: 28px;
+}
+
 #live2dCanvas {
   width: 100% !important;
   height: 100% !important;

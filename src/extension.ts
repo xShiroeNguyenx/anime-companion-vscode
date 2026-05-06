@@ -12,8 +12,85 @@ import {
 import { ModelFileServer } from './model-server';
 import { ModelDownloader } from './model-downloader';
 import { AnimeCompanionViewProvider } from './companion-view';
+import { DesktopPetBridge } from './desktop-pet-bridge';
 import { initMessageBank } from './messages';
 import { StatsStore, ACHIEVEMENT_DEFS } from './stats';
+import { initCompanionPosition, clearPanelPosition } from './companion-position';
+
+// Common shape extension.ts depends on regardless of which UI host is active:
+// the in-VS-Code panel webview, or the floating Tauri desktop pet (bridge).
+// Both must be able to receive raw messages, pomodoro ticks, and refresh
+// requests so pomodoro/config plumbing in here can stay host-agnostic.
+interface CompanionHost {
+  postMessage(message: any): void;
+  updatePomodoroTick(state: PomodoroState, secondsLeft: number, totalSeconds: number): void;
+  refreshView(): void | Promise<void>;
+}
+
+function getDesktopCompanionSetting<T>(
+  config: vscode.WorkspaceConfiguration,
+  key: string,
+  defaultValue: T
+): T {
+  const currentKey = `desktopCompanion.${key}`;
+  const legacyKey = `desktopPet.${key}`;
+  const currentInspect = config.inspect<T>(currentKey);
+  if (
+    currentInspect?.globalValue !== undefined ||
+    currentInspect?.workspaceValue !== undefined ||
+    currentInspect?.workspaceFolderValue !== undefined
+  ) {
+    return config.get<T>(currentKey, defaultValue);
+  }
+
+  const legacyInspect = config.inspect<T>(legacyKey);
+  if (
+    legacyInspect?.globalValue !== undefined ||
+    legacyInspect?.workspaceValue !== undefined ||
+    legacyInspect?.workspaceFolderValue !== undefined
+  ) {
+    return config.get<T>(legacyKey, defaultValue);
+  }
+
+  return config.get<T>(currentKey, defaultValue);
+}
+
+async function migrateLegacyDesktopPetSettings(
+  config: vscode.WorkspaceConfiguration
+): Promise<void> {
+  const keys = [
+    'enabled',
+    'alwaysOnTop',
+    'clickThrough',
+    'size',
+    'position',
+    'opacity',
+    'downloadBaseUrl',
+    'devBinaryPath',
+  ];
+
+  for (const key of keys) {
+    const currentKey = `desktopCompanion.${key}`;
+    const legacyKey = `desktopPet.${key}`;
+    const currentInspect = config.inspect(currentKey);
+    const legacyInspect = config.inspect(legacyKey);
+    if (!legacyInspect) continue;
+
+    if (
+      currentInspect?.globalValue === undefined &&
+      legacyInspect.globalValue !== undefined
+    ) {
+      await config.update(currentKey, legacyInspect.globalValue, vscode.ConfigurationTarget.Global);
+    }
+
+    if (
+      currentInspect?.workspaceValue === undefined &&
+      legacyInspect.workspaceValue !== undefined
+    ) {
+      await config.update(currentKey, legacyInspect.workspaceValue, vscode.ConfigurationTarget.Workspace);
+    }
+  }
+}
 
 async function startDebuggingFromContext(): Promise<void> {
   if (vscode.debug.activeDebugSession) {
@@ -111,7 +188,9 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(outputChannel);
   initLogger(outputChannel);
 
-  const config = vscode.workspace.getConfiguration('animeCompanion');
+  let config = vscode.workspace.getConfiguration('animeCompanion');
+  await migrateLegacyDesktopPetSettings(config);
+  config = vscode.workspace.getConfiguration('animeCompanion');
   const legacyVoiceLanguage = config.get<string>('voiceLanguage', 'ja');
   if (legacyVoiceLanguage === 'ja-vi') {
     await config.update('voiceLanguage', 'en', vscode.ConfigurationTarget.Global);
@@ -139,6 +218,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push({ dispose: () => messageBank.dispose() });
 
   setExtensionContext(context);
+  initCompanionPosition(context);
   const stats = new StatsStore(context);
   const downloader = new ModelDownloader(context);
 
@@ -152,12 +232,55 @@ export async function activate(context: vscode.ExtensionContext) {
     log(`Failed to start model server: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  const provider = new AnimeCompanionViewProvider(context.extensionUri, modelServer, stats, downloader);
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(AnimeCompanionViewProvider.viewType, provider, {
-      webviewOptions: { retainContextWhenHidden: true },
-    })
-  );
+  // Desktop pet mode is mutually exclusive with the panel webview to avoid
+  // running two Live2D instances (double GPU + bubble/voice cross-talk).
+  // Toggling the setting requires a window reload.
+  const desktopPetEnabled = getDesktopCompanionSetting(config, 'enabled', false);
+
+  let provider: AnimeCompanionViewProvider | undefined;
+  let bridge: DesktopPetBridge | undefined;
+  let host: CompanionHost;
+
+  if (desktopPetEnabled) {
+    bridge = new DesktopPetBridge(context.extensionUri, modelServer, stats, downloader);
+    bridge.start();
+    context.subscriptions.push(bridge);
+    host = bridge;
+    // Hide the in-VS-Code panel view; user uses the floating window instead.
+    void vscode.commands.executeCommand('setContext', 'animeCompanion.visible', false);
+    log(`DesktopPet bridge active. Bootstrap URL: ${bridge.bootstrapUrl}`);
+
+    // v1 ships Windows-only. Surface a one-time warning on Mac/Linux so the
+    // user isn't left wondering why nothing pops up. The bridge still runs
+    // so they can open the bootstrap URL in Chrome to test the WS protocol.
+    if (process.platform !== 'win32') {
+      void vscode.window
+        .showWarningMessage(
+          'Anime Companion: Desktop Companion currently only ships a Windows binary. ' +
+            'Mac/Linux support is planned for v1.1+. The WebSocket bridge is still running ' +
+            '— check the output channel for the bootstrap URL to test in Chrome.',
+          'Disable Desktop Companion',
+          'Open Output'
+        )
+        .then((choice) => {
+          if (choice === 'Disable Desktop Companion') {
+            void vscode.workspace
+              .getConfiguration('animeCompanion')
+              .update('desktopCompanion.enabled', false, vscode.ConfigurationTarget.Global);
+          } else if (choice === 'Open Output') {
+            void vscode.commands.executeCommand('workbench.action.output.toggleOutput');
+          }
+        });
+    }
+  } else {
+    provider = new AnimeCompanionViewProvider(context.extensionUri, modelServer, stats, downloader);
+    context.subscriptions.push(
+      vscode.window.registerWebviewViewProvider(AnimeCompanionViewProvider.viewType, provider, {
+        webviewOptions: { retainContextWhenHidden: true },
+      })
+    );
+    host = provider;
+  }
 
   const statusBar = new CompanionStatusBar();
   context.subscriptions.push(statusBar);
@@ -175,7 +298,22 @@ export async function activate(context: vscode.ExtensionContext) {
         event.affectsConfiguration('animeCompanion.muted')
       ) {
         statusBar.refresh();
-        provider.refreshView();
+        void host.refreshView();
+      }
+      if (
+        event.affectsConfiguration('animeCompanion.desktopCompanion.enabled') ||
+        event.affectsConfiguration('animeCompanion.desktopPet.enabled')
+      ) {
+        vscode.window
+          .showInformationMessage(
+            'Anime Companion: Desktop Companion mode changed. Reload window to apply.',
+            'Reload Window'
+          )
+          .then((choice) => {
+            if (choice === 'Reload Window') {
+              void vscode.commands.executeCommand('workbench.action.reloadWindow');
+            }
+          });
       }
     })
   );
@@ -183,16 +321,16 @@ export async function activate(context: vscode.ExtensionContext) {
   pomodoroManager = new PomodoroManager(
     (state) => {
       if (state === 'work') {
-        provider.postMessage({ command: 'pomodoroStart' });
+        host.postMessage({ command: 'pomodoroStart' });
       } else if (state === 'break') {
-        provider.postMessage({ command: 'pomodoroBreak' });
+        host.postMessage({ command: 'pomodoroBreak' });
       } else {
-        provider.postMessage({ command: 'pomodoroStop' });
+        host.postMessage({ command: 'pomodoroStop' });
       }
     },
     (state, secondsLeft, totalSeconds) => {
       statusBar.setPomodoro(state, secondsLeft);
-      provider.updatePomodoroTick(state, secondsLeft, totalSeconds);
+      host.updatePomodoroTick(state, secondsLeft, totalSeconds);
     }
   );
   context.subscriptions.push(pomodoroManager);
@@ -245,7 +383,7 @@ export async function activate(context: vscode.ExtensionContext) {
           await vscode.workspace.getConfiguration('animeCompanion')
             .update('model', selected.id, vscode.ConfigurationTarget.Global);
         }
-        provider.refreshView();
+        void host.refreshView();
         vscode.window.showInformationMessage(`Switched to ${selected.label}`);
       }
     }),
@@ -255,7 +393,7 @@ export async function activate(context: vscode.ExtensionContext) {
         return;
       }
       await clearWorkspaceModel();
-      provider.refreshView();
+      void host.refreshView();
       vscode.window.showInformationMessage('Workspace model cleared. Using global setting.');
     }),
     vscode.commands.registerCommand('animeCompanion.showStats', async () => {
@@ -307,7 +445,7 @@ export async function activate(context: vscode.ExtensionContext) {
         title: 'Anime Companion: Play Motion',
       });
       if (selected) {
-        provider.postMessage({ command: 'playMotion', group: selected.id });
+        host.postMessage({ command: 'playMotion', group: selected.id });
       }
     }),
     vscode.commands.registerCommand('animeCompanion.changeVoice', async () => {
@@ -331,7 +469,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
       if (selected && selected.id !== current) {
         await voiceConfig.update('voiceLanguage', selected.id, vscode.ConfigurationTarget.Global);
-        provider.refreshView();
+        void host.refreshView();
         vscode.window.showInformationMessage(`Voice switched to ${selected.label}`);
       }
     }),
@@ -356,7 +494,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
       if (selected && selected.id !== current) {
         await cfg.update('messageLanguage', selected.id, vscode.ConfigurationTarget.Global);
-        provider.refreshView();
+        void host.refreshView();
         vscode.window.showInformationMessage(`Message language switched to ${selected.label}`);
       }
     }),
@@ -364,7 +502,7 @@ export async function activate(context: vscode.ExtensionContext) {
       const muteConfig = vscode.workspace.getConfiguration('animeCompanion');
       const muted = muteConfig.get<boolean>('muted', false);
       await muteConfig.update('muted', !muted, vscode.ConfigurationTarget.Global);
-      provider.refreshView();
+      void host.refreshView();
       vscode.window.showInformationMessage(!muted ? 'Companion muted.' : 'Companion unmuted.');
     }),
     vscode.commands.registerCommand('animeCompanion.startPomodoro', () => {
@@ -378,10 +516,34 @@ export async function activate(context: vscode.ExtensionContext) {
         'workbench.action.openSettings',
         '@ext:shiroenguyen.anime-companion-vscode'
       );
+    }),
+    vscode.commands.registerCommand('animeCompanion.resetPosition', async () => {
+      if (desktopPetEnabled) {
+        vscode.window.showInformationMessage(
+          'Reset Position currently only applies to panel mode. ' +
+            'In Desktop Companion mode, drag the window manually to reposition it.'
+        );
+        return;
+      }
+      await clearPanelPosition();
+      void host.refreshView();
+      vscode.window.showInformationMessage('Companion position reset.');
+    }),
+    vscode.commands.registerCommand('claude-vscode.terminal.open', async () => {
+      await vscode.commands.executeCommand('workbench.action.terminal.focus');
+
+      if (!vscode.window.activeTerminal) {
+        await vscode.commands.executeCommand('workbench.action.terminal.new');
+        await vscode.commands.executeCommand('workbench.action.terminal.focus');
+      }
     })
   );
 
-  if (context.extensionMode !== vscode.ExtensionMode.Test && config.get<boolean>('showOnStartup', true)) {
+  if (
+    !desktopPetEnabled &&
+    context.extensionMode !== vscode.ExtensionMode.Test &&
+    config.get<boolean>('showOnStartup', true)
+  ) {
     void vscode.commands.executeCommand('setContext', 'animeCompanion.visible', true);
     setTimeout(() => {
       void vscode.commands.executeCommand('animeCompanion.live2dView.focus');

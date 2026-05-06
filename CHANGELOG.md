@@ -3,6 +3,22 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.38] - 2026-05-06
+
+### Added
+- Desktop Companion mode (Windows v1): companion có thể chạy thành cửa sổ desktop nổi riêng qua setting `animeCompanion.desktopCompanion.enabled`, dùng Tauri sidecar + WebSocket bridge để tái sử dụng reactive engine hiện có.
+- Bộ setting mới cho Desktop Companion: `alwaysOnTop`, `clickThrough`, `size`, `position`, `opacity`, `downloadBaseUrl`, `devBinaryPath`.
+- Binary desktop companion được lazy-download từ GitHub Releases ở lần bật đầu tiên; hỗ trợ override binary local cho flow dev/test.
+- Command `Anime Companion: Reset Companion Position` để reset vị trí companion trong panel mode.
+
+### Changed
+- Public package / docs được cập nhật để phản ánh trạng thái hiện tại ở `v0.1.38`, thay vì snapshot cũ `v0.1.27`.
+- Tên setting public được chuẩn hoá sang namespace `animeCompanion.desktopCompanion.*`; extension vẫn migrate/fallback từ legacy key `animeCompanion.desktopPet.*`.
+- Panel mode và Desktop Companion mode được tách mutually-exclusive để tránh chạy 2 instance Live2D cùng lúc.
+
+### Notes
+- Desktop Companion v1 hiện ship binary chính thức cho Windows. Trên Mac/Linux, extension vẫn có thể chạy bridge để debug nhưng chưa có binary release chính thức.
+
 ## [0.1.27] - 2026-05-05
 
 ### Added

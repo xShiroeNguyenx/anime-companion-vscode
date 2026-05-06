@@ -9,22 +9,35 @@ const MIME_TYPES: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.mp3': 'audio/mpeg',
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.wasm': 'application/wasm',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
 };
 
-// Tiny localhost HTTP server that serves Live2D model assets so PIXI's loader
-// can fetch them without VS Code's CSP / vscode-resource scheme getting in the way.
+// Tiny localhost HTTP server backing the companion runtime.
 //
-// Resolves URL paths against multiple roots in order:
-//   1. Bundled `media/live2d/` (ships with the extension; Hiyori only)
-//   2. Cache `{globalStorage}/models/` (lazy-downloaded models)
+// Routes (resolved in order):
+//   1. /audio/<lang>/<file>   -> {extensionUri}/media/audio/<lang>/<file>
+//   2. /desktop-pet/<path>    -> {extensionUri}/desktop-pet/web/<path>
+//   3. /ambient/<id>          -> dynamic registry (registerAmbientTrack)
+//   4. /<rest>                -> first match across model roots (bundled live2d, downloader cache, custom roots)
 //
-// The first root that contains the requested file wins. 404 if neither has it.
+// Added beyond the original Live2D-only role so a Tauri webview can fetch
+// audio/ambient/runtime assets directly over HTTP without going through
+// VS Code's vscode-resource:// URIs (which a non-VS-Code window can't reach).
 export class ModelFileServer {
   private _server: http.Server | null = null;
   private _port: number = 0;
   private _roots: string[];
+  private _extensionUri: vscode.Uri;
+  private _ambientTracks: Map<string, string> = new Map();
 
   constructor(extensionUri: vscode.Uri, extraRoots: string[] = []) {
+    this._extensionUri = extensionUri;
     const bundled = path.join(extensionUri.fsPath, 'media', 'live2d');
     this._roots = [bundled, ...extraRoots];
   }
@@ -33,6 +46,16 @@ export class ModelFileServer {
     if (!this._roots.includes(root)) {
       this._roots.push(root);
     }
+  }
+
+  // Register a custom ambient track so it is reachable at /ambient/<id>.
+  // Used by bridge mode where webview.asWebviewUri() URLs are not usable.
+  public registerAmbientTrack(id: string, absolutePath: string) {
+    this._ambientTracks.set(id, path.resolve(absolutePath));
+  }
+
+  public clearAmbientTracks() {
+    this._ambientTracks.clear();
   }
 
   async start(): Promise<number> {
@@ -52,8 +75,8 @@ export class ModelFileServer {
           return;
         }
 
-        const urlPath = decodeURIComponent(req.url || '/');
-        const resolved = this._resolve(urlPath);
+        const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+        const resolved = this._route(urlPath);
         if (!resolved) {
           res.writeHead(404);
           res.end('Not found');
@@ -89,9 +112,50 @@ export class ModelFileServer {
     });
   }
 
-  // Returns the first existing absolute path under any root, or null.
+  // Dispatch URL paths through prefix-specific handlers, falling back to
+  // model-root lookup for legacy `/<folder>/<file>` requests.
+  private _route(urlPath: string): string | null {
+    if (urlPath.startsWith('/audio/')) {
+      return this._resolveAudio(urlPath.slice('/audio/'.length));
+    }
+    if (urlPath.startsWith('/desktop-pet/')) {
+      return this._resolveDesktopPet(urlPath.slice('/desktop-pet/'.length));
+    }
+    if (urlPath.startsWith('/media/')) {
+      return this._resolveMedia(urlPath.slice('/media/'.length));
+    }
+    if (urlPath.startsWith('/ambient/')) {
+      return this._resolveAmbient(urlPath.slice('/ambient/'.length));
+    }
+    return this._resolveModel(urlPath);
+  }
+
+  private _resolveAudio(rest: string): string | null {
+    return this._safeJoin(path.join(this._extensionUri.fsPath, 'media', 'audio'), rest);
+  }
+
+  private _resolveDesktopPet(rest: string): string | null {
+    return this._safeJoin(path.join(this._extensionUri.fsPath, 'desktop-pet', 'web'), rest);
+  }
+
+  // Generic media root — exposes things like lib/pixi.min.js, companion.css,
+  // character.png so the floating-pet HTML can reference them by path.
+  private _resolveMedia(rest: string): string | null {
+    return this._safeJoin(path.join(this._extensionUri.fsPath, 'media'), rest);
+  }
+
+  private _resolveAmbient(rest: string): string | null {
+    // Strip extension if any — registry is keyed by id.
+    const id = rest.replace(/\.[^.]+$/, '');
+    const registered = this._ambientTracks.get(id);
+    if (!registered) return null;
+    if (!fs.existsSync(registered) || !fs.statSync(registered).isFile()) return null;
+    return registered;
+  }
+
+  // Returns the first existing absolute path under any model root, or null.
   // Path-traversal protected: resolved path must start with the root.
-  private _resolve(urlPath: string): string | null {
+  private _resolveModel(urlPath: string): string | null {
     for (const root of this._roots) {
       const candidate = path.join(root, urlPath);
       if (!candidate.startsWith(root)) continue;
@@ -100,6 +164,20 @@ export class ModelFileServer {
       }
     }
     return null;
+  }
+
+  // Join `rest` onto `base` and reject path traversal. Returns null if the
+  // file does not exist or escapes the base.
+  private _safeJoin(base: string, rest: string): string | null {
+    const candidate = path.normalize(path.join(base, rest));
+    const baseNormalized = path.normalize(base);
+    if (!candidate.startsWith(baseNormalized + path.sep) && candidate !== baseNormalized) {
+      return null;
+    }
+    if (!fs.existsSync(candidate) || !fs.statSync(candidate).isFile()) {
+      return null;
+    }
+    return candidate;
   }
 
   stop() {
@@ -111,5 +189,12 @@ export class ModelFileServer {
 
   get port(): number {
     return this._port;
+  }
+
+  // Expose the underlying HTTP server so the desktop pet bridge can attach
+  // an `upgrade` handler for the WebSocket endpoint. Returns null until
+  // `start()` resolves.
+  get httpServer(): http.Server | null {
+    return this._server;
   }
 }
