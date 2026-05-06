@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.1.38",
+  "version": "0.1.39",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -59,7 +59,6 @@
     "media/messages/**",
     "media/webview/**",
     "desktop-pet/web/**",
-    "desktop-pet/target/release/anime-companion-pet.exe",
     "node_modules/adm-zip/**",
     "node_modules/ws/**",
     "README.md",

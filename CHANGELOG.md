@@ -3,6 +3,12 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.39] - 2026-05-06
+
+### Fixed
+- Packaging/publish flow: bỏ yêu cầu ship `desktop-pet/target/release/anime-companion-pet.exe` trong `.vsix`, tránh việc GitHub Actions release fail khi CI checkout source nhưng không có local Windows sidecar artifact.
+- VSIX allowlist tiếp tục giữ gói extension gọn, trong khi Desktop Companion sidecar vẫn được phát hành riêng qua GitHub Release `desktop-pet-v1`.
+
 ## [0.1.38] - 2026-05-06
 
 ### Added
