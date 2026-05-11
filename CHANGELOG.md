@@ -3,6 +3,73 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.50] - 2026-05-11
+
+### Changed
+- Đồng bộ tài liệu public và nội bộ cho trạng thái hiện tại của repo: `README.md`, `CHECKLIST.md`, `PUBLIC_RELEASE_GUIDE.md`.
+- README giờ phản ánh đúng các tính năng đã ship gần đây quanh **Cursor Chibi**, **capture/reset chibi**, extended **voice assets**, command list và settings list cho `0.1.50`.
+
+### Notes
+- Đây là bản release-prep / documentation sync để gói phát hành `0.1.50` khớp với code và workflow publish hiện tại.
+
+## [0.1.49] - 2026-05-08
+
+### Added
+- **Capture Chibi from Model**: command `Anime Companion: Capture Chibi from Model` snapshot canvas Live2D đang render → auto-crop transparent borders → resize tối đa 96px (giữ aspect ratio) → save vào `globalStorage/cursor-chibi/{modelId}.png`. Cursor chibi tự đổi sprite ngay (không cần reload). 1 file/model — switch model là chibi đổi theo.
+- Command `Anime Companion: Reset Captured Chibi` để xoá PNG đã capture của model hiện tại, fallback về icon bundled.
+
+### Changed
+- `cursor-chibi.ts`: decoration CSS dùng `background-size: contain` + `background-position: center` thay vì stretch sang square — captured chibi portrait giữ đúng aspect ratio, không bị méo.
+- Resize captured ảnh xuống ≤96px max dim trước khi save (VS Code icon decoration scale chuẩn hơn khi source PNG nhỏ).
+
+## [0.1.48] - 2026-05-08
+
+### Added
+- **Tune Cursor Chibi Size**: extend command tune position thêm options `+ Bigger` / `− Smaller` (step 2px) trong cùng quick-pick. Reset all clear cả x, y, size.
+- Config mới `animeCompanion.cursorChase.sizePx` (numeric, 0 = dùng enum small/medium/large; >0 = override exact px). Min 1px, max 64px.
+
+### Fixed
+- Chibi không co được dưới ~24px do VS Code có CSS `min-width/min-height` ngầm cho decoration `before` element. Override bằng inline `!important` (`min-width: 0`, `max-width: ${sizePx}px`, `background-size: contain`).
+
+## [0.1.47] - 2026-05-08
+
+### Added
+- **Tune Cursor Chibi Position**: command interactive mở quick-pick cho phép nhích chibi 4px theo Up/Down/Left/Right realtime, lặp đến khi user chọn Done. Settings (`cursorChase.offsetX`, `cursorChase.offsetY`) lưu Global, persist qua reload.
+- Config mới `animeCompanion.cursorChase.offsetX/offsetY` (default 0) — pixel offset cộng thêm vào base position auto-centered.
+
+## [0.1.46] - 2026-05-08
+
+### Fixed
+- **Auto-show panel sau reload không hoạt động**: root cause là `setContext('animeCompanion.visible', true)` được gọi async sau setTimeout 1.5s, nhưng VS Code đã evaluate `when` clause cho view container trước đó. Fix bằng cách gọi `setContext` **synchronous** ngay khi register webview view provider, để view xuất hiện trong panel container ngay từ đầu. Companion giờ tự hiện đúng sau mọi reload window / restart VS Code.
+
+## [0.1.45] - 2026-05-08
+
+### Added
+- Webview helper `playLine(key)` trong `media/webview/audio.js` — convenience wrapper cho `playAudio(`${key}.mp3`)` để thêm câu thoại mới chỉ cần 1 dòng code.
+
+### Fixed
+- **Cursor chibi leak vào OUTPUT panel / debug console**: VS Code coi các panel này là TextEditor nên `onDidChangeTextEditorSelection` fire kéo chibi theo, gây ra 2 chibi cùng lúc trên màn hình. Fix bằng cách filter `editor.document.uri.scheme` chỉ áp dụng cho `file`, `untitled`, `vscode-userdata`, đồng thời clear decoration từ visible editors khác khi switch.
+- `animeCompanion.toggle` (click WhiteAngel ở status bar): bỏ `live2dView.toggleVisibility` (throw trên một số VS Code build) → tự flip `setContext` + focus.
+
+## [0.1.41 - 0.1.44] - 2026-05-08
+
+### Added (0.1.41)
+- **ElevenLabs Voice Pipeline** (build-time + lazy-load):
+  - Per-language config: `media/voice/en.json`, `media/voice/vi.json` chứa `voiceId`, `modelId`, `voiceSettings`, danh sách `lines`.
+  - Script `scripts/generate-voice-assets.js` gọi ElevenLabs TTS API → MP3 ra `dist/voice-assets/{lang}/`. Idempotent qua hash cache, support flag `--lang`, `--key`, `--force`. JSON config tolerate `//` comment.
+  - Script `scripts/pack-voice-assets.js` đóng gói thành `{lang}.zip`.
+  - Workflow `.github/workflows/voice-assets-release.yml` (manual dispatch) build + upload zips lên GitHub release tag (default `audio-v1`).
+  - Class `src/voice-asset-downloader.ts` lazy-load `{lang}.zip` runtime, cache theo extension version trong `globalStorage`. Fallback về `media/audio/{lang}/` bundled khi download fail.
+  - Config mới: `voiceAssets.downloadBaseUrl`, `voiceAssets.enableExtended`.
+  - Script diagnostic `scripts/list-elevenlabs-voices.js` in ra mọi voice mà API key dùng được + category (`[premade]` / `[generated]` / `[professional]`).
+
+### Changed
+- `package.json`: thêm `media/voice/**` vào `files` để JSON config ship trong VSIX, MP3 chỉ lazy-load.
+- `companion-view.ts`: trước render webview HTML, gọi `voiceAssetDownloader.ensureLanguageAudio(lang)` cho en/vi, swap `__AUDIO_BASE_URL__` sang cache dir nếu có. `localResourceRoots` mở rộng để webview load được file MP3 cache.
+
+### Notes
+- 4 line bundled (`headpat`, `spam`, `poke`, `help`) trong `media/audio/{lang}/` được giữ làm offline fallback. Pipeline mới chỉ ảnh hưởng en/vi; ja vẫn dùng VOICEVOX MP3 bundled.
+
 ## [0.1.40] - 2026-05-06
 
 ### Added

@@ -1,6 +1,6 @@
 # 🌸 Anime Companion VS Code Extension — Features Documentation
 
-Tài liệu mô tả chi tiết các tính năng đã được lập trình và tích hợp tính đến **v0.1.20** (cập nhật 2026-04-29). Roadmap chi tiết ở [PLAN.md](./PLAN.md), tiến độ ở [CHECKLIST.md](./CHECKLIST.md).
+Tài liệu mô tả chi tiết các tính năng đã được lập trình và tích hợp tính đến **v0.1.49** (cập nhật 2026-05-08). Roadmap chi tiết ở [PLAN.md](./PLAN.md), tiến độ ở [CHECKLIST.md](./CHECKLIST.md), lệnh build/release ở [DEV_COMMANDS.md](./DEV_COMMANDS.md).
 
 ---
 
@@ -266,3 +266,131 @@ media/
 - CHANGELOG.md, marketplace prep, CI/CD, esbuild bundle.
 
 Chi tiết kế hoạch ở [PLAN.md](./PLAN.md) §3–4.
+
+---
+
+## 11. Cursor Chibi (sprite nhỏ tại con trỏ editor)
+
+Một sprite chibi nhỏ floating ở vị trí cursor trong editor, render qua VS Code `TextEditorDecoration` với `before.contentIconPath`. Tách biệt hoàn toàn với companion view chính trong panel.
+
+### Toggle + size preset (cũ)
+- Setting `animeCompanion.cursorChase.enabled` (default `false`).
+- Setting `animeCompanion.cursorChase.size`: enum `small` (12px) / `medium` (16px) / `large` (20px).
+- Command `Anime Companion: Toggle Cursor Chibi` flip enabled.
+
+### Position + size offset (v0.1.47–0.1.48) ⭐
+- Setting `animeCompanion.cursorChase.offsetX/offsetY` (number, default 0): pixel offset cộng thêm vào base position auto-centered phía trên line cursor.
+- Setting `animeCompanion.cursorChase.sizePx` (number, 0 = dùng enum, 1–64 = override exact pixel size).
+
+### Tune Position (interactive picker)
+- Command `Anime Companion: Tune Cursor Chibi Position` mở quick-pick lặp với 8 options:
+  - `↑ Up` / `↓ Down`: y ±= 4
+  - `← Left` / `→ Right`: x ±= 4
+  - `+ Bigger` / `− Smaller`: sizePx ±= 2
+  - `↻ Reset all`: clear offsets + size về 0
+  - `✓ Done`: thoát picker
+- Placeholder hiển thị giá trị hiện tại realtime: `offset x=0, y=0 — size=12px`.
+- Mỗi pick lưu vào settings (Global) → config listener fire `_reapply()` → decoration re-create với param mới → chibi nhích/thay đổi size **realtime trong editor**, không cần đóng picker.
+
+### Capture Chibi from Model (v0.1.49) ⭐
+Snapshot model Live2D đang render thành sprite chibi cá nhân hoá.
+
+**Workflow:**
+1. Mở companion panel, chỉnh model về pose/expression Anh muốn (vd happy + idle motion)
+2. **Ctrl+Shift+P** → `Anime Companion: Capture Chibi from Model`
+3. Extension gửi `command: 'captureModelChibi'` qua webview
+4. Webview ([media/webview/main.js](media/webview/main.js) handler `captureModelChibi`):
+   - `state.app.render()` force 1 frame
+   - `canvas.getImageData()` đọc pixel
+   - `autoCropCanvas()` scan alpha > 8 tìm tight bounding box, crop transparent borders
+   - Resize ≤ 96px max dim (giữ aspect ratio, `imageSmoothingQuality: 'high'`)
+   - `canvas.toDataURL('image/png')` → post lại extension
+5. Dispatcher receives `modelChibiCaptured` → save base64 decode vào `globalStorage/cursor-chibi/{modelId}.png`
+6. `cursorChibi._reapply()` → decoration mới dùng PNG vừa save
+
+**Mỗi model có 1 file PNG riêng** — switch model tự đổi chibi (config listener watch `animeCompanion.model`).
+
+**Reset:** Command `Anime Companion: Reset Captured Chibi` xoá PNG model hiện tại, fallback về `media/icon.png` bundled.
+
+**File location:** `%APPDATA%\Code\User\globalStorage\shiroenguyen.anime-companion-vscode\cursor-chibi\{modelId}.png`.
+
+### Implementation chi tiết
+
+- **Decoration CSS** ([src/cursor-chibi.ts](src/cursor-chibi.ts)):
+  ```css
+  position: absolute;
+  width: ${sizePx}px !important;
+  height: ${sizePx}px !important;
+  min-width: 0 !important;     /* override VS Code default min */
+  max-width: ${sizePx}px !important;
+  background-size: contain !important;     /* preserve aspect ratio */
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  transform: translate(${offsetX}px, ${offsetY}px);
+  ```
+  Override `min-width: 0` cần thiết vì VS Code có CSS ngầm áp min ~24px cho decoration `before` element, ngăn chibi co dưới size đó.
+
+- **Filter editor scheme**: chỉ apply trên `file` / `untitled` / `vscode-userdata` để tránh leak vào OUTPUT panel, debug console, terminal (cũng là TextEditor trong VS Code).
+
+- **Decoration cleanup khi switch editor**: lặp `vscode.window.visibleTextEditors`, clear decoration từ tất cả editor không phải target → tránh stale chibi từ split view.
+
+---
+
+## 12. ElevenLabs Voice Pipeline (build-time + lazy-load)
+
+Hệ thống tự sinh MP3 voice cho en/vi qua ElevenLabs API ở build time, đóng gói release riêng để lazy-load runtime. Mở rộng beyond 4 line bundled gốc.
+
+### Per-language config ([media/voice/](media/voice/))
+- File `media/voice/en.json`, `media/voice/vi.json` chứa:
+  - `voiceId`, `modelId` (vd `eleven_multilingual_v2`)
+  - `voiceSettings`: `stability`, `similarityBoost`, `style`, `useSpeakerBoost`, `speed`
+  - `lines`: array `{ key, text }` — `key` thành filename `{key}.mp3`
+- Thêm câu thoại mới = append entry vào array `lines`. Hash cache đảm bảo chỉ line mới gen, line cũ skip.
+
+### Generator script ([scripts/generate-voice-assets.js](scripts/generate-voice-assets.js))
+- Đọc `ELEVENLABS_API_KEY` từ `.env` hoặc env var.
+- POST `https://api.elevenlabs.io/v1/text-to-speech/{voiceId}` với text + voice_settings → write `dist/voice-assets/{lang}/{key}.mp3`.
+- **Idempotent hash cache**: hash `(text + voiceId + modelId + voiceSettings)` → save `{key}.hash`. Lần chạy sau khớp hash → skip.
+- **Flags**:
+  - `--lang=vi` / `--lang=en,vi`: filter language
+  - `--key=k1,k2`: surgical mode, chỉ xử lý các key chỉ định, các line khác `[ignr]` không đụng (an toàn khi voiceSettings drift)
+  - `--force`: bỏ qua hash cache, regen toàn bộ
+- **JSON tolerate `//` comment** (parser custom strip line comments + trailing commas) — Anh có thể comment line tạm.
+- Emit `manifest.json` mỗi language làm registry.
+
+### Packer ([scripts/pack-voice-assets.js](scripts/pack-voice-assets.js))
+- Dùng `adm-zip` (đã có trong deps) → `dist/voice-assets/{lang}.zip`.
+
+### GitHub Actions release workflow ([.github/workflows/voice-assets-release.yml](.github/workflows/voice-assets-release.yml))
+- Manual dispatch với inputs: `tag_name` (default `audio-v1`), `languages`, `force_regenerate`, `make_latest`, `prerelease`.
+- Dùng repo secret `ELEVENLABS_API_KEY` → run gen + pack → upload zips qua `softprops/action-gh-release@v2`.
+
+### Runtime downloader ([src/voice-asset-downloader.ts](src/voice-asset-downloader.ts))
+- Pattern y hệt `DesktopPetDownloader`.
+- Cache root: `globalStorage/voice-assets/{ext-version}/{lang}/`.
+- `ensureLanguageAudio(lang)`: nếu cache hit (có MP3) → return path. Else download `${baseUrl}/${lang}.zip`, extract, return path. On fail → return `null` (caller fallback bundled).
+- In-flight dedupe map tránh double-download.
+- Progress notification "Downloading EN voice assets" với % progress.
+
+### Config keys
+- `animeCompanion.voiceAssets.downloadBaseUrl` (default `https://github.com/.../releases/download/audio-v1`).
+- `animeCompanion.voiceAssets.enableExtended` (boolean, default `true`).
+
+### Wire-up trong companion-view.ts
+- `_renderWith()` gọi `voiceAssetDownloader.ensureLanguageAudio(lang)` cho `en`/`vi` (skip `ja`) trước khi render HTML.
+- Nếu success: `__AUDIO_BASE_URL__` trỏ vào `webview.asWebviewUri(cacheDir)`. `localResourceRoots` mở rộng để webview load MP3 từ globalStorage.
+- Nếu fail / `enableExtended = false` / `ja`: fallback về `mediaUri('audio', lang)` bundled.
+
+### 4-line bundled fallback
+- `media/audio/{en,vi,ja}/{headpat,spam,poke,help,server}.mp3` được giữ trong VSIX. Đảm bảo extension hoạt động:
+  - First-run trước khi download xong
+  - Offline / GitHub blocked
+  - User tắt `voiceAssets.enableExtended`
+
+### Diagnostic ([scripts/list-elevenlabs-voices.js](scripts/list-elevenlabs-voices.js))
+- Call `GET /v1/voices` → in voiceId + tên + category (`[premade]` / `[generated]` / `[professional]`) + labels.
+- Free tier API chỉ gọi được `[premade]` và `[generated]` (voice tự design); `[professional]` (cộng đồng/library) cần Starter plan trở lên — nhận diện qua category này tránh debug HTTP 402 mò mẫm.
+
+---
+
+Lệnh chạy chi tiết cho từng tính năng ở [DEV_COMMANDS.md](./DEV_COMMANDS.md).

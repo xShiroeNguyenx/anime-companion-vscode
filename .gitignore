@@ -5,6 +5,9 @@ out/
 # Model zips built by `pwsh scripts/build-model-zips.ps1` for Release upload
 dist-models/
 
+# Generated voice assets (ElevenLabs TTS output) — published as a release artifact
+dist/
+
 .claude/
 .vscode-test/
 

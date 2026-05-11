@@ -175,6 +175,11 @@ export class DesktopPetBridge implements vscode.Disposable {
         // setCompanionPosition in that path, but if it ever does we just
         // ignore it — the source of truth here is the OS window position.
         saveCompanionPosition: undefined,
+        applyModelSelection: async (modelId) => {
+          await vscode.workspace
+            .getConfiguration('animeCompanion')
+            .update('desktopCompanion.model', modelId, vscode.ConfigurationTarget.Global);
+        },
       });
     }));
 
@@ -237,6 +242,20 @@ export class DesktopPetBridge implements vscode.Disposable {
     this._resolvedModel = await this._resolveModel();
     const initPayload = this._buildInitPayload();
     this.postMessage({ command: 'init', state: initPayload });
+  }
+
+  // Kill the current sidecar process and spawn a fresh one. Used when settings
+  // that the sidecar reads only at startup (env vars like ANIME_PET_CLICK_THROUGH)
+  // change — avoids a full VS Code window reload. The previous restart-rate
+  // counter is reset so a manual restart never trips the rapid-crash guard.
+  public restartSidecar(): void {
+    if (this._disposed) return;
+    log('DesktopPet: restarting sidecar to apply config change');
+    this._sidecarRestarts = [];
+    this._sidecarRestartGivenUp = false;
+    this._killSidecar();
+    // Give the OS a beat to release the window/binary handle before respawn.
+    setTimeout(() => void this._spawnSidecar(), 200);
   }
 
   public dispose(): void {
@@ -348,6 +367,9 @@ export class DesktopPetBridge implements vscode.Disposable {
           ...process.env,
           ANIME_PET_PORT: String(this._server.port),
           ANIME_PET_TOKEN: this._token,
+          ANIME_PET_CLICK_THROUGH: String(
+            this._getDesktopCompanionSetting('clickThrough', false)
+          ),
         },
         // detached:false so the OS reaps the child if extension crashes;
         // stdio piped so we can surface panics/logs to our output channel.
@@ -426,7 +448,7 @@ export class DesktopPetBridge implements vscode.Disposable {
   // ─── Internals ─────────────────────────────────────────────────────────
 
   private async _resolveModel(): Promise<ModelInfo> {
-    const requested = getSelectedModel();
+    const requested = getSelectedModel('desktop');
     if (requested.customRoot) {
       this._server.addRoot(requested.customRoot);
       return requested;
@@ -488,6 +510,7 @@ export class DesktopPetBridge implements vscode.Disposable {
       voiceLanguage,
       messageLanguage,
       muted,
+      clickThrough: this._getDesktopCompanionSetting('clickThrough', false),
       ambientPreset: ambientPreset.id,
       ambientVolume,
       ambientTracks,

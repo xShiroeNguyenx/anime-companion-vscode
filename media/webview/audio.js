@@ -278,6 +278,12 @@ export function playAudio(filename) {
   });
 }
 
+// Convenience wrapper so new dialogue lines can be added by config + a single
+// playLine('newkey') call instead of hardcoding `${key}.mp3` everywhere.
+export function playLine(key) {
+  return playAudio(`${key}.mp3`);
+}
+
 export async function speakText(text) {
   void text;
   // System TTS is intentionally disabled so the companion only uses bundled audio assets.

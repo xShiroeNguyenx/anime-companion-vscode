@@ -1,0 +1,72 @@
+name: Voice Assets Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Git tag / release tag to publish the voice asset zips to'
+        required: true
+        default: 'audio-v1'
+      release_title:
+        description: 'GitHub release title'
+        required: true
+        default: 'Voice Assets v1 (en, vi)'
+      languages:
+        description: 'Comma-separated list of language codes to generate (e.g. en,vi)'
+        required: true
+        default: 'en,vi'
+      force_regenerate:
+        description: 'Force re-call ElevenLabs even when hashes match'
+        required: true
+        default: false
+        type: boolean
+      make_latest:
+        description: 'Mark this GitHub release as latest'
+        required: true
+        default: false
+        type: boolean
+      prerelease:
+        description: 'Mark this GitHub release as a pre-release'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate voice assets (ElevenLabs TTS)
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          ARGS="--lang=${{ inputs.languages }}"
+          if [ "${{ inputs.force_regenerate }}" = "true" ]; then
+            ARGS="$ARGS --force"
+          fi
+          node scripts/generate-voice-assets.js $ARGS
+
+      - name: Pack voice assets
+        run: node scripts/pack-voice-assets.js --lang=${{ inputs.languages }}
+
+      - name: Create or update GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag_name }}
+          target_commitish: ${{ github.ref_name }}
+          name: ${{ inputs.release_title }}
+          files: dist/voice-assets/*.zip
+          make_latest: ${{ inputs.make_latest && 'true' || 'false' }}
+          prerelease: ${{ inputs.prerelease }}

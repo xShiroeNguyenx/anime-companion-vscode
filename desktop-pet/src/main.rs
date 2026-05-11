@@ -39,11 +39,45 @@ struct SavedWindowPosition {
     y: i32,
 }
 
-#[tauri::command]
-fn set_click_through(window: tauri::WebviewWindow, ignore: bool) -> Result<(), String> {
+// Apply click-through state to the floating window. Tauri's
+// `set_ignore_cursor_events` toggles the WS_EX_TRANSPARENT bit, but on
+// transparent + decorationless windows the OS often doesn't re-evaluate the
+// style until something forces a frame change. Without that, clicks keep
+// landing on the sidecar even with WS_EX_TRANSPARENT set. We force the
+// re-evaluation by calling SetWindowPos with SWP_FRAMECHANGED right after.
+fn apply_click_through(window: &tauri::WebviewWindow, ignore: bool) -> Result<(), String> {
     window
         .set_ignore_cursor_events(ignore)
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows_sys::Win32::Foundation::HWND;
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            SetWindowPos, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+        };
+        if let Ok(handle) = window.hwnd() {
+            let hwnd = handle.0 as HWND;
+            unsafe {
+                SetWindowPos(
+                    hwnd,
+                    std::ptr::null_mut(),
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE,
+                );
+            }
+        }
+        eprintln!("[desktop-pet] apply_click_through ignore={}", ignore);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn set_click_through(window: tauri::WebviewWindow, ignore: bool) -> Result<(), String> {
+    apply_click_through(&window, ignore)
 }
 
 fn build_window_url() -> Option<String> {
@@ -56,6 +90,16 @@ fn build_window_url() -> Option<String> {
         "http://127.0.0.1:{}/desktop-pet/index.html?token={}",
         port, token
     ))
+}
+
+fn initial_click_through_from_env() -> bool {
+    match std::env::var("ANIME_PET_CLICK_THROUGH") {
+        Ok(value) => matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        ),
+        Err(_) => false,
+    }
 }
 
 fn state_file_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<PathBuf> {
@@ -102,12 +146,14 @@ fn save_window_position<R: tauri::Runtime>(app: &tauri::AppHandle<R>, position: 
 }
 
 fn main() {
+    let initial_click_through = initial_click_through_from_env();
+
     tauri::Builder::default()
         .manage(AppState {
-            click_through: AtomicBool::new(false),
+            click_through: AtomicBool::new(initial_click_through),
         })
         .invoke_handler(tauri::generate_handler![set_click_through])
-        .setup(|app| {
+        .setup(move |app| {
             let app_handle = app.handle().clone();
             let url_str = build_window_url().ok_or_else(|| {
                 "ANIME_PET_PORT / ANIME_PET_TOKEN env vars are required. \
@@ -132,6 +178,7 @@ fn main() {
                 .build()?;
 
             let _ = window.set_shadow(false);
+            let _ = apply_click_through(&window, initial_click_through);
             if let Some(saved) = load_saved_window_position(&app_handle) {
                 println!(
                     "[desktop-pet] Restoring saved position x={} y={}",
@@ -197,7 +244,7 @@ fn main() {
                         let new_value = !state.click_through.load(Ordering::SeqCst);
                         state.click_through.store(new_value, Ordering::SeqCst);
                         if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.set_ignore_cursor_events(new_value);
+                            let _ = apply_click_through(&w, new_value);
                         }
                     }
                     "settings" => {

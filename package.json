@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.1.40",
+  "version": "0.1.50",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -57,6 +57,7 @@
     "media/lib/**",
     "media/live2d/Hiyori/**",
     "media/messages/**",
+    "media/voice/**",
     "media/webview/**",
     "desktop-pet/web/**",
     "node_modules/adm-zip/**",
@@ -144,6 +145,31 @@
         "category": "Anime Companion"
       },
       {
+        "command": "animeCompanion.toggleCursorChase",
+        "title": "Anime Companion: Toggle Cursor Chibi",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.toggleDesktopClickThrough",
+        "title": "Anime Companion: Toggle Desktop Click-Through",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.tuneCursorChibi",
+        "title": "Anime Companion: Tune Cursor Chibi Position",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.captureModelToChibi",
+        "title": "Anime Companion: Capture Chibi from Model",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.resetCapturedChibi",
+        "title": "Anime Companion: Reset Captured Chibi (use bundled icon)",
+        "category": "Anime Companion"
+      },
+      {
         "command": "claude-vscode.terminal.open",
         "title": "Claude VSCode: Open Terminal",
         "category": "Claude VSCode Compatibility"
@@ -165,6 +191,20 @@
           "id": "animeCompanion.live2dView",
           "name": "Anime Companion",
           "when": "animeCompanion.visible"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "animeCompanion.changeModel",
+          "when": "view == animeCompanion.live2dView",
+          "group": "navigation@12"
+        },
+        {
+          "command": "animeCompanion.resetWorkspaceModel",
+          "when": "view == animeCompanion.live2dView",
+          "group": "navigation@13"
         }
       ]
     },
@@ -315,6 +355,38 @@
           "default": true,
           "description": "Poll Git state to react to branch switches, commits, merge conflicts, and many uncommitted changes."
         },
+        "animeCompanion.cursorChase.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show a small chibi sprite at the editor cursor position. Toggles live without reload."
+        },
+        "animeCompanion.cursorChase.size": {
+          "type": "string",
+          "enum": [
+            "small",
+            "medium",
+            "large"
+          ],
+          "default": "small",
+          "description": "Size of the cursor chibi sprite."
+        },
+        "animeCompanion.cursorChase.sizePx": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 64,
+          "description": "Exact pixel size of the cursor chibi. 0 = use the size preset (small/medium/large). Any value 8–64 overrides the preset. Use 'Anime Companion: Tune Cursor Chibi Position' to adjust live."
+        },
+        "animeCompanion.cursorChase.offsetX": {
+          "type": "number",
+          "default": 0,
+          "description": "Horizontal pixel offset added to the chibi's auto-centered base position. Positive = move right, negative = move left. Use 'Anime Companion: Tune Cursor Chibi Position' to nudge interactively."
+        },
+        "animeCompanion.cursorChase.offsetY": {
+          "type": "number",
+          "default": 0,
+          "description": "Vertical pixel offset added to the chibi's auto-lifted base position. Positive = move down, negative = move up further."
+        },
         "animeCompanion.quietHours": {
           "type": "array",
           "items": {
@@ -392,6 +464,11 @@
           "default": false,
           "description": "Make the Desktop Companion window ignore mouse clicks (clicks pass through to apps behind). Toggle from the tray icon."
         },
+        "animeCompanion.desktopCompanion.model": {
+          "type": "string",
+          "default": "",
+          "description": "Optional model override used only by the Desktop Companion. Leave empty to reuse the normal animeCompanion.model selection."
+        },
         "animeCompanion.desktopCompanion.size": {
           "type": "string",
           "enum": [
@@ -443,6 +520,16 @@
           "type": "string",
           "default": "",
           "description": "Absolute path to a locally-built sidecar binary. When set, overrides the lazy-download flow. Useful for development before the official binary is published. Example: D:/anime-companion-vscode/desktop-pet/target/release/anime-companion-pet.exe"
+        },
+        "animeCompanion.voiceAssets.downloadBaseUrl": {
+          "type": "string",
+          "default": "https://github.com/xShiroeNguyenx/anime-companion-vscode/releases/download/audio-v1",
+          "description": "Base URL where ElevenLabs-generated voice asset zips are hosted. Each language is fetched as `{baseUrl}/{lang}.zip` (e.g. en.zip, vi.zip). Override if you self-host."
+        },
+        "animeCompanion.voiceAssets.enableExtended": {
+          "type": "boolean",
+          "default": true,
+          "description": "Download ElevenLabs-generated voice lines for en/vi on first use. When false, only the 4 audio lines bundled with the extension are used."
         }
       }
     }
@@ -455,6 +542,9 @@
     "test": "npm run compile && node ./scripts/smoke-test.js",
     "cleanup:vsix": "node scripts/cleanup-vsix.js",
     "build:desktop-pet": "node scripts/build-desktop-pet.js",
+    "voice:generate": "node scripts/generate-voice-assets.js",
+    "voice:pack": "node scripts/pack-voice-assets.js",
+    "voice:release": "npm run voice:generate && npm run voice:pack",
     "package": "vsce package --allow-missing-repository && npm run cleanup:vsix",
     "package:install": "vsce package --allow-missing-repository && npm run cleanup:vsix && \"%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\bin\\code.cmd\" --install-extension \"%npm_package_name%-%npm_package_version%.vsix\" --force",
     "publish:vsce": "vsce publish",

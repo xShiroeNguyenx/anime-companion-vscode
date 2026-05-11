@@ -429,6 +429,10 @@ function setupContextMenu() {
     <div class="companion-menu-item" data-action="change-model">
       <span style="font-size: 11px;">🌸</span> ${t('menu.model', 'Model')}
     </div>
+    <div class="companion-menu-item" data-action="switch-host-mode">
+      <span style="font-size: 11px;">${window.__DESKTOP_PET_MODE__ ? '🪟' : '🖥️'}</span>
+      ${window.__DESKTOP_PET_MODE__ ? t('menu.panel', 'Panel') : t('menu.desktop', 'Desktop')}
+    </div>
     <div class="companion-menu-item" data-action="change-voice">
       <span style="font-size: 11px;">🗣️</span> ${t('menu.voice', 'Voice')}
     </div>
@@ -441,6 +445,11 @@ function setupContextMenu() {
     <div class="companion-menu-item" data-action="toggle-mute">
       <span class="companion-mute-icon" style="font-size: 11px;">🔇</span> <span class="companion-mute-label">${t('menu.mute', 'Mute')}</span>
     </div>
+    ${window.__DESKTOP_PET_MODE__ ? `
+    <div class="companion-menu-item" data-action="toggle-click-through">
+      <span class="companion-clickthrough-icon" style="font-size: 11px;">🖱️</span> <span class="companion-clickthrough-label">${t('menu.clickThrough', 'Click-through')}</span>
+    </div>
+    ` : ''}
     <div class="companion-menu-separator"></div>
     <div class="companion-menu-item" data-action="poke">
       <span style="font-size: 11px;">👉</span> ${t('menu.poke', 'Poke')}
@@ -529,6 +538,14 @@ function setupContextMenu() {
     } else if (action === 'change-model') {
       showBubble(t('bubbles.changeModel', 'Đổi model ngay trên companion luôn nha~ 🌸'));
       showModelPanel();
+    } else if (action === 'switch-host-mode') {
+      if (window.__DESKTOP_PET_MODE__) {
+        showBubble(t('bubbles.switchToPanel', 'Chuyển về Panel nha~ 🪟'));
+        vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.switchToPanel' });
+      } else {
+        showBubble(t('bubbles.switchToDesktop', 'Chuyển sang Desktop nha~ 🖥️'));
+        vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.switchToDesktop' });
+      }
     } else if (action === 'change-voice') {
       showBubble(t('bubbles.changeVoice', 'Đổi giọng dễ thương hơn một chút nha~ 🗣️'));
       showVoicePanel();
@@ -545,6 +562,13 @@ function setupContextMenu() {
         ? t('bubbles.muteOn', 'Em sẽ im lặng một chút nha~ 🤫')
         : t('bubbles.muteOff', 'Em ríu rít lại rồi nè~ 🎀'));
       vscode.postMessage({ command: 'setMuted', muted: nextMuted });
+    } else if (action === 'toggle-click-through') {
+      const nextClickThrough = !window.__CLICK_THROUGH__;
+      window.__CLICK_THROUGH__ = nextClickThrough;
+      showBubble(nextClickThrough
+        ? t('bubbles.clickThroughOn', 'Em ẩn dạng thôi nha~ click vào em sẽ xuyên qua app phía sau! 👻')
+        : t('bubbles.clickThroughOff', 'Em quay lại rồi nè~ click được lên em rồi! ✨'));
+      vscode.postMessage({ command: 'setClickThrough', value: nextClickThrough });
     } else if (action === 'settings') {
       showBubble(t('bubbles.settings', 'Mở Settings ra cho Onii-chan liền nha~ ⚙️'));
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.openSettings' });
@@ -596,6 +620,10 @@ function setupCompactContextMenu() {
   settingsMenu.innerHTML = `
     <div class="companion-menu-item" data-action="change-model">
       <span style="font-size: 11px;">🌸</span> ${t('menu.model', 'Model')}
+    </div>
+    <div class="companion-menu-item" data-action="switch-host-mode">
+      <span style="font-size: 11px;">${window.__DESKTOP_PET_MODE__ ? '🪟' : '🖥️'}</span>
+      ${window.__DESKTOP_PET_MODE__ ? t('menu.panel', 'Panel') : t('menu.desktop', 'Desktop')}
     </div>
     <div class="companion-menu-item" data-action="change-voice">
       <span style="font-size: 11px;">🗣️</span> ${t('menu.voice', 'Voice')}
@@ -684,6 +712,14 @@ function setupCompactContextMenu() {
     } else if (action === 'change-model') {
       showBubble(t('bubbles.changeModel', 'Đổi model ngay trên companion luôn nha~ 🌸'));
       showModelPanel();
+    } else if (action === 'switch-host-mode') {
+      if (window.__DESKTOP_PET_MODE__) {
+        showBubble(t('bubbles.switchToPanel', 'Chuyển về Panel nha~ 🪟'));
+        vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.switchToPanel' });
+      } else {
+        showBubble(t('bubbles.switchToDesktop', 'Chuyển sang Desktop nha~ 🖥️'));
+        vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.switchToDesktop' });
+      }
     } else if (action === 'change-voice') {
       showBubble(t('bubbles.changeVoice', 'Đổi giọng dễ thương hơn một chút nha~ 🗣️'));
       showVoicePanel();

@@ -8,12 +8,9 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -34,16 +31,13 @@ jobs:
       - name: Smoke test
         run: npm test
 
-      - name: Build Desktop Companion sidecar
-        run: npm run build:desktop-pet
-
       - name: Package extension
         run: npx vsce package --allow-missing-repository --out anime-companion.vsix
 
       - name: Report package size
-        shell: pwsh
+        shell: bash
         run: |
-          Get-Item anime-companion.vsix | Format-List Name,Length,LastWriteTime
+          ls -lh anime-companion.vsix
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4

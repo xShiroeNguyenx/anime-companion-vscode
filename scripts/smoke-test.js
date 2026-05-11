@@ -21,6 +21,16 @@ const configuration = {
       ? configurationStore[key]
       : fallback;
   },
+  inspect(key) {
+    if (!Object.prototype.hasOwnProperty.call(configurationStore, key)) {
+      return undefined;
+    }
+    return {
+      globalValue: configurationStore[key],
+      workspaceValue: undefined,
+      workspaceFolderValue: undefined,
+    };
+  },
   async update(key, value) {
     configurationStore[key] = value;
   },
@@ -35,6 +45,8 @@ const mockVscode = {
   },
   ConfigurationTarget: {
     Global: 1,
+    Workspace: 2,
+    WorkspaceFolder: 3,
   },
   ThemeColor: class ThemeColor {
     constructor(id) {

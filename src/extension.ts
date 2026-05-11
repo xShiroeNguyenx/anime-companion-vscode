@@ -12,7 +12,9 @@ import {
 import { ModelFileServer } from './model-server';
 import { ModelDownloader } from './model-downloader';
 import { DesktopPetDownloader } from './desktop-pet-downloader';
+import { VoiceAssetDownloader } from './voice-asset-downloader';
 import { AnimeCompanionViewProvider } from './companion-view';
+import { CursorChibiManager } from './cursor-chibi';
 import { DesktopPetBridge } from './desktop-pet-bridge';
 import { initMessageBank } from './messages';
 import { StatsStore, ACHIEVEMENT_DEFS } from './stats';
@@ -27,6 +29,8 @@ interface CompanionHost {
   updatePomodoroTick(state: PomodoroState, secondsLeft: number, totalSeconds: number): void;
   refreshView(): void | Promise<void>;
 }
+
+type ModelSelectionTarget = 'panel' | 'desktop' | 'auto';
 
 function getDesktopCompanionSetting<T>(
   config: vscode.WorkspaceConfiguration,
@@ -76,12 +80,15 @@ async function migrateLegacyDesktopPetSettings(
     const currentInspect = config.inspect(currentKey);
     const legacyInspect = config.inspect(legacyKey);
     if (!legacyInspect) continue;
+    let migratedGlobal = false;
+    let migratedWorkspace = false;
 
     if (
       currentInspect?.globalValue === undefined &&
       legacyInspect.globalValue !== undefined
     ) {
       await config.update(currentKey, legacyInspect.globalValue, vscode.ConfigurationTarget.Global);
+      migratedGlobal = true;
     }
 
     if (
@@ -89,6 +96,17 @@ async function migrateLegacyDesktopPetSettings(
       legacyInspect.workspaceValue !== undefined
     ) {
       await config.update(currentKey, legacyInspect.workspaceValue, vscode.ConfigurationTarget.Workspace);
+      migratedWorkspace = true;
+    }
+
+    // Clear legacy keys after migration so VS Code doesn't keep resurrecting
+    // the old value when the user toggles the new setting back to its default.
+    if (migratedGlobal || currentInspect?.globalValue !== undefined) {
+      await config.update(legacyKey, undefined, vscode.ConfigurationTarget.Global);
+    }
+
+    if (migratedWorkspace || currentInspect?.workspaceValue !== undefined) {
+      await config.update(legacyKey, undefined, vscode.ConfigurationTarget.Workspace);
     }
   }
 }
@@ -123,6 +141,66 @@ async function startDebuggingFromContext(): Promise<void> {
 
   log('Fallback -> workbench.action.debug.selectandstart');
   await vscode.commands.executeCommand('workbench.action.debug.selectandstart');
+}
+
+async function promptForModelSelection(target: ModelSelectionTarget): Promise<string | undefined> {
+  const hasWorkspace = !!vscode.workspace.workspaceFolders?.length;
+  const current = getSelectedModel(target === 'auto' ? undefined : target).id;
+  const items = listVisibleModels().map((model) => ({
+    label: `$(sparkle) ${model.name}${model.id === current ? '  *' : ''}`,
+    description: model.description,
+    id: model.id,
+  }));
+
+  const selected = await vscode.window.showQuickPick(items, {
+    placeHolder:
+      target === 'desktop'
+        ? 'Choose the Desktop Companion model'
+        : target === 'panel'
+        ? hasWorkspace
+          ? 'Choose your panel companion model (saved per-workspace)'
+          : 'Choose your panel companion model'
+        : hasWorkspace
+        ? 'Choose your companion model (saved per-workspace)'
+        : 'Choose your companion model',
+    title:
+      target === 'desktop'
+        ? 'Anime Companion: Change Desktop Model'
+        : target === 'panel'
+        ? 'Anime Companion: Change Panel Model'
+        : 'Anime Companion: Change Model',
+  });
+
+  return selected && selected.id !== current ? selected.id : undefined;
+}
+
+async function applyModelSelection(target: ModelSelectionTarget, modelId: string): Promise<boolean> {
+  const config = vscode.workspace.getConfiguration('animeCompanion');
+  const hasWorkspace = !!vscode.workspace.workspaceFolders?.length;
+  const effectiveTarget =
+    target === 'auto'
+      ? config.get<boolean>('desktopCompanion.enabled', false)
+        ? 'desktop'
+        : 'panel'
+      : target;
+
+  if (effectiveTarget === 'desktop') {
+    await config.update('desktopCompanion.model', modelId, vscode.ConfigurationTarget.Global);
+    return true;
+  }
+
+  if (hasWorkspace) {
+    await setWorkspaceModel(modelId);
+    return true;
+  }
+
+  await config.update('model', modelId, vscode.ConfigurationTarget.Global);
+  return true;
+}
+
+async function setDesktopCompanionEnabled(enabled: boolean): Promise<void> {
+  const config = vscode.workspace.getConfiguration('animeCompanion');
+  await config.update('desktopCompanion.enabled', enabled, vscode.ConfigurationTarget.Global);
 }
 
 class CompanionStatusBar {
@@ -223,6 +301,10 @@ export async function activate(context: vscode.ExtensionContext) {
   const stats = new StatsStore(context);
   const downloader = new ModelDownloader(context);
   const desktopPetDownloader = new DesktopPetDownloader(context);
+  const voiceAssetDownloader = new VoiceAssetDownloader(context);
+  // CursorChibiManager built up here so we can pass its saveCapturedChibi
+  // method into AnimeCompanionViewProvider's dispatcher context below.
+  const cursorChibi = new CursorChibiManager(context.extensionUri, context.globalStorageUri);
 
   // Pre-register the cache root with the file server so already-downloaded
   // models work even if the user never selects them via the UI flow.
@@ -281,21 +363,43 @@ export async function activate(context: vscode.ExtensionContext) {
         });
     }
   } else {
-    provider = new AnimeCompanionViewProvider(context.extensionUri, modelServer, stats, downloader);
+    provider = new AnimeCompanionViewProvider(
+      context.extensionUri,
+      modelServer,
+      stats,
+      downloader,
+      voiceAssetDownloader,
+      (modelId, dataUrl) => cursorChibi.saveCapturedChibi(modelId, dataUrl)
+    );
     context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(AnimeCompanionViewProvider.viewType, provider, {
         webviewOptions: { retainContextWhenHidden: true },
       })
     );
     host = provider;
+
+    // The view's `when: animeCompanion.visible` clause hides it from the
+    // panel container until this context flag is true. The flag does NOT
+    // persist across reloads, so set it synchronously here (before VS Code
+    // evaluates the panel's view list) — otherwise the view item is missing
+    // from the container and any later focus/show command has nothing to
+    // attach to. The deferred focus call further down still handles the
+    // tab-switch + panel-open part.
+    if (config.get<boolean>('showOnStartup', true)) {
+      await vscode.commands.executeCommand('setContext', 'animeCompanion.visible', true);
+    }
   }
 
   const statusBar = new CompanionStatusBar();
   context.subscriptions.push(statusBar);
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration('animeCompanion.model')) {
+      if (
+        event.affectsConfiguration('animeCompanion.model') ||
+        event.affectsConfiguration('animeCompanion.desktopCompanion.model')
+      ) {
         statusBar.refresh();
+        void host.refreshView();
       }
       if (
         event.affectsConfiguration('animeCompanion.customModels') ||
@@ -308,6 +412,26 @@ export async function activate(context: vscode.ExtensionContext) {
         statusBar.refresh();
         void host.refreshView();
       }
+      // Click-through is read by the Tauri sidecar from an env var only at
+      // spawn time. Restart just the sidecar process — no need to reload the
+      // whole VS Code window for this single setting.
+      if (
+        event.affectsConfiguration('animeCompanion.desktopCompanion.clickThrough') &&
+        bridge
+      ) {
+        const enabled = vscode.workspace
+          .getConfiguration('animeCompanion')
+          .get<boolean>('desktopCompanion.clickThrough', false);
+        bridge.restartSidecar();
+        vscode.window.setStatusBarMessage(
+          enabled
+            ? '$(check) Click-through enabled — restarting Desktop Companion...'
+            : '$(check) Click-through disabled — restarting Desktop Companion...',
+          3000
+        );
+      }
+      // Mode toggles (panel ↔ desktop) still need a full window reload because
+      // they swap which host (provider vs bridge) is active.
       if (
         event.affectsConfiguration('animeCompanion.desktopCompanion.enabled') ||
         event.affectsConfiguration('animeCompanion.desktopPet.enabled')
@@ -343,7 +467,30 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(pomodoroManager);
 
+  cursorChibi.activate();
+  context.subscriptions.push(cursorChibi);
+
   context.subscriptions.push(
+    vscode.commands.registerCommand('animeCompanion.toggleCursorChase', () => {
+      return cursorChibi.toggle();
+    }),
+    vscode.commands.registerCommand('animeCompanion.tuneCursorChibi', () => {
+      return cursorChibi.tunePosition();
+    }),
+    vscode.commands.registerCommand('animeCompanion.captureModelToChibi', () => {
+      if (desktopPetEnabled) {
+        vscode.window.showWarningMessage(
+          'Capture only works in panel mode. Disable Desktop Companion first to use the in-panel Live2D for capture.'
+        );
+        return;
+      }
+      const modelId = vscode.workspace.getConfiguration('animeCompanion').get<string>('model', 'hiyori');
+      vscode.window.showInformationMessage(`Capturing chibi from model "${modelId}"...`);
+      host.postMessage({ command: 'captureModelChibi', modelId });
+    }),
+    vscode.commands.registerCommand('animeCompanion.resetCapturedChibi', () => {
+      return cursorChibi.resetCapturedChibi();
+    }),
     vscode.commands.registerCommand('animeCompanion.runProject', async () => {
       log('animeCompanion.runProject invoked');
       try {
@@ -365,35 +512,59 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('animeCompanion.hide', () => {
       return vscode.commands.executeCommand('setContext', 'animeCompanion.visible', false);
     }),
-    vscode.commands.registerCommand('animeCompanion.toggle', () => {
-      return vscode.commands.executeCommand('animeCompanion.live2dView.toggleVisibility');
+    vscode.commands.registerCommand('animeCompanion.toggle', async () => {
+      // toggleVisibility is unreliable for views with `when` clauses — it
+      // throws on some VS Code builds. Mirror the show/hide pattern instead:
+      // flip the context and either focus the view or rely on the when-clause
+      // to hide it.
+      const cfg = vscode.workspace.getConfiguration('animeCompanion');
+      const currentlyVisible = await new Promise<boolean>((resolve) => {
+        // We don't have direct read-access to the context value, so use the
+        // last-known value from the provider's view state when available,
+        // falling back to assuming it's visible if showOnStartup is on.
+        const guess = (provider as any)?._view?.visible ?? cfg.get<boolean>('showOnStartup', true);
+        resolve(Boolean(guess));
+      });
+      if (currentlyVisible) {
+        await vscode.commands.executeCommand('setContext', 'animeCompanion.visible', false);
+      } else {
+        await vscode.commands.executeCommand('setContext', 'animeCompanion.visible', true);
+        try {
+          await vscode.commands.executeCommand('animeCompanion.live2dView.focus');
+        } catch (err) {
+          log(`toggle: focus failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
     }),
     vscode.commands.registerCommand('animeCompanion.changeModel', async () => {
-      const current = getSelectedModel().id;
-      const hasWorkspace = !!vscode.workspace.workspaceFolders?.length;
-      const items = listVisibleModels().map((model) => ({
-        label: `$(sparkle) ${model.name}${model.id === current ? '  *' : ''}`,
-        description: model.description,
-        id: model.id,
-      }));
-
-      const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: hasWorkspace
-          ? 'Choose your companion model (saved per-workspace)'
-          : 'Choose your companion model',
-        title: 'Anime Companion: Change Model',
-      });
-
-      if (selected && selected.id !== current) {
-        if (hasWorkspace) {
-          await setWorkspaceModel(selected.id);
-        } else {
-          await vscode.workspace.getConfiguration('animeCompanion')
-            .update('model', selected.id, vscode.ConfigurationTarget.Global);
-        }
+      const modelId = await promptForModelSelection(desktopPetEnabled ? 'desktop' : 'panel');
+      if (modelId) {
+        await applyModelSelection(desktopPetEnabled ? 'desktop' : 'panel', modelId);
         void host.refreshView();
-        vscode.window.showInformationMessage(`Switched to ${selected.label}`);
+        vscode.window.showInformationMessage(`Switched companion model to "${modelId}".`);
       }
+    }),
+    vscode.commands.registerCommand('animeCompanion.changePanelModel', async () => {
+      const modelId = await promptForModelSelection('panel');
+      if (modelId) {
+        await applyModelSelection('panel', modelId);
+        void host.refreshView();
+        vscode.window.showInformationMessage(`Switched panel model to "${modelId}".`);
+      }
+    }),
+    vscode.commands.registerCommand('animeCompanion.changeDesktopModel', async () => {
+      const modelId = await promptForModelSelection('desktop');
+      if (modelId) {
+        await applyModelSelection('desktop', modelId);
+        void host.refreshView();
+        vscode.window.showInformationMessage(`Switched Desktop Companion model to "${modelId}".`);
+      }
+    }),
+    vscode.commands.registerCommand('animeCompanion.switchToDesktop', async () => {
+      await setDesktopCompanionEnabled(true);
+    }),
+    vscode.commands.registerCommand('animeCompanion.switchToPanel', async () => {
+      await setDesktopCompanionEnabled(false);
     }),
     vscode.commands.registerCommand('animeCompanion.resetWorkspaceModel', async () => {
       if (!hasWorkspaceModel()) {
@@ -552,10 +723,16 @@ export async function activate(context: vscode.ExtensionContext) {
     context.extensionMode !== vscode.ExtensionMode.Test &&
     config.get<boolean>('showOnStartup', true)
   ) {
-    void vscode.commands.executeCommand('setContext', 'animeCompanion.visible', true);
+    // Reuse the same `animeCompanion.show` command the user can run manually —
+    // it works there, so it should work here. The 1.5s delay lets VS Code
+    // finish its panel/tab restoration so our call doesn't get clobbered.
     setTimeout(() => {
-      void vscode.commands.executeCommand('animeCompanion.live2dView.focus');
-    }, 2000);
+      log('showOnStartup: invoking animeCompanion.show');
+      void vscode.commands.executeCommand('animeCompanion.show').then(
+        () => log('showOnStartup: animeCompanion.show invoked successfully'),
+        (err) => log(`showOnStartup: animeCompanion.show failed: ${err instanceof Error ? err.message : String(err)}`)
+      );
+    }, 1500);
   }
 }
 

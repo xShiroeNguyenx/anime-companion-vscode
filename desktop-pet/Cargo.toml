@@ -19,6 +19,16 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 url = "2"
 
+# Direct Win32 access so we can force-refresh the window's extended style
+# after toggling WS_EX_TRANSPARENT. Tauri's `set_ignore_cursor_events` updates
+# the GWL_EXSTYLE bit but doesn't always trigger WM_NCCALCSIZE on transparent
+# decorationless windows, so the OS keeps routing clicks to the sidecar.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Foundation",
+] }
+
 # Smaller release binary at the cost of slower builds. The sidecar ships with
 # every install so size matters more than incremental build speed.
 [profile.release]

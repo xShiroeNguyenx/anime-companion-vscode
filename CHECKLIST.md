@@ -2,30 +2,40 @@
 
 Bảng theo dõi tiến độ phát triển của Anime Companion. Chi tiết roadmap ở [PLAN.md](./PLAN.md).
 
-**Phiên bản hiện tại:** v0.1.40 — *cập nhật 2026-05-06*
+**Phiên bản hiện tại:** v0.1.50 — *cập nhật 2026-05-11*
 
-## 🚀 Public release readiness (Desktop Companion / Windows v1)
+## 🚀 Public release readiness (v0.1.50)
 
 ### Tài liệu & public-facing
-- [x] README phản ánh version hiện tại `v0.1.40`.
+- [x] README phản ánh version hiện tại `v0.1.50`.
+- [x] README có section riêng cho `Cursor Chibi`.
 - [x] README có section riêng cho `Desktop Companion (Windows v1)`.
+- [x] README đã liệt kê command mới cho cursor chibi capture / reset / tune.
+- [x] README đã liệt kê settings mới cho `cursorChase.*` và `voiceAssets.*`.
 - [x] Cấu hình public đã dùng namespace `animeCompanion.desktopCompanion.*`.
-- [x] CHANGELOG có entry cho `0.1.40`.
+- [x] CHANGELOG có entry cho `0.1.50`.
 - [ ] Bổ sung GIF/screenshots cho Marketplace mô tả Desktop Companion ngoài VS Code.
-- [ ] Viết release notes public ngắn gọn cho `v0.1.40`.
+- [ ] Bổ sung GIF/screenshots cho Cursor Chibi trong editor.
+- [x] Viết release notes public ngắn gọn cho `v0.1.50` trong `PUBLIC_RELEASE_GUIDE.md`.
 
 ### Packaging & publish
-- [x] `package.json` đang ở `0.1.40`.
+- [x] `package.json` đang ở `0.1.50`.
 - [x] Repo đã có workflow `.github/workflows/release.yml` để package `.vsix` và publish khi tag `v*.*.*`.
 - [x] Repo đã có script `npm run build:desktop-pet` cho sidecar Windows.
+- [x] Repo đã có workflow `.github/workflows/voice-assets-release.yml` cho voice asset zips.
 - [ ] Tạo / cập nhật GitHub Release asset cho desktop companion (`desktop-pet-v1`) trước khi public rộng rãi.
+- [ ] Tạo / cập nhật GitHub Release asset cho voice assets (`audio-v1`) nếu release này đụng pipeline audio.
+- [ ] Verify URL trong `animeCompanion.modelDownloadBaseUrl` trỏ đúng asset release thực tế.
 - [ ] Verify URL trong `animeCompanion.desktopCompanion.downloadBaseUrl` trỏ đúng asset release thực tế.
+- [ ] Verify URL trong `animeCompanion.voiceAssets.downloadBaseUrl` trỏ đúng asset release thực tế.
 - [ ] Smoke test clean install trên Windows máy mới: bật `desktopCompanion.enabled` -> reload -> binary download -> floating window xuất hiện.
+- [x] Local verify release basics: `npm run compile`, `npm test`, `npm run package`.
 
 ### Known limitations cần nói rõ khi public
 - [x] Desktop Companion v1 là **Windows-only**.
 - [x] Toggle `desktopCompanion.enabled` cần **Reload Window** để áp dụng.
 - [x] Khi Desktop Companion bật, panel trong VS Code sẽ auto-hide.
+- [x] Capture Chibi hiện chỉ hoạt động ở **panel mode**.
 - [x] Nếu chưa ký code signing, Windows SmartScreen có thể hiện warning ở lần chạy đầu.
 
 ---
@@ -52,12 +62,16 @@ Bảng theo dõi tiến độ phát triển của Anime Companion. Chi tiết ro
 - [x] Hệ thống Sparkle particles.
 - [x] Status bar: tên model + click toggle panel; tự đổi sang `🍅 MM:SS` / `☕ MM:SS` khi Pomodoro chạy ([extension.ts:43-95](src/extension.ts#L43-L95)).
 - [x] Version-change toast khi upgrade/lần đầu activate ([extension.ts:121-128](src/extension.ts#L121-L128)).
+- [x] Cursor chibi bám theo editor cursor, có toggle command + config `cursorChase.enabled`.
+- [x] Tune Cursor Chibi Position: quick pick chỉnh `x/y` và size live, persist qua settings global.
+- [x] Capture Chibi from Model + reset captured sprite theo từng model.
 
 ### Audio & TTS
 - [x] Auto Lip-sync qua `model.speak()` với fallback HTML5 Audio.
 - [x] Sinh giọng đa ngôn ngữ (Google TTS + VoiceVox qua proxy `api.tts.quest`).
 - [x] 3 ngôn ngữ giọng: `ja` / `vi` / `en`.
 - [x] Migrate legacy `voiceLanguage = "ja-vi"` → `"en"` ở activate ([extension.ts:108-112](src/extension.ts#L108-L112)).
+- [x] Lazy-download extended voice assets cho `en` / `vi` từ GitHub Releases, có fallback audio bundled.
 
 ### Reactive Engine (toàn bộ wired ở [src/reactive.ts](src/reactive.ts))
 - [x] `onDidChangeDiagnostics` — phản ứng theo errors/warnings.
@@ -99,7 +113,7 @@ Bảng theo dõi tiến độ phát triển của Anime Companion. Chi tiết ro
 - [ ] Verify/xoá launch config "📦 Đóng gói Extension (.vsix)" / "🚀 Antigravity" trong `.vscode/launch.json`.
 
 ### Smoke test & lint
-- [ ] Smoke test activation + command registration (`vscode-test` headless).
+- [x] Smoke test activation + command registration (`npm test` / `scripts/smoke-test.js`).
 - [ ] `eslint` config thực tế + bật `npm run lint` enforce.
 
 ---
@@ -107,20 +121,20 @@ Bảng theo dõi tiến độ phát triển của Anime Companion. Chi tiết ro
 ## 📦 Backlog ngắn hạn (PLAN §3, 2–4 tuần)
 
 ### UX customization
-- [ ] Custom user phrases qua settings (`customPhrases.idle/save/error`).
-- [ ] Per-language reactive messages (tách `media/messages/{lang}.json`).
-- [ ] Custom keyword reactions (mở rộng từ Easter egg `TODO`/`FIXME`/`console.log`).
+- [x] Custom user phrases qua settings (`customPhrases.idle/save/error`).
+- [x] Per-language reactive messages (tách `media/messages/{lang}.json`).
+- [x] Custom keyword reactions (mở rộng từ Easter egg `TODO`/`FIXME`/`console.log`).
 
 ### Reveal hidden value
 - [ ] Achievements panel webview.
-- [ ] Coding stats dashboard (`Anime Companion: Show Stats`).
-- [ ] Per-workspace model preference (workspaceState thay vì global).
-- [ ] Live2D motion picker submenu.
+- [x] Coding stats dashboard (`Anime Companion: Show Stats`).
+- [x] Per-workspace model preference (workspaceState thay vì global).
+- [x] Live2D motion picker submenu.
 
 ### Pomodoro nâng cao
-- [ ] Visual ring/countdown overlay trên character (status bar đã có).
-- [ ] Custom interval per workspace.
-- [ ] Sound cue khác nhau cho start work / start break.
+- [x] Visual ring/countdown overlay trên character (status bar đã có).
+- [x] Custom interval per workspace.
+- [x] Sound cue khác nhau cho start work / start break.
 
 ---
 
@@ -132,9 +146,9 @@ Bảng theo dõi tiến độ phát triển của Anime Companion. Chi tiết ro
 - [ ] README marketplace + GIF demo + screenshots.
 - [ ] Marketplace icon 128×128 + banner color + gallery banner.
 - [ ] `categories` + `keywords` SEO (hiện chỉ có `Other`).
-- [ ] CHANGELOG.md (chưa có).
+- [x] CHANGELOG.md.
 - [ ] CI: GitHub Actions lint + typecheck + `vsce package` mỗi PR.
-- [ ] Auto-publish khi tag `vX.Y.Z`.
+- [x] Auto-publish khi tag `vX.Y.Z`.
 - [ ] Chuyển build từ `tsc` sang `esbuild`.
 
 ### Features
@@ -158,7 +172,7 @@ Bảng theo dõi tiến độ phát triển của Anime Companion. Chi tiết ro
 ## 🧹 Technical debt (PLAN §7)
 
 - [ ] 🔴 Bundle size ~130 MB.
-- [ ] 🟡 Thiếu test (smoke test activation + commands).
+- [ ] 🟡 Thiếu test sâu hơn ngoài smoke test activation + commands.
 - [ ] 🟡 ESLint config không enforce.
 - [ ] 🟡 [src/reactive.ts](src/reactive.ts) 522 dòng — quá nhiều concern, cần tách khi mở `customPhrases` / `messages/{lang}.json`.
 - [ ] 🟢 Dọn folder `media/audio/ja-vi/` (runtime đã migrate).

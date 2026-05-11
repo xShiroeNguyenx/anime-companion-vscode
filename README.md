@@ -4,7 +4,7 @@
 
 > ⚠️ **Experimental — v0.1.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.1.40
+**Phiên bản hiện tại:** v0.1.50
 
 ## 📦 Cài đặt
 
@@ -35,6 +35,13 @@ Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroen
 - Có thể thêm model local do chính user tự tải về qua setting `animeCompanion.customModelRoots` hoặc `animeCompanion.customModels` (xem [MODEL_LICENSE_AUDIT.md](MODEL_LICENSE_AUDIT.md)).
 - Nếu đang mở workspace, model được lưu theo từng workspace; có command reset về global model.
 
+### 🐥 Cursor Chibi
+- Có thể bật **chibi sprite bám theo con trỏ editor** bằng `Anime Companion: Toggle Cursor Chibi` hoặc setting `animeCompanion.cursorChase.enabled`.
+- Có command `Anime Companion: Tune Cursor Chibi Position` để chỉnh live theo `Up/Down/Left/Right`, tăng giảm size, rồi lưu vào settings global.
+- Có thể **capture chibi trực tiếp từ model Live2D đang render** bằng `Anime Companion: Capture Chibi from Model`; extension sẽ auto-crop nền trong suốt, scale gọn, rồi dùng ngay làm sprite cho model hiện tại.
+- Có command `Anime Companion: Reset Captured Chibi` để xoá PNG đã capture và fallback về icon bundled.
+- Chibi chỉ bám theo editor thật (`file`, `untitled`, `vscode-userdata`) để tránh leak sang Output / Debug Console.
+
 ### 🪟 Desktop Companion (Windows v1)
 - Có thể chạy companion thành **cửa sổ desktop nổi riêng** thay vì chỉ nằm trong panel của VS Code.
 - Bật bằng setting `animeCompanion.desktopCompanion.enabled`, sau đó reload window để áp dụng.
@@ -51,10 +58,11 @@ Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroen
 
 ### 🔊 Audio + Lip-sync 3 ngôn ngữ
 - **Japanese (ja)** — VoiceVox Shikoku Metan, giọng anime Nhật.
-- **Tiếng Việt (vi)** — Google TTS.
-- **English (en)** — Google TTS.
+- **Tiếng Việt (vi)** — bundled lines + extended voice assets lazy-download khi cần.
+- **English (en)** — bundled lines + extended voice assets lazy-download khi cần.
 - Bubble message và voice tách riêng: có thể để voice `ja` nhưng text `vi` / `en` / `ja`.
 - Tự động nhép môi qua `model.speak()`, fallback HTML5 Audio nếu PIXI Audio plugin gặp sự cố.
+- Có thể tắt extended voice assets bằng `animeCompanion.voiceAssets.enableExtended` nếu muốn chỉ dùng audio bundled.
 
 ### 🎧 Background Ambient
 - Có sẵn **3 preset ambient**: **Lofi**, **Rain**, **Cafe** để bật nhạc nền/không khí làm việc ngay trong companion.
@@ -189,7 +197,7 @@ Nếu muốn chỉnh riêng tên hiển thị, mô tả, hoặc chỉ định fi
 
 ### Từ file `.vsix` (hiện tại)
 ```bash
-code --install-extension anime-companion-vscode-0.1.40.vsix
+code --install-extension anime-companion-vscode-0.1.50.vsix
 ```
 
 ### Từ source
@@ -225,6 +233,10 @@ Mở Settings (`Ctrl+,`) → tìm `Anime Companion`, hoặc click **Settings** t
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Khoảng cách giữa các idle bubble (giây). |
 | `animeCompanion.pomodoroWorkTime` / `BreakTime` | `25` / `5` | Thời lượng work / break (phút). |
 | `animeCompanion.breakReminderMinutes` | `30` | Phút code liên tục trước khi nhắc nghỉ. |
+| `animeCompanion.cursorChase.enabled` | `false` | Bật chibi sprite bám theo vị trí con trỏ trong editor. |
+| `animeCompanion.cursorChase.size` | `small` | Preset size cho cursor chibi: `small` / `medium` / `large`. |
+| `animeCompanion.cursorChase.sizePx` | `0` | Override size pixel chính xác cho cursor chibi. `0` = dùng preset. |
+| `animeCompanion.cursorChase.offsetX` / `offsetY` | `0` / `0` | Offset tinh chỉnh vị trí cursor chibi theo pixel. |
 | `animeCompanion.reactive.diagnostics` | `true` | Toggle phản ứng theo errors/warnings. |
 | `animeCompanion.reactive.save` | `true` | Toggle phản ứng theo save. |
 | `animeCompanion.reactive.typing` | `true` | Toggle phản ứng tốc độ gõ + Easter eggs. |
@@ -242,6 +254,8 @@ Mở Settings (`Ctrl+,`) → tìm `Anime Companion`, hoặc click **Settings** t
 | `animeCompanion.desktopCompanion.opacity` | `1` | Độ trong suốt của Desktop Companion, từ `0.5` đến `1`. |
 | `animeCompanion.desktopCompanion.downloadBaseUrl` | GitHub Releases URL | Base URL để lazy-download binary desktop companion. |
 | `animeCompanion.desktopCompanion.devBinaryPath` | `""` | Đường dẫn tuyệt đối tới binary local để test Desktop Companion. |
+| `animeCompanion.voiceAssets.downloadBaseUrl` | GitHub Releases URL | Base URL để tải extended voice asset zip cho `en` / `vi`. |
+| `animeCompanion.voiceAssets.enableExtended` | `true` | Cho phép lazy-download extended voice assets thay vì chỉ dùng audio bundled. |
 
 ---
 
@@ -257,6 +271,10 @@ Mở Command Palette (`Ctrl+Shift+P`) và gõ `Anime Companion`:
 | `Anime Companion: Change Voice` | Quick pick chọn giọng |
 | `Anime Companion: Change Message Language` | Quick pick chọn ngôn ngữ bubble |
 | `Anime Companion: Toggle Mute` | Bật/tắt audio |
+| `Anime Companion: Toggle Cursor Chibi` | Bật/tắt chibi sprite đi theo con trỏ editor |
+| `Anime Companion: Tune Cursor Chibi Position` | Chỉnh live vị trí và size của cursor chibi |
+| `Anime Companion: Capture Chibi from Model` | Capture sprite PNG từ model đang render trong panel mode |
+| `Anime Companion: Reset Captured Chibi (use bundled icon)` | Xoá sprite đã capture của model hiện tại |
 | `Anime Companion: Start Pomodoro` / `Stop Pomodoro` | Bắt đầu / dừng Pomodoro |
 | `Anime Companion: Show Stats` | Mở quick stats |
 | `Anime Companion: Show Achievements` | Mở danh sách achievements |

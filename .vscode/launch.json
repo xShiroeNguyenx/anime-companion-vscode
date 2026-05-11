@@ -2,6 +2,16 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Build & Install Extension (No Bump)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "bash ./build-install.sh --no-bump",
+      "presentation": {
+        "group": "build",
+        "order": 1
+      }
+    },
+    {
       "name": "Run Extension",
       "type": "extensionHost",
       "request": "launch",
@@ -11,7 +21,11 @@
       "outFiles": [
         "${workspaceFolder}/out/**/*.js"
       ],
-      "preLaunchTask": "${defaultBuildTask}"
+      "preLaunchTask": "${defaultBuildTask}",
+      "presentation": {
+        "group": "dev",
+        "order": 2
+      }
     }
   ]
 }

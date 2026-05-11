@@ -7,14 +7,11 @@ on:
 
 jobs:
   publish:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -28,18 +25,15 @@ jobs:
       - name: Compile
         run: npm run compile
 
-      - name: Build Desktop Companion sidecar
-        run: npm run build:desktop-pet
-
       - name: Verify tag matches package.json version
-        shell: pwsh
+        shell: bash
         run: |
-          $pkgVersion = node -p "require('./package.json').version"
-          $tagVersion = $env:GITHUB_REF_NAME.Substring(1)
-          if ($pkgVersion -ne $tagVersion) {
-            Write-Error "Tag $tagVersion does not match package.json version $pkgVersion"
+          pkg_version=$(node -p "require('./package.json').version")
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$pkg_version" != "$tag_version" ]; then
+            echo "Tag $tag_version does not match package.json version $pkg_version" >&2
             exit 1
-          }
+          fi
 
       - name: Package extension
         run: npx vsce package --allow-missing-repository --out anime-companion-${{ github.ref_name }}.vsix

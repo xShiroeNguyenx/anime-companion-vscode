@@ -6,6 +6,7 @@ import { log } from './log';
 import { getSelectedModel, HIYORI, ModelInfo, listVisibleModels } from './models';
 import { ModelFileServer } from './model-server';
 import { ModelDownloader } from './model-downloader';
+import { VoiceAssetDownloader, VoiceAssetLang } from './voice-asset-downloader';
 import { getMessageBank, MessageKey, ResolvedPhrase } from './messages';
 import { StatsStore } from './stats';
 import { PomodoroState } from './pomodoro';
@@ -13,6 +14,7 @@ import { AmbientPreset, getAmbientPreset, listAmbientPresets, resolveCustomAmbie
 import { WebviewTransport } from './companion-transport';
 import { dispatchRuntimeMessage } from './companion-message-dispatcher';
 import { getStoredPanelPosition, savePanelPosition } from './companion-position';
+import { setWorkspaceModel } from './models';
 
 export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'animeCompanion.live2dView';
@@ -24,25 +26,38 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   private _server: ModelFileServer;
   private _stats: StatsStore;
   private _downloader: ModelDownloader;
+  private _voiceAssets: VoiceAssetDownloader;
   private _resolvedModel: ModelInfo = HIYORI;
+  private _resolvedVoiceAssetDir: string | null = null;
   private _reactive?: ReactiveManager;
   private _confirmCounter = 0;
   private _pendingConfirms = new Map<string, (approved: boolean) => void>();
   private _pendingInputs = new Map<string, (value: string | undefined) => void>();
   private _transportSubscriptions: vscode.Disposable[] = [];
 
-  constructor(extensionUri: vscode.Uri, server: ModelFileServer, stats: StatsStore, downloader: ModelDownloader) {
+  private _saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>;
+
+  constructor(
+    extensionUri: vscode.Uri,
+    server: ModelFileServer,
+    stats: StatsStore,
+    downloader: ModelDownloader,
+    voiceAssets: VoiceAssetDownloader,
+    saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>
+  ) {
     this._extensionUri = extensionUri;
     this._server = server;
     this._stats = stats;
     this._downloader = downloader;
+    this._voiceAssets = voiceAssets;
+    this._saveCapturedChibi = saveCapturedChibi;
   }
 
   // Returns immediately for bundled models. For lazy models, downloads + extracts
   // on first call, then registers the cache root with the file server. On error,
   // falls back to the bundled Hiyori so the view always renders something.
   private async _resolveModel(): Promise<ModelInfo> {
-    const requested = getSelectedModel();
+    const requested = getSelectedModel('panel');
     if (requested.customRoot) {
       this._server.addRoot(requested.customRoot);
       return requested;
@@ -91,6 +106,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   // never serves a 404 to PIXI's loader.
   private async _renderWith(webviewView: vscode.WebviewView) {
     this._resolvedModel = await this._resolveModel();
+    this._resolvedVoiceAssetDir = await this._resolveVoiceAssetDir();
     const customAmbientTracks = this._getCustomAmbientTracks();
     webviewView.webview.options = {
       enableScripts: true,
@@ -100,6 +116,20 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     setTimeout(() => {
       this._sendMessage(this._pickMessage('greeting'));
     }, 4000);
+  }
+
+  // Lazy-downloads ElevenLabs-generated MP3s for en/vi the first time they're
+  // requested. Returns null on failure or when not applicable; callers fall
+  // back to the bundled media/audio/{lang}/ directory.
+  private async _resolveVoiceAssetDir(): Promise<string | null> {
+    const config = vscode.workspace.getConfiguration('animeCompanion');
+    if (!config.get<boolean>('voiceAssets.enableExtended', true)) return null;
+
+    const raw = config.get<string>('voiceLanguage') || 'ja';
+    const lang = raw === 'ja-vi' ? 'en' : raw;
+    if (lang !== 'en' && lang !== 'vi') return null;
+
+    return this._voiceAssets.ensureLanguageAudio(lang as VoiceAssetLang);
   }
 
   public resolveWebviewView(
@@ -145,6 +175,17 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
         onInteraction: () => this._startMessageTimer(10000),
         getCustomAmbientTracks: () => this._getCustomAmbientTracks(),
         saveCompanionPosition: (x, y) => { void savePanelPosition(x, y); },
+        applyModelSelection: async (modelId) => {
+          const hasWorkspace = !!vscode.workspace.workspaceFolders?.length;
+          if (hasWorkspace) {
+            await setWorkspaceModel(modelId);
+            return;
+          }
+          await vscode.workspace
+            .getConfiguration('animeCompanion')
+            .update('model', modelId, vscode.ConfigurationTarget.Global);
+        },
+        saveCapturedChibi: this._saveCapturedChibi,
       });
     }));
 
@@ -307,6 +348,15 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     const roots = [vscode.Uri.joinPath(this._extensionUri, 'media')];
     const seen = new Set(roots.map((root) => root.fsPath.toLowerCase()));
 
+    const voiceCacheRoot = this._voiceAssets.cacheRoot;
+    if (voiceCacheRoot) {
+      const key = voiceCacheRoot.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        roots.push(vscode.Uri.file(voiceCacheRoot));
+      }
+    }
+
     for (const track of customAmbientTracks) {
       if (!track.localPath) continue;
       const dir = path.dirname(track.localPath);
@@ -352,6 +402,9 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     const config = vscode.workspace.getConfiguration('animeCompanion');
     const configuredVoiceLanguage = config.get<string>('voiceLanguage') || 'ja';
     const voiceLanguage = configuredVoiceLanguage === 'ja-vi' ? 'en' : configuredVoiceLanguage;
+    const audioBaseUri = this._resolvedVoiceAssetDir
+      ? webview.asWebviewUri(vscode.Uri.file(this._resolvedVoiceAssetDir))
+      : mediaUri('audio', voiceLanguage);
     const messageLanguage = config.get<string>('messageLanguage', 'vi');
     const muted = config.get<boolean>('muted', false);
     const customAmbientTracks = this._getCustomAmbientTracks();
@@ -422,7 +475,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   <script>
     window.__MODEL_URL__ = "${modelUrl}";
     window.__MODEL_ID__ = "${selectedModel.id}";
-    window.__AUDIO_BASE_URL__ = "${mediaUri('audio', voiceLanguage)}";
+    window.__AUDIO_BASE_URL__ = "${audioBaseUri}";
     window.__VOICE_LANGUAGE__ = "${voiceLanguage}";
     window.__MESSAGE_LANGUAGE__ = "${messageLanguage}";
     window.__AUDIO_MUTED__ = ${muted ? 'true' : 'false'};

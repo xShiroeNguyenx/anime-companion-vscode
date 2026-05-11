@@ -58,6 +58,7 @@ export const MODEL_MAP: Record<string, ModelInfo> = {
 };
 
 export const HIYORI = MODEL_MAP['hiyori'];
+type HostMode = 'auto' | 'panel' | 'desktop';
 
 function normalizeModelId(input: string): string {
   return input
@@ -229,12 +230,26 @@ export async function clearWorkspaceModel(): Promise<void> {
   await _ctx.workspaceState.update(WORKSPACE_MODEL_KEY, undefined);
 }
 
-export function getSelectedModel(): ModelInfo {
+export function getSelectedModel(mode?: HostMode): ModelInfo {
   const allModels = getAllModels();
-  const wsId = readWorkspaceModelId();
-  if (wsId) return allModels[wsId];
-
   const config = vscode.workspace.getConfiguration('animeCompanion');
+  const targetMode =
+    mode && mode !== 'auto'
+      ? mode
+      : config.get<boolean>('desktopCompanion.enabled', false)
+        ? 'desktop'
+        : 'panel';
+
+  if (targetMode === 'desktop') {
+    const desktopModelId = config.get<string>('desktopCompanion.model', '').trim();
+    if (desktopModelId && allModels[desktopModelId]) {
+      return allModels[desktopModelId];
+    }
+  }
+
+  const wsId = readWorkspaceModelId();
+  if (targetMode === 'panel' && wsId) return allModels[wsId];
+
   const modelId = config.get<string>('model', 'hiyori');
   return allModels[modelId] || MODEL_MAP['hiyori'];
 }

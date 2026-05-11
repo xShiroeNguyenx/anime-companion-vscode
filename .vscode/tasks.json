@@ -15,6 +15,23 @@
       }
     },
     {
+      "label": "Build Install No Bump",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "./build-install.sh",
+        "--no-bump"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true,
+        "focus": false
+      },
+      "detail": "Run build-install.sh without changing package version"
+    },
+    {
       "label": "Rebuild & Install Extension",
       "type": "npm",
       "script": "package:install",
