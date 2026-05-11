@@ -58,6 +58,8 @@ Trong Marketplace / GitHub Release / post giới thiệu nên nói ngắn gọn 
    - Desktop Companion sidecar -> GitHub Release tag `desktop-pet-v1`
    - Voice assets -> GitHub Release tag `audio-v1`
    - Model zips -> GitHub Release tag `models-v1`
+   - Nếu chỉ muốn cắt một sidecar release riêng bằng tag tự động, dùng pattern `desktop-pet-release-v*.*.*`
+   - Nếu muốn tự build và tự update asset runtime production `desktop-pet-v1`, dùng tag pattern `desktop-pet-runtime-v*.*.*`
 2. Verify `package.json` đang trỏ đúng các release asset thật.
 3. Chạy local `compile`, `test`, `package`.
 4. Commit release notes / docs cuối cùng.
@@ -68,6 +70,8 @@ Lý do đi theo thứ tự này:
 
 - Extension public trước khi runtime asset sẵn sàng sẽ làm user bật feature nhưng download fail.
 - Repo này hiện có nhiều dependency runtime lazy-download hơn `v0.1.40`, không chỉ riêng Desktop Companion sidecar.
+- `desktop-pet-v1` là tag runtime ổn định cho lazy-download; còn tag `desktop-pet-release-v*.*.*` phù hợp cho archival / build release tự động từng đợt.
+- Tag `desktop-pet-runtime-v*.*.*` phù hợp khi muốn refresh thẳng asset production mà không cần upload tay lên release `desktop-pet-v1`.
 
 ## 5. Release notes mẫu
 

@@ -1,0 +1,61 @@
+name: Desktop Companion Runtime Update
+
+on:
+  push:
+    tags:
+      - 'desktop-pet-runtime-v*.*.*'
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Desktop Companion sidecar
+        run: npm run build:desktop-pet
+
+      - name: Pack Desktop Companion runtime asset
+        shell: pwsh
+        run: |
+          $binary = "desktop-pet/target/release/anime-companion-pet.exe"
+          if (!(Test-Path $binary)) {
+            Write-Error "Expected binary not found: $binary"
+            exit 1
+          }
+
+          $stageDir = Join-Path $env:RUNNER_TEMP "desktop-companion-win-x64"
+          $zipPath = Join-Path $env:GITHUB_WORKSPACE "win-x64.zip"
+
+          Remove-Item -LiteralPath $stageDir -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
+
+          New-Item -ItemType Directory -Path $stageDir | Out-Null
+          Copy-Item -LiteralPath $binary -Destination (Join-Path $stageDir "anime-companion-pet.exe")
+          Compress-Archive -Path (Join-Path $stageDir "*") -DestinationPath $zipPath
+
+      - name: Replace runtime asset in desktop-pet-v1
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop-pet-v1
+          target_commitish: ${{ github.sha }}
+          name: Desktop Companion v1 (Windows)
+          files: win-x64.zip
+          make_latest: "false"
+          prerelease: false
+          append_body: true
+          body: |
+            Runtime asset refreshed from source tag `${{ github.ref_name }}`.

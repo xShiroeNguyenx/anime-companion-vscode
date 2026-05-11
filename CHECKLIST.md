@@ -22,6 +22,8 @@ Bảng theo dõi tiến độ phát triển của Anime Companion. Chi tiết ro
 - [x] `package.json` đang ở `0.1.50`.
 - [x] Repo đã có workflow `.github/workflows/release.yml` để package `.vsix` và publish khi tag `v*.*.*`.
 - [x] Repo đã có script `npm run build:desktop-pet` cho sidecar Windows.
+- [x] Repo đã có workflow tag-based `.github/workflows/desktop-companion-tag-release.yml` cho sidecar releases pattern `desktop-pet-release-v*.*.*`.
+- [x] Repo đã có workflow tag-based `.github/workflows/desktop-companion-runtime-update.yml` để refresh runtime asset `desktop-pet-v1` qua tag `desktop-pet-runtime-v*.*.*`.
 - [x] Repo đã có workflow `.github/workflows/voice-assets-release.yml` cho voice asset zips.
 - [ ] Tạo / cập nhật GitHub Release asset cho desktop companion (`desktop-pet-v1`) trước khi public rộng rãi.
 - [ ] Tạo / cập nhật GitHub Release asset cho voice assets (`audio-v1`) nếu release này đụng pipeline audio.
