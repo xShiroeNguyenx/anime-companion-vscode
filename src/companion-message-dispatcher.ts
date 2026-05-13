@@ -3,6 +3,8 @@ import { getAmbientPreset } from './ambient-presets';
 import { pullWithFeedback, pushWithFeedback, commitWithFeedback } from './git-ops';
 import { log } from './log';
 import { getMessageBank } from './messages';
+import type { ChatManager } from './chat/chat-manager';
+import type { ProviderId } from './chat/secrets';
 
 export interface DispatcherContext {
   postMessage: (msg: any) => void;
@@ -17,7 +19,11 @@ export interface DispatcherContext {
   getCustomAmbientTracks: () => any[];
   saveCompanionPosition?: (x: number, y: number) => void;
   applyModelSelection: (modelId: string) => Promise<void>;
+  nudgeCursorChibi?: (dx: number, dy: number) => Promise<void>;
+  nudgeCursorChibiSize?: (delta: number) => Promise<void>;
+  resetCursorChibi?: () => Promise<void>;
   saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>;
+  chatManager?: ChatManager;
 }
 
 const INTERACTION_COMMANDS = new Set([
@@ -35,6 +41,9 @@ const INTERACTION_COMMANDS = new Set([
   'confirmDialogResult',
   'inputDialogResult',
   'setCompanionPosition',
+  'cursorChibi:nudge',
+  'cursorChibi:size',
+  'cursorChibi:reset',
   'runtimeDebug',
 ]);
 
@@ -155,6 +164,25 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
         ctx.saveCompanionPosition(message.x, message.y);
       }
       break;
+    case 'cursorChibi:nudge':
+      if (
+        typeof message.dx === 'number' &&
+        typeof message.dy === 'number' &&
+        ctx.nudgeCursorChibi
+      ) {
+        void ctx.nudgeCursorChibi(message.dx, message.dy);
+      }
+      break;
+    case 'cursorChibi:size':
+      if (typeof message.delta === 'number' && ctx.nudgeCursorChibiSize) {
+        void ctx.nudgeCursorChibiSize(message.delta);
+      }
+      break;
+    case 'cursorChibi:reset':
+      if (ctx.resetCursorChibi) {
+        void ctx.resetCursorChibi();
+      }
+      break;
     case 'runtimeDebug':
       if (typeof message.message === 'string') {
         const source = typeof message.source === 'string' ? message.source : 'runtime';
@@ -174,6 +202,81 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
       vscode.window.showWarningMessage(
         `Couldn't capture chibi from the model: ${message.reason ?? 'unknown reason'}.`
       );
+      break;
+    case 'chat:send':
+      if (typeof message.prompt === 'string' && ctx.chatManager) {
+        const includeSelection = Boolean(message.includeSelection);
+        const includeActiveFile = Boolean(message.includeActiveFile);
+        const fileMentions = Array.isArray(message.fileMentions)
+          ? (message.fileMentions as unknown[]).filter((x): x is string => typeof x === 'string')
+          : [];
+        void ctx.chatManager.sendUserMessage(message.prompt, {
+          includeSelection,
+          includeActiveFile,
+          fileMentions,
+        });
+      }
+      break;
+    case 'chat:clearStagedSelection':
+      ctx.chatManager?.clearStagedSelection();
+      break;
+    case 'chat:searchFiles':
+      if (typeof message.query === 'string' && ctx.chatManager) {
+        void ctx.chatManager.searchFiles(message.query);
+      }
+      break;
+    case 'chat:cancel':
+      ctx.chatManager?.cancel();
+      break;
+    case 'chat:clearAll':
+      void ctx.chatManager?.clearAll();
+      break;
+    case 'chat:newConversation':
+      void ctx.chatManager?.newConversation();
+      break;
+    case 'chat:loadConversation':
+      if (typeof message.id === 'string' && ctx.chatManager) {
+        void ctx.chatManager.loadConversation(message.id);
+      }
+      break;
+    case 'chat:deleteConversation':
+      if (typeof message.id === 'string' && ctx.chatManager) {
+        void ctx.chatManager.deleteConversation(message.id);
+      }
+      break;
+    case 'chat:renameConversation':
+      if (typeof message.id === 'string' && typeof message.title === 'string' && ctx.chatManager) {
+        void ctx.chatManager.renameConversation(message.id, message.title);
+      }
+      break;
+    case 'chat:requestRename':
+      if (typeof message.id === 'string' && typeof message.currentTitle === 'string' && ctx.chatManager) {
+        void ctx.chatManager.requestRename(message.id, message.currentTitle);
+      }
+      break;
+    case 'chat:requestDelete':
+      if (typeof message.id === 'string' && typeof message.title === 'string' && ctx.chatManager) {
+        void ctx.chatManager.requestDelete(message.id, message.title);
+      }
+      break;
+    case 'chat:snapshot':
+      void ctx.chatManager?.sendSnapshot();
+      break;
+    case 'chat:setProvider':
+      if (typeof message.providerId === 'string' && ctx.chatManager) {
+        void ctx.chatManager.setProvider(message.providerId as ProviderId);
+      }
+      break;
+    case 'chat:setModel':
+      if (typeof message.model === 'string' && ctx.chatManager) {
+        void ctx.chatManager.setModel(message.model);
+      }
+      break;
+    case 'chat:setApiKey':
+      void vscode.commands.executeCommand('animeCompanion.chat.setApiKey');
+      break;
+    case 'chat:pickCopilotAccount':
+      void ctx.chatManager?.pickCopilotAccount();
       break;
   }
 }

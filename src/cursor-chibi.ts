@@ -5,6 +5,13 @@ import { log } from './log';
 
 type SizeKey = 'small' | 'medium' | 'large';
 
+export interface CursorChibiTuningState {
+  enabled: boolean;
+  offsetX: number;
+  offsetY: number;
+  sizePx: number;
+}
+
 const SIZE_MAP: Record<SizeKey, number> = {
   small: 12,
   medium: 16,
@@ -23,6 +30,7 @@ const THROTTLE_MS = 50;
 export class CursorChibiManager {
   private _extensionUri: vscode.Uri;
   private _capturedChibiDir: string;
+  private _renderCacheDir: string;
   private _decorationType?: vscode.TextEditorDecorationType;
   private _activeListeners: vscode.Disposable[] = [];
   private _configListener: vscode.Disposable;
@@ -32,7 +40,9 @@ export class CursorChibiManager {
   constructor(extensionUri: vscode.Uri, globalStorageUri: vscode.Uri) {
     this._extensionUri = extensionUri;
     this._capturedChibiDir = path.join(globalStorageUri.fsPath, 'cursor-chibi');
+    this._renderCacheDir = path.join(globalStorageUri.fsPath, 'cursor-chibi-render');
     try { fs.mkdirSync(this._capturedChibiDir, { recursive: true }); } catch { /* ignore */ }
+    try { fs.mkdirSync(this._renderCacheDir, { recursive: true }); } catch { /* ignore */ }
 
     // Always listen to config changes so toggling the setting (via command or
     // settings.json) re-applies without a window reload. We also watch the
@@ -62,6 +72,30 @@ export class CursorChibiManager {
       log(`CursorChibi: resolve captured icon failed: ${err instanceof Error ? err.message : String(err)}`);
     }
     return vscode.Uri.joinPath(this._extensionUri, 'media', 'icon.png');
+  }
+
+  private _resolveSizedIconUri(sizePx: number): vscode.Uri {
+    const source = this._resolveIconUri();
+    const sourcePath = source.fsPath;
+    const ext = path.extname(sourcePath).toLowerCase();
+    const mime = ext === '.png' ? 'image/png' : 'image/png';
+    const modelId = vscode.workspace.getConfiguration('animeCompanion').get<string>('model', 'hiyori');
+    const safeModel = modelId.replace(/[^A-Za-z0-9_\-]/g, '_') || 'model';
+    const target = path.join(this._renderCacheDir, `${safeModel}-${sizePx}.svg`);
+
+    try {
+      const base64 = fs.readFileSync(sourcePath).toString('base64');
+      const svg = [
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${sizePx}" height="${sizePx}" viewBox="0 0 ${sizePx} ${sizePx}">`,
+        `<image href="data:${mime};base64,${base64}" x="0" y="0" width="${sizePx}" height="${sizePx}" preserveAspectRatio="xMidYMid meet"/>`,
+        `</svg>`,
+      ].join('');
+      fs.writeFileSync(target, svg, 'utf8');
+      return vscode.Uri.file(target);
+    } catch (err) {
+      log(`CursorChibi: sized icon fallback -> ${err instanceof Error ? err.message : String(err)}`);
+      return source;
+    }
   }
 
   // Decode a `data:image/png;base64,...` payload from the webview and persist
@@ -112,9 +146,26 @@ export class CursorChibiManager {
     }
   }
 
+  public getTuningState(): CursorChibiTuningState {
+    const cfg = vscode.workspace.getConfiguration('animeCompanion');
+    return {
+      enabled: this._isEnabled(),
+      offsetX: cfg.get<number>('cursorChase.offsetX', 0),
+      offsetY: cfg.get<number>('cursorChase.offsetY', 0),
+      sizePx: this._getSizePx(),
+    };
+  }
+
   public dispose() {
     this._disable();
     this._configListener.dispose();
+  }
+
+  public async ensureEnabled(): Promise<void> {
+    if (this._isEnabled()) return;
+    await vscode.workspace
+      .getConfiguration('animeCompanion')
+      .update('cursorChase.enabled', true, vscode.ConfigurationTarget.Global);
   }
 
   // Bump the saved offset by (dx, dy). The config listener already wired up
@@ -142,7 +193,7 @@ export class CursorChibiManager {
   public async nudgeSize(delta: number): Promise<number> {
     const cfg = vscode.workspace.getConfiguration('animeCompanion');
     const current = cfg.get<number>('cursorChase.sizePx', 0) || this._getSizePx();
-    const next = Math.max(1, Math.min(64, current + delta));
+    const next = Math.max(1, Math.min(160, current + delta));
     await cfg.update('cursorChase.sizePx', next, vscode.ConfigurationTarget.Global);
     return next;
   }
@@ -221,7 +272,7 @@ export class CursorChibiManager {
     // small/medium/large preset" so existing users aren't affected.
     const override = cfg.get<number>('cursorChase.sizePx', 0);
     if (override > 0) {
-      return Math.max(1, Math.min(64, Math.round(override)));
+      return Math.max(1, Math.min(160, Math.round(override)));
     }
     const key = cfg.get<string>('cursorChase.size', 'small') as SizeKey;
     return SIZE_MAP[key] ?? SIZE_MAP.small;
@@ -258,8 +309,8 @@ export class CursorChibiManager {
   }
 
   private _createDecoration() {
-    const iconUri = this._resolveIconUri();
     const sizePx = this._getSizePx();
+    const iconUri = this._resolveSizedIconUri(sizePx);
     // contentIconPath is the only sandbox-safe way to embed an image in a
     // decoration (background-image: url(...) gets stripped). width/height in
     // the decoration field are honored and force the icon to that size.
@@ -285,6 +336,9 @@ export class CursorChibiManager {
         height: `${sizePx}px`,
         textDecoration:
           `none; position: absolute; pointer-events: none; ` +
+          `display: inline-block !important; overflow: hidden !important; ` +
+          `margin: 0 !important; padding: 0 !important; ` +
+          `font-size: 0 !important; line-height: 0 !important; ` +
           `width: ${sizePx}px !important; height: ${sizePx}px !important; ` +
           `min-width: 0 !important; min-height: 0 !important; ` +
           `max-width: ${sizePx}px !important; max-height: ${sizePx}px !important; ` +

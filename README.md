@@ -1,10 +1,12 @@
 # 🌸 Anime Companion for VS Code
 
-> Một bạn đồng hành Live2D dễ thương ngự ngay trong VS Code, phản ứng theo lúc bạn code: lỗi, save, commit, build, debug, Pomodoro… và biết khi nào bạn cần được khen hoặc bị nhắc nghỉ tay.
+> Một bạn đồng hành Live2D dễ thương ngự ngay trong VS Code, phản ứng theo lúc bạn code: lỗi, save, commit, build, debug, Pomodoro… **và giờ có thể chat với bạn qua GitHub Copilot hoặc API key của bạn** (Anthropic / OpenAI / Gemini).
 
-> ⚠️ **Experimental — v0.1.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
+> ⚠️ **Experimental — v0.3.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.1.50
+**Phiên bản hiện tại:** v0.3.0
+
+> 🆕 **v0.3.0**: AI Chat Companion — chat trực tiếp với companion qua GitHub Copilot (không cần API key) hoặc BYOK Anthropic/OpenAI/Gemini. Streaming, multi-conversation, context-aware (selection / file / `#mention`), sentiment-driven Live2D reactions. Xem section [💬 AI Chat](#-ai-chat-companion-mới-trong-v030) bên dưới.
 
 ## 📦 Cài đặt
 
@@ -26,6 +28,31 @@ Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroen
 ---
 
 ## ✨ Tính năng nổi bật
+
+### 💬 AI Chat Companion (mới trong v0.3.0)
+- **Chat trực tiếp với companion** qua panel slide-in cạnh Live2D character. Hỏi về code đang viết, lấy ý tưởng, học framework mới — companion giữ persona anime trong khi trả lời.
+- **4 LLM provider** với 1 default no-key:
+  - 🟢 **GitHub Copilot (mặc định, không cần API key)** — dùng subscription Copilot có sẵn qua `vscode.lm`. Hỗ trợ mọi model Copilot expose: gpt-4o, claude-3.5/3.7-sonnet, gemini-1.5-pro, o1-mini…
+  - 🤖 **Anthropic Claude — BYOK**: claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5.
+  - 🤖 **OpenAI GPT — BYOK**: gpt-4o, gpt-4o-mini, o1-mini.
+  - 🤖 **Google Gemini — BYOK** (free tier khả thi): gemini-2.5-flash/pro/flash-lite, gemini-2.0-flash.
+- **BYOK an toàn**: API keys lưu trong VS Code SecretStorage (OS keychain encrypted). Webview không bao giờ thấy key.
+- **Streaming token-by-token** với sparkle caret ✨ + thinking dots animation 3 chấm hồng khi đợi response.
+- **Multi-conversation**: persist history qua restart, list/rename/delete trong sidebar, active conversation per-workspace.
+- **Context awareness**:
+  - 📌 Toggle attach editor selection.
+  - 📄 Toggle attach toàn bộ active file.
+  - `#filename` — autocomplete picker file trong workspace.
+  - Right-click code → "Ask Companion About Selection" → stage selection + open chat.
+- **Sentiment reactions**: companion thật sự visibly phản ứng — câu trả lời vui → `TapBody` + happy mood; thinking → `TapHead` + idle; lỗi/buồn → sleepy.
+- **Persona**: 4 preset (`cute` / `professional` / `tsundere` / `energetic`) hoặc custom system prompt riêng.
+- **Avatar + tên** lấy từ Live2D model đang dùng — assistant bubble hiển thị "Hiyori" hoặc "Miara" thay vì "Companion" generic.
+
+Quick start:
+1. Mở panel Anime Companion (bottom panel hoặc `Ctrl+Shift+P` → `Anime Companion: Show`).
+2. Click nút 💬 góc dưới phải để mở chat panel.
+3. Mặc định provider là **GitHub Copilot** — chỉ cần đã sign in Copilot trong VS Code là gõ câu hỏi và Send.
+4. Muốn dùng BYOK? Click ⚙ → đổi provider → click 🔑 → paste key.
 
 ### 🎭 Live2D Companion
 - **4 model Live2D Sample** dùng Free Material License: **Hiyori**, **Haru**, **Mao**, **Miara**. Hiyori bundled trong `.vsix`, 3 model còn lại lazy download lần đầu chọn.
@@ -197,7 +224,7 @@ Nếu muốn chỉnh riêng tên hiển thị, mô tả, hoặc chỉ định fi
 
 ### Từ file `.vsix` (hiện tại)
 ```bash
-code --install-extension anime-companion-vscode-0.1.50.vsix
+code --install-extension anime-companion-vscode-0.3.0.vsix
 ```
 
 ### Từ source
@@ -256,6 +283,15 @@ Mở Settings (`Ctrl+,`) → tìm `Anime Companion`, hoặc click **Settings** t
 | `animeCompanion.desktopCompanion.devBinaryPath` | `""` | Đường dẫn tuyệt đối tới binary local để test Desktop Companion. |
 | `animeCompanion.voiceAssets.downloadBaseUrl` | GitHub Releases URL | Base URL để tải extended voice asset zip cho `en` / `vi`. |
 | `animeCompanion.voiceAssets.enableExtended` | `true` | Cho phép lazy-download extended voice assets thay vì chỉ dùng audio bundled. |
+| `animeCompanion.chat.provider` | `copilot` | LLM provider cho chat: `copilot` / `anthropic` / `openai` / `gemini`. Copilot không cần API key. |
+| `animeCompanion.chat.model` | `""` | Override model id cho provider hiện tại. Empty = dùng default của provider. |
+| `animeCompanion.chat.personaPreset` | `cute` | Preset persona: `cute` / `professional` / `tsundere` / `energetic`. Bỏ qua khi `systemPrompt` non-empty. |
+| `animeCompanion.chat.systemPrompt` | `""` | Custom system prompt thay thế hoàn toàn persona preset. |
+| `animeCompanion.chat.maxTokens` | `2048` | Max tokens generate mỗi response. Gemini 2.5 thinking models cần ≥ 2048. |
+| `animeCompanion.chat.temperature` | `0.7` | Sampling temperature (0 = deterministic, càng cao càng creative). |
+| `animeCompanion.chat.reactionsEnabled` | `true` | Sentiment-driven Live2D reactions sau khi chat reply. |
+
+> ⚠️ **API keys không lưu ở `settings.json`** — luôn dùng command `Anime Companion: Set Chat API Key (BYOK)` để lưu vào VS Code SecretStorage encrypted.
 
 ---
 
@@ -281,6 +317,11 @@ Mở Command Palette (`Ctrl+Shift+P`) và gõ `Anime Companion`:
 | `Anime Companion: Play Motion` | Chạy nhanh `TapBody` / `TapHead` / `Idle` |
 | `Anime Companion: Reset Companion Position` | Reset vị trí companion trong panel mode |
 | `Anime Companion: Open Settings` | Mở Settings đã filter |
+| `Anime Companion: Open Chat` | Mở chat panel + focus textarea |
+| `Anime Companion: Set Chat API Key (BYOK)` | Lưu API key cho Anthropic/OpenAI/Gemini vào SecretStorage |
+| `Anime Companion: New Chat Conversation` | Tạo conversation mới (reuse empty active nếu có) |
+| `Anime Companion: Clear All Chat Conversations` | Xoá toàn bộ history (có confirm modal) |
+| `Anime Companion: Ask Companion About Selection` | Stage code đang select rồi mở chat panel (cũng có ở editor right-click menu) |
 
 ---
 
@@ -310,6 +351,7 @@ Trong VS Code, nhấn `F5` để mở **Extension Development Host** với exten
 src/
   extension.ts          activate, status bar, command registration
   companion-view.ts     WebviewViewProvider, idle bubble timer
+  companion-message-dispatcher.ts  webview ↔ extension message routing
   reactive.ts           ReactiveManager — toàn bộ event hooks
   pomodoro.ts           PomodoroManager
   stats.ts              StatsStore + achievement unlock
@@ -318,12 +360,26 @@ src/
   model-server.ts       Local HTTP server cho model assets
   git-ops.ts            pull/push/commit có feedback
   messages.ts           Message bank + i18n + custom phrases
+  cursor-chibi.ts       Cursor chibi sprite manager
   log.ts                Output channel logger
+  chat/                 AI chat module (v0.3.0+)
+    chat-manager.ts        Orchestrator: provider routing + streaming
+    secrets.ts             SecretStorage wrapper cho API keys
+    persona.ts             Preset system prompts
+    sentiment.ts           Sentiment heuristic → Live2D mood/motion
+    conversation-store.ts  Multi-conversation file store
+    context-builder.ts     Pack selection / active file / #mention
+    sse-parser.ts          Server-Sent Events parser
+    llm-provider.ts        Interface + factory
+    providers/
+      anthropic.ts · openai.ts · gemini.ts · copilot.ts
 
 media/
   webview/              Runtime webview (đã tách module)
     main.js · core.js · interaction.js
     audio.js · expression.js · ui.js
+    chat.js · chat.css           Chat panel UI
+    cursor-chibi.css             Cursor chibi tuning widget (isolated)
   audio/{ja,vi,en}/     MP3 cho từng ngôn ngữ
   messages/             Bubble text i18n
   live2d/               Cubism model assets
@@ -348,7 +404,7 @@ media/
 
 [MIT License](./LICENSE).
 
-Live2D Cubism SDK, các model Live2D, và audio VoiceVox/Google TTS có license riêng. Các model không có quyền redistribute rõ ràng không còn được ship trong extension; nếu user tự tải về để dùng local thì cấu hình qua `animeCompanion.customModelRoots` hoặc `animeCompanion.customModels` — xem [MODEL_LICENSE_AUDIT.md](./MODEL_LICENSE_AUDIT.md).
+Live2D Cubism SDK, các model Live2D, audio VoiceVox, và extended voice assets generated via ElevenLabs có license riêng. Các model không có quyền redistribute rõ ràng không còn được ship trong extension; nếu user tự tải về để dùng local thì cấu hình qua `animeCompanion.customModelRoots` hoặc `animeCompanion.customModels` — xem [MODEL_LICENSE_AUDIT.md](./MODEL_LICENSE_AUDIT.md).
 
 ---
 
@@ -357,6 +413,6 @@ Live2D Cubism SDK, các model Live2D, và audio VoiceVox/Google TTS có license 
 - **Live2D Cubism Core SDK** — Live2D Inc.
 - **Bundled / standard models:** Hiyori, Haru, Mao, Miara (Live2D Sample).
 - **User-added local models:** do người dùng tự tải và tự chịu trách nhiệm license khi thêm qua `animeCompanion.customModelRoots` hoặc `animeCompanion.customModels`.
-- **Audio:** VoiceVox (Shikoku Metan) cho `ja`, Google TTS cho `vi` / `en`.
+- **Audio:** VoiceVox (Shikoku Metan) cho `ja`; `vi` / `en` dùng bundled audio và extended voice assets từ ElevenLabs.
 
-Made with 🌸 by [ShiroeNguyen](https://github.com/ShiroeNguyen).
+Made with 🌸 by [xShiroeNguyenx](https://github.com/xShiroeNguyenx).

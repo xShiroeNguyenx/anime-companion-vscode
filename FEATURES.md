@@ -1,6 +1,85 @@
 # 🌸 Anime Companion VS Code Extension — Features Documentation
 
-Tài liệu mô tả chi tiết các tính năng đã được lập trình và tích hợp tính đến **v0.1.49** (cập nhật 2026-05-08). Roadmap chi tiết ở [PLAN.md](./PLAN.md), tiến độ ở [CHECKLIST.md](./CHECKLIST.md), lệnh build/release ở [DEV_COMMANDS.md](./DEV_COMMANDS.md).
+Tài liệu mô tả chi tiết các tính năng đã được lập trình và tích hợp tính đến **v0.3.0** (cập nhật 2026-05-13). Roadmap chi tiết ở [PLAN.md](./PLAN.md), tiến độ ở [CHECKLIST.md](./CHECKLIST.md), lệnh build/release ở [DEV_COMMANDS.md](./DEV_COMMANDS.md). Kế hoạch tổng quan chat ở [docs/AI_CHAT_PLAN.md](./docs/AI_CHAT_PLAN.md).
+
+---
+
+## 0. AI Chat Companion (mới trong v0.3.0)
+
+Bản 0.3.0 thêm conversational layer — biến companion từ reactive mascot thành **chat assistant** thực thụ. Module sống trong [src/chat/](src/chat/), webview UI trong [media/webview/chat.{js,css}](media/webview/chat.js).
+
+### 0.1 LLM Provider system
+
+4 provider, switch bằng `chat.provider` setting hoặc dropdown trong chat panel:
+
+| Provider | Default model | API key | Notes |
+|---|---|---|---|
+| **GitHub Copilot** | `gpt-4o` | ❌ (dùng VS Code Copilot session) | Default cho mọi user mới. Route qua `vscode.lm.selectChatModels({ vendor: 'copilot' })`. Hỗ trợ mọi model Copilot expose theo subscription. |
+| **Anthropic Claude** | `claude-haiku-4-5-20251001` | ✅ | SSE stream với `content_block_delta`. Đọc usage từ `message_start` + `message_delta`. |
+| **OpenAI GPT** | `gpt-4o-mini` | ✅ | SSE với `stream_options.include_usage` cho realtime token count. |
+| **Google Gemini** | `gemini-2.5-flash` | ✅ (có free tier) | `:streamGenerateContent?alt=sse`. Skip thinking parts (`thought: true`) cho 2.5 series. |
+
+Provider interface: [src/chat/llm-provider.ts](src/chat/llm-provider.ts) — `sendStream(opts) → { stream: AsyncIterable<string>, result: StreamResult }`. Mỗi provider implement riêng error mapping + usage extraction.
+
+### 0.2 BYOK Security
+- API keys lưu **chỉ** trong `vscode.ExtensionContext.secrets` (OS keychain — Mac Keychain / Windows Credential Manager / Linux Secret Service) — đọc/ghi qua [src/chat/secrets.ts](src/chat/secrets.ts).
+- Không có field nào trong `settings.json` lưu key → user không thể vô tình commit key.
+- Webview **không bao giờ** nhận key. Header `Authorization`/`x-api-key`/`x-goog-api-key` build ngay trong extension host, request body fetch trực tiếp tới provider.
+- Command `animeCompanion.chat.setApiKey`: QuickPick chọn BYOK provider (Copilot bị loại) → InputBox `password: true` → validate length → `secrets.store`. Không log key ra Output channel.
+- Lỗi 401/403/quota → surface qua status bar trong chat, không vào toàn cục.
+
+### 0.3 Streaming
+- SSE parser tự viết tại [src/chat/sse-parser.ts](src/chat/sse-parser.ts) — handle cả `\n\n` và `\r\n\r\n` event boundary, flush trailing event nếu server không gửi blank line cuối, dùng `Response.body.getReader()` + `TextDecoder` (Node 18+ fetch API).
+- Mỗi chunk → `chat:assistantDelta` message → webview append vào bubble đang render với sparkle caret ✨ animation.
+- Trước chunk đầu tiên → 3 chấm hồng nhảy staggered (`.chat-thinking-dots` CSS) thay placeholder → "thoughts coming out" UX.
+- Cancel: `AbortController` hủy fetch, signal abort cũng propagate sang `CancellationTokenSource` cho Copilot path. Partial accumulated text vẫn được persist.
+
+### 0.4 Multi-conversation persistence
+- Mỗi conversation lưu vào 1 file JSON: `globalStorageUri/chat-history/<id>.json` qua atomic write (tmp + rename). Schema: `{ meta: { id, title, providerId, model, createdAt, updatedAt }, messages: [{ role, content, ts }] }`.
+- Active conversation id pinned per-workspace (`workspaceState`) — mỗi project nhớ chat riêng.
+- Title auto-generate từ user message đầu tiên (max 48 chars), có thể rename qua sidebar.
+- Sidebar có rename/delete actions — driven bằng `vscode.window.showInputBox` / `showWarningMessage` thay vì browser `prompt()`/`confirm()` (cái sau bị VS Code webview block).
+- "+ New chat" reuse active conversation nếu rỗng + auto-cleanup các empty conversation khác để sidebar không phình.
+
+### 0.5 Context awareness
+- 📌 **Selection toggle**: icon toggle pin button cạnh Send. Pressed → gửi `editor.selection.text` cùng prompt.
+- 📄 **Active file toggle**: gửi `editor.document.getText()` (cap 12 000 chars với truncation marker).
+- `#filename` mention: gõ `#` trong textarea → autocomplete dropdown call `vscode.workspace.findFiles('**/*${query}*', '**/node_modules/**', 12)`. Arrow Up/Down + Tab/Enter chọn.
+- **Right-click "Ask Companion About Selection"**: command + editor/context menu entry. Capture `selection.text` + `document.languageId` → `chatManager.stageSelection()` → chip vàng hiện trong info row của chat form.
+- Context được pack thành markdown code-fences với file path + language hint (xem [src/chat/context-builder.ts](src/chat/context-builder.ts)).
+
+### 0.6 Persona
+4 preset trong [src/chat/persona.ts](src/chat/persona.ts), inject tên Live2D model hiện tại:
+- `cute` — warm, supportive, gentle emoticons.
+- `professional` — direct, technical, không roleplay.
+- `tsundere` — reluctant on surface, thorough underneath.
+- `energetic` — cheerful enthusiast, vẫn rigorous về code.
+
+User override hoàn toàn bằng `chat.systemPrompt` setting (nếu non-empty thay thế cả preset).
+
+### 0.7 Sentiment-driven Live2D reactions
+- [src/chat/sentiment.ts](src/chat/sentiment.ts) — heuristic regex + emoji keyword match (EN + VI) phân loại reply assistant thành `happy` / `excited` / `sad` / `thinking` / `neutral`.
+- Sau khi stream xong → post `setMood` + `playMotion` messages tới webview → trigger existing Live2D animation system. Happy → `TapBody`, thinking/sad → `TapHead`.
+- Toggle `chat.reactionsEnabled` (default `true`) để tắt nếu không thích.
+
+### 0.8 UI architecture
+- **Split layout**: character bên trái (clamp 80–160–20%), chat bên phải. Character mood/motion luôn visible trong khi chat. Không media query stack dọc.
+- **Header 2-row collapsible**: row 1 luôn hiện (☰ title ⚙ 🔑 ✕). Row 2 (provider dropdown + AI model combo) collapse sau ⚙ gear, state persist qua `vscode.getState()`.
+- **Anime pink pastel theme** với gradient bubbles (hồng cho assistant, lavender cho user), thinking dots, sparkle streaming caret, soft shadows. CSS biến `--ac-*` ở đầu file [media/webview/chat.css](media/webview/chat.css) — đổi 5 biến là theme đổi toàn diện.
+- **Avatar + tên** = Live2D model identity. Captured chibi PNG (`globalStorageUri/cursor-chibi/{modelId}.png`) với fallback `media/character.png` qua `<img onerror>`. Tên model thật ("Hiyori", "Miara") thay "Companion".
+- **Custom AI model combo**: click input → dropdown all suggestions (vì `<datalist>` chỉ filter khi gõ). Keyboard navigation arrow / Tab / Enter / Esc. Cho Copilot, populate động bằng `vscode.lm.selectChatModels` lúc snapshot.
+- **3 file CSS độc lập** theo prefix:
+  - `media/companion.css` — Live2D character + idle bubble + status bar
+  - `media/webview/chat.css` — Chat panel (`.chat-*`)
+  - `media/webview/cursor-chibi.css` — Cursor chibi tuning orb (`.chibi-orb-*`)
+  Class prefix disjoint → sửa file này không thể accidentally đụng file kia.
+
+### 0.9 Commands
+- `Anime Companion: Open Chat` — bring panel forward + post `chat:focus`.
+- `Anime Companion: Set Chat API Key (BYOK)` — QuickPick + InputBox flow.
+- `Anime Companion: New Chat Conversation` — reuse empty active hoặc tạo + cleanup empties.
+- `Anime Companion: Clear All Chat Conversations` — confirm modal trước khi wipe.
+- `Anime Companion: Ask Companion About Selection` — stage selection + open chat, cũng có ở editor right-click menu (`editorHasSelection`).
 
 ---
 
@@ -48,8 +127,8 @@ Tài liệu mô tả chi tiết các tính năng đã được lập trình và 
 - **Fallback Audio:** nếu plugin Audio của PIXI gặp sự cố, hệ thống tự fallback về `HTML5 Audio` thuần để đảm bảo tiếng vẫn phát ra.
 - **Đa ngôn ngữ giọng** (`animeCompanion.voiceLanguage`):
   - `ja` — VoiceVox (Shikoku Metan), giọng anime Nhật.
-  - `vi` — Google TTS Tiếng Việt.
-  - `en` — Google TTS English.
+  - `vi` — bundled audio + extended voice assets từ ElevenLabs.
+  - `en` — bundled audio + extended voice assets từ ElevenLabs.
   - Legacy `ja-vi` (cũ) tự động được migrate sang `en` ở activate.
 - **Mute toàn cục:** setting `animeCompanion.muted` hoặc command `Anime Companion: Toggle Mute`. Khi mute, mood/expression vẫn chạy — chỉ tắt audio.
 

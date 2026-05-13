@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { PomodoroManager, PomodoroState } from './pomodoro';
 import { initLogger, log } from './log';
 import {
@@ -19,6 +20,9 @@ import { DesktopPetBridge } from './desktop-pet-bridge';
 import { initMessageBank } from './messages';
 import { StatsStore, ACHIEVEMENT_DEFS } from './stats';
 import { initCompanionPosition, clearPanelPosition } from './companion-position';
+import { ChatSecrets } from './chat/secrets';
+import { ConversationStore } from './chat/conversation-store';
+import { ChatManager, runSetApiKeyCommand } from './chat/chat-manager';
 
 // Common shape extension.ts depends on regardless of which UI host is active:
 // the in-VS-Code panel webview, or the floating Tauri desktop pet (bridge).
@@ -290,6 +294,31 @@ export async function activate(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage(`Anime Companion ${currentVersion} is active (${action})`);
     }
 
+    // One-time migration to Copilot default: anyone upgrading from a 0.2.x
+    // pre-release where the active provider got auto-switched during BYOK
+    // testing should land back on Copilot, since that's the no-key default
+    // every VS Code user can use out of the box. We only nudge users who
+    // never explicitly customized the provider in their own settings.json.
+    const migrationKey = 'animeCompanion.chat.providerMigratedTo026';
+    if (!context.globalState.get<boolean>(migrationKey)) {
+      const chatCfg = vscode.workspace.getConfiguration('animeCompanion');
+      const inspect = chatCfg.inspect<string>('chat.provider');
+      const hasUserSetting =
+        inspect?.workspaceFolderValue !== undefined ||
+        inspect?.workspaceValue !== undefined;
+      // We only clear the global override (which is what the previous
+      // auto-switch wrote). Workspace-level settings are user-explicit.
+      if (!hasUserSetting && inspect?.globalValue !== undefined) {
+        try {
+          await chatCfg.update('chat.provider', undefined, vscode.ConfigurationTarget.Global);
+          log('Migration: cleared global chat.provider override → now falls back to default (copilot)');
+        } catch (err) {
+          log(`Migration: failed to reset chat.provider: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+      await context.globalState.update(migrationKey, true);
+    }
+
     await context.globalState.update(previousVersionKey, currentVersion);
   }
 
@@ -305,6 +334,14 @@ export async function activate(context: vscode.ExtensionContext) {
   // CursorChibiManager built up here so we can pass its saveCapturedChibi
   // method into AnimeCompanionViewProvider's dispatcher context below.
   const cursorChibi = new CursorChibiManager(context.extensionUri, context.globalStorageUri);
+
+  // BYOK chat — secret-storage-backed key store, workspace-scoped single
+  // conversation history, and a manager that routes user messages through
+  // the active LLM provider and re-emits results to the active companion host.
+  const chatSecrets = new ChatSecrets(context.secrets);
+  const chatStore = new ConversationStore(context);
+  let chatHostRef: CompanionHost | undefined;
+  const chatManager = new ChatManager(context, chatSecrets, chatStore, () => chatHostRef);
 
   // Pre-register the cache root with the file server so already-downloaded
   // models work even if the user never selects them via the UI flow.
@@ -336,6 +373,7 @@ export async function activate(context: vscode.ExtensionContext) {
     bridge.start();
     context.subscriptions.push(bridge);
     host = bridge;
+    chatHostRef = host;
     // Hide the in-VS-Code panel view; user uses the floating window instead.
     void vscode.commands.executeCommand('setContext', 'animeCompanion.visible', false);
     log(`DesktopPet bridge active. Bootstrap URL: ${bridge.bootstrapUrl}`);
@@ -369,7 +407,22 @@ export async function activate(context: vscode.ExtensionContext) {
       stats,
       downloader,
       voiceAssetDownloader,
-      (modelId, dataUrl) => cursorChibi.saveCapturedChibi(modelId, dataUrl)
+      (modelId, dataUrl) => cursorChibi.saveCapturedChibi(modelId, dataUrl),
+      chatManager,
+      path.join(context.globalStorageUri.fsPath, 'cursor-chibi'),
+      () => cursorChibi.getTuningState(),
+      async (dx, dy) => {
+        await cursorChibi.ensureEnabled();
+        await cursorChibi.nudge(dx, dy);
+      },
+      async (delta) => {
+        await cursorChibi.ensureEnabled();
+        await cursorChibi.nudgeSize(delta);
+      },
+      async () => {
+        await cursorChibi.ensureEnabled();
+        await cursorChibi.resetOffset();
+      }
     );
     context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(AnimeCompanionViewProvider.viewType, provider, {
@@ -377,6 +430,7 @@ export async function activate(context: vscode.ExtensionContext) {
       })
     );
     host = provider;
+    chatHostRef = host;
 
     // The view's `when: animeCompanion.visible` clause hides it from the
     // panel container until this context flag is true. The flag does NOT
@@ -474,8 +528,16 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('animeCompanion.toggleCursorChase', () => {
       return cursorChibi.toggle();
     }),
-    vscode.commands.registerCommand('animeCompanion.tuneCursorChibi', () => {
-      return cursorChibi.tunePosition();
+    vscode.commands.registerCommand('animeCompanion.tuneCursorChibi', async () => {
+      if (!desktopPetEnabled) {
+        await vscode.commands.executeCommand('setContext', 'animeCompanion.visible', true);
+        try {
+          await vscode.commands.executeCommand('animeCompanion.live2dView.focus');
+        } catch (err) {
+          log(`tuneCursorChibi: focus failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+      host.postMessage({ command: 'chat:focusCursorOrb' });
     }),
     vscode.commands.registerCommand('animeCompanion.captureModelToChibi', () => {
       if (desktopPetEnabled) {
@@ -632,8 +694,8 @@ export async function activate(context: vscode.ExtensionContext) {
       const current = voiceConfig.get<string>('voiceLanguage', 'ja');
       const voices = [
         { id: 'ja', label: 'Japanese', description: 'Anime-style VoiceVox voice (Shikoku Metan)' },
-        { id: 'vi', label: 'Vietnamese', description: 'Google TTS voice' },
-        { id: 'en', label: 'English', description: 'Google TTS voice' },
+        { id: 'vi', label: 'Vietnamese', description: 'Bundled audio + extended ElevenLabs voice assets' },
+        { id: 'en', label: 'English', description: 'Bundled audio + extended ElevenLabs voice assets' },
       ];
       const items = voices.map((voice) => ({
         label: `$(unmute) ${voice.label}${voice.id === current ? '  *' : ''}`,
@@ -707,6 +769,52 @@ export async function activate(context: vscode.ExtensionContext) {
       await clearPanelPosition();
       void host.refreshView();
       vscode.window.showInformationMessage('Companion position reset.');
+    }),
+    vscode.commands.registerCommand('animeCompanion.chat.setApiKey', async () => {
+      await runSetApiKeyCommand(chatSecrets);
+      await chatManager.sendSnapshot();
+    }),
+    vscode.commands.registerCommand('animeCompanion.chat.newConversation', async () => {
+      await chatManager.newConversation();
+      await vscode.commands.executeCommand('animeCompanion.chat.open');
+    }),
+    vscode.commands.registerCommand('animeCompanion.chat.clearHistory', async () => {
+      const confirm = await vscode.window.showWarningMessage(
+        'Delete all chat conversations? This cannot be undone.',
+        { modal: true },
+        'Delete all'
+      );
+      if (confirm !== 'Delete all') return;
+      await chatManager.clearAll();
+      vscode.window.showInformationMessage('All chat conversations deleted.');
+    }),
+    vscode.commands.registerCommand('animeCompanion.chat.askSelection', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor || editor.selection.isEmpty) {
+        vscode.window.showInformationMessage(
+          'Select some code first, then run "Ask Companion About Selection".'
+        );
+        return;
+      }
+      const text = editor.document.getText(editor.selection);
+      chatManager.stageSelection(
+        editor.document.uri.fsPath,
+        text,
+        editor.document.languageId
+      );
+      await vscode.commands.executeCommand('animeCompanion.chat.open');
+    }),
+    vscode.commands.registerCommand('animeCompanion.chat.open', async () => {
+      // Bring the panel forward so the user actually sees the chat tab. The
+      // panel view has a `when` clause guarded by animeCompanion.visible, so
+      // we must set that flag first or focus has nothing to attach to.
+      await vscode.commands.executeCommand('setContext', 'animeCompanion.visible', true);
+      try {
+        await vscode.commands.executeCommand('animeCompanion.live2dView.focus');
+      } catch (err) {
+        log(`chat.open: focus failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      chatHostRef?.postMessage({ command: 'chat:focus' });
     }),
     vscode.commands.registerCommand('claude-vscode.terminal.open', async () => {
       await vscode.commands.executeCommand('workbench.action.terminal.focus');

@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.1.50",
+  "version": "0.3.0",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -47,7 +47,7 @@
     "onStartupFinished"
   ],
   "files": [
-    "out/*.js",
+    "out/**/*.js",
     "media/audio/en/**",
     "media/audio/ja/**",
     "media/audio/vi/**",
@@ -77,7 +77,7 @@
       },
       {
         "command": "animeCompanion.hide",
-        "title": "Anime Companion: Hide Companion",
+        "title": "Hide Companion",
         "category": "Anime Companion"
       },
       {
@@ -86,93 +86,118 @@
       },
       {
         "command": "animeCompanion.changeModel",
-        "title": "Anime Companion: Change Model",
+        "title": "Change Model",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.changeVoice",
-        "title": "Anime Companion: Change Voice",
+        "title": "Change Voice",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.changeMessageLanguage",
-        "title": "Anime Companion: Change Message Language",
+        "title": "Change Message Language",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.toggleMute",
-        "title": "Anime Companion: Toggle Mute",
+        "title": "Toggle Mute",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.startPomodoro",
-        "title": "Anime Companion: Start Pomodoro",
+        "title": "Start Pomodoro",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.stopPomodoro",
-        "title": "Anime Companion: Stop Pomodoro",
+        "title": "Stop Pomodoro",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.openSettings",
-        "title": "Anime Companion: Open Settings",
+        "title": "Open Settings",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.showStats",
-        "title": "Anime Companion: Show Stats",
+        "title": "Show Stats",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.showAchievements",
-        "title": "Anime Companion: Show Achievements",
+        "title": "Show Achievements",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.playMotion",
-        "title": "Anime Companion: Play Motion",
+        "title": "Play Motion",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.resetWorkspaceModel",
-        "title": "Anime Companion: Reset Workspace Model",
+        "title": "Reset Workspace Model",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.resetPosition",
-        "title": "Anime Companion: Reset Companion Position",
+        "title": "Reset Companion Position",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.toggleCursorChase",
-        "title": "Anime Companion: Toggle Cursor Chibi",
+        "title": "Toggle Cursor Chibi",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.toggleDesktopClickThrough",
-        "title": "Anime Companion: Toggle Desktop Click-Through",
+        "title": "Toggle Desktop Click-Through",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.tuneCursorChibi",
-        "title": "Anime Companion: Tune Cursor Chibi Position",
+        "title": "Tune Cursor Chibi Position",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.captureModelToChibi",
-        "title": "Anime Companion: Capture Chibi from Model",
+        "title": "Capture Chibi from Model",
         "category": "Anime Companion"
       },
       {
         "command": "animeCompanion.resetCapturedChibi",
-        "title": "Anime Companion: Reset Captured Chibi (use bundled icon)",
+        "title": "Reset Captured Chibi (use bundled icon)",
         "category": "Anime Companion"
       },
       {
         "command": "claude-vscode.terminal.open",
         "title": "Claude VSCode: Open Terminal",
         "category": "Claude VSCode Compatibility"
+      },
+      {
+        "command": "animeCompanion.chat.open",
+        "title": "Open Chat",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.chat.setApiKey",
+        "title": "Set Chat API Key (BYOK)",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.chat.newConversation",
+        "title": "New Chat Conversation",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.chat.askSelection",
+        "title": "Ask Companion About Selection",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.chat.clearHistory",
+        "title": "Clear All Chat Conversations",
+        "category": "Anime Companion"
       }
     ],
     "viewsContainers": {
@@ -195,16 +220,11 @@
       ]
     },
     "menus": {
-      "view/title": [
+      "editor/context": [
         {
-          "command": "animeCompanion.changeModel",
-          "when": "view == animeCompanion.live2dView",
-          "group": "navigation@12"
-        },
-        {
-          "command": "animeCompanion.resetWorkspaceModel",
-          "when": "view == animeCompanion.live2dView",
-          "group": "navigation@13"
+          "command": "animeCompanion.chat.askSelection",
+          "when": "editorHasSelection",
+          "group": "1_modification@99"
         }
       ]
     },
@@ -264,8 +284,8 @@
           ],
           "enumDescriptions": [
             "Japanese (anime-style VoiceVox voice)",
-            "Tiếng Việt (Giọng Google TTS)",
-            "English (audio generated with Google TTS)"
+            "Tiếng Việt (bundled audio + extended ElevenLabs voice assets)",
+            "English (bundled audio + extended ElevenLabs voice assets)"
           ],
           "default": "ja",
           "description": "Choose the voice language for the companion (audio only)."
@@ -530,6 +550,63 @@
           "type": "boolean",
           "default": true,
           "description": "Download ElevenLabs-generated voice lines for en/vi on first use. When false, only the 4 audio lines bundled with the extension are used."
+        },
+        "animeCompanion.chat.provider": {
+          "type": "string",
+          "enum": [
+            "copilot",
+            "anthropic",
+            "openai",
+            "gemini"
+          ],
+          "enumDescriptions": [
+            "GitHub Copilot via VS Code Language Model API — no API key needed (requires Copilot subscription)",
+            "Anthropic Claude (api.anthropic.com) — BYOK",
+            "OpenAI GPT (api.openai.com) — BYOK",
+            "Google Gemini (generativelanguage.googleapis.com) — BYOK (free tier available)"
+          ],
+          "default": "copilot",
+          "description": "LLM provider used for companion chat. Copilot routes through your existing Copilot subscription. BYOK providers store the key securely via the 'Set Chat API Key' command — never paste keys into settings."
+        },
+        "animeCompanion.chat.model": {
+          "type": "string",
+          "default": "",
+          "description": "Override model id for the active chat provider. Leave empty to use the provider's default (claude-haiku-4-5-20251001 / gpt-4o-mini / gemini-2.5-flash)."
+        },
+        "animeCompanion.chat.personaPreset": {
+          "type": "string",
+          "enum": [
+            "cute",
+            "professional",
+            "tsundere",
+            "energetic"
+          ],
+          "default": "cute",
+          "description": "Persona preset used to build the system prompt. Ignored when animeCompanion.chat.systemPrompt is non-empty."
+        },
+        "animeCompanion.chat.systemPrompt": {
+          "type": "string",
+          "default": "",
+          "description": "Custom system prompt that fully overrides the persona preset. Leave empty to use the preset."
+        },
+        "animeCompanion.chat.maxTokens": {
+          "type": "number",
+          "default": 2048,
+          "minimum": 64,
+          "maximum": 32768,
+          "description": "Maximum number of tokens to generate per response. Gemini 2.5 'thinking' models often need 2048+ because internal reasoning consumes part of the budget — bump higher if replies come back empty."
+        },
+        "animeCompanion.chat.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Sampling temperature passed to the provider (0 = deterministic, higher = more creative)."
+        },
+        "animeCompanion.chat.reactionsEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "After a chat reply finishes, run a lightweight sentiment heuristic and trigger the Live2D companion's mood/motion to match (happy / thinking / sad / excited)."
         }
       }
     }

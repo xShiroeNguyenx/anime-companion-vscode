@@ -15,6 +15,8 @@ import { WebviewTransport } from './companion-transport';
 import { dispatchRuntimeMessage } from './companion-message-dispatcher';
 import { getStoredPanelPosition, savePanelPosition } from './companion-position';
 import { setWorkspaceModel } from './models';
+import { ChatManager } from './chat/chat-manager';
+import type { CursorChibiTuningState } from './cursor-chibi';
 
 export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'animeCompanion.live2dView';
@@ -36,6 +38,12 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   private _transportSubscriptions: vscode.Disposable[] = [];
 
   private _saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>;
+  private _chatManager?: ChatManager;
+  private _chibiRoot?: string;
+  private _getCursorChibiState?: () => CursorChibiTuningState;
+  private _nudgeCursorChibi?: (dx: number, dy: number) => Promise<void>;
+  private _nudgeCursorChibiSize?: (delta: number) => Promise<void>;
+  private _resetCursorChibi?: () => Promise<void>;
 
   constructor(
     extensionUri: vscode.Uri,
@@ -43,7 +51,13 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     stats: StatsStore,
     downloader: ModelDownloader,
     voiceAssets: VoiceAssetDownloader,
-    saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>
+    saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>,
+    chatManager?: ChatManager,
+    chibiRoot?: string,
+    getCursorChibiState?: () => CursorChibiTuningState,
+    nudgeCursorChibi?: (dx: number, dy: number) => Promise<void>,
+    nudgeCursorChibiSize?: (delta: number) => Promise<void>,
+    resetCursorChibi?: () => Promise<void>
   ) {
     this._extensionUri = extensionUri;
     this._server = server;
@@ -51,6 +65,12 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     this._downloader = downloader;
     this._voiceAssets = voiceAssets;
     this._saveCapturedChibi = saveCapturedChibi;
+    this._chatManager = chatManager;
+    this._chibiRoot = chibiRoot;
+    this._getCursorChibiState = getCursorChibiState;
+    this._nudgeCursorChibi = nudgeCursorChibi;
+    this._nudgeCursorChibiSize = nudgeCursorChibiSize;
+    this._resetCursorChibi = resetCursorChibi;
   }
 
   // Returns immediately for bundled models. For lazy models, downloads + extracts
@@ -185,7 +205,11 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
             .getConfiguration('animeCompanion')
             .update('model', modelId, vscode.ConfigurationTarget.Global);
         },
+        nudgeCursorChibi: (dx, dy) => this._nudgeCursorChibi?.(dx, dy) ?? Promise.resolve(),
+        nudgeCursorChibiSize: (delta) => this._nudgeCursorChibiSize?.(delta) ?? Promise.resolve(),
+        resetCursorChibi: () => this._resetCursorChibi?.() ?? Promise.resolve(),
         saveCapturedChibi: this._saveCapturedChibi,
+        chatManager: this._chatManager,
       });
     }));
 
@@ -348,6 +372,17 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     const roots = [vscode.Uri.joinPath(this._extensionUri, 'media')];
     const seen = new Set(roots.map((root) => root.fsPath.toLowerCase()));
 
+    // Captured chibi PNGs (per-model) live under globalStorageUri/cursor-chibi.
+    // Adding this dir as a resource root lets the chat panel render the chibi
+    // as the assistant avatar.
+    if (this._chibiRoot) {
+      const key = this._chibiRoot.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        roots.push(vscode.Uri.file(this._chibiRoot));
+      }
+    }
+
     const voiceCacheRoot = this._voiceAssets.cacheRoot;
     if (voiceCacheRoot) {
       const key = voiceCacheRoot.toLowerCase();
@@ -368,6 +403,20 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     }
 
     return roots;
+  }
+
+  // Returns the webview URL for the captured chibi PNG for the given model,
+  // or undefined if the user hasn't captured one yet. Falls back to the
+  // bundled character.png on the JS side.
+  private _resolveChibiAvatarUrl(webview: vscode.Webview, modelId: string): string | undefined {
+    if (!this._chibiRoot) return undefined;
+    const filePath = path.join(this._chibiRoot, `${modelId}.png`);
+    try {
+      if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return undefined;
+    } catch {
+      return undefined;
+    }
+    return webview.asWebviewUri(vscode.Uri.file(filePath)).toString();
   }
 
   private _ambientTrackUrl(webview: vscode.Webview, preset: AmbientPreset): string | undefined {
@@ -391,11 +440,14 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', ...segments));
 
     const cssUri = mediaUri('companion.css');
+    const chatCssUri = mediaUri('webview', 'chat.css');
+    const chibiCssUri = mediaUri('webview', 'cursor-chibi.css');
     const characterUri = mediaUri('character.png');
     const pixiUri = mediaUri('lib', 'pixi.min.js');
     const cubismCoreUri = mediaUri('lib', 'live2dcubismcore.min.js');
     const cubism4Uri = mediaUri('lib', 'cubism4.min.js');
     const webviewScriptUri = mediaUri('webview', 'main.js');
+    const chatScriptUri = mediaUri('webview', 'chat.js');
 
     const selectedModel = this._resolvedModel;
     const modelUrl = `http://127.0.0.1:${this._server.port}/${selectedModel.folder}/${selectedModel.file}`;
@@ -415,6 +467,12 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       url: this._ambientTrackUrl(webview, preset),
     }));
     const webviewStrings = getMessageBank().getWebviewStrings();
+    const cursorChibiState = this._getCursorChibiState?.() ?? {
+      enabled: config.get<boolean>('cursorChase.enabled', false),
+      offsetX: config.get<number>('cursorChase.offsetX', 0),
+      offsetY: config.get<number>('cursorChase.offsetY', 0),
+      sizePx: config.get<number>('cursorChase.sizePx', 0),
+    };
     // Slim down to only what the picker UI needs.
     const visibleModels = listVisibleModels().map((m) => ({
       id: m.id,
@@ -438,6 +496,8 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     font-src ${webview.cspSource} https://fonts.gstatic.com;
   ">
   <link rel="stylesheet" href="${cssUri}">
+  <link rel="stylesheet" href="${chatCssUri}">
+  <link rel="stylesheet" href="${chibiCssUri}">
 </head>
 <body>
   <div class="companion-container">
@@ -470,6 +530,141 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       <span class="status-dot"></span>
       <span class="status-text">Live2D</span>
     </div>
+
+    <button id="chatToggleBtn" class="chat-toggle-btn" title="Open chat" aria-label="Open chat">💬</button>
+
+    <!-- Cursor chibi position tuning UI. Owns its own class prefix (chibi-orb-)
+         and its own stylesheet (media/webview/cursor-chibi.css) so it never
+         shares CSS rules with the chat panel. Touching chat.css must NEVER
+         affect these elements. -->
+    <div class="chibi-orb-shell chibi-orb-shell-floating" id="cursorOrbShell" hidden>
+      <button
+        id="cursorModelOrb"
+        class="chibi-orb-trigger"
+        title="Cursor chibi position controls"
+        aria-label="Cursor chibi position controls"
+        aria-expanded="false"
+      >
+        <span class="chibi-orb-kicker">Model</span>
+        <span class="chibi-orb-name" id="cursorModelOrbName">default</span>
+        <span class="chibi-orb-summary" id="cursorOrbSummary">x 0 · y 0</span>
+      </button>
+      <div id="cursorOrbPanel" class="chibi-orb-panel" hidden>
+        <button type="button" class="chibi-orb-node up" data-cursor-action="up" title="Move up">&uarr;</button>
+        <button type="button" class="chibi-orb-node right" data-cursor-action="right" title="Move right">&rarr;</button>
+        <button type="button" class="chibi-orb-node down" data-cursor-action="down" title="Move down">&darr;</button>
+        <button type="button" class="chibi-orb-node left" data-cursor-action="left" title="Move left">&larr;</button>
+        <button type="button" class="chibi-orb-node center" data-cursor-action="reset" title="Reset cursor chibi tuning">&#8634;</button>
+        <div class="chibi-orb-card">
+          <div class="chibi-orb-stats" id="cursorOrbStats">x 0 · y 0 · 12px</div>
+          <div class="chibi-orb-size">
+            <button type="button" class="chibi-orb-size-btn" data-cursor-action="size-down" title="Smaller">&#8722;</button>
+            <span class="chibi-orb-size-label">Size</span>
+            <button type="button" class="chibi-orb-size-btn" data-cursor-action="size-up" title="Bigger">+</button>
+          </div>
+          <button type="button" class="chibi-orb-done-btn" data-cursor-action="done">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="chatPanel" class="chat-panel" hidden>
+      <header class="chat-panel-header">
+        <div class="chat-panel-header-row chat-panel-header-main">
+          <button id="chatListToggleBtn" class="chat-icon-btn" title="Conversations">☰</button>
+          <div class="chat-panel-title" id="chatPanelTitle">Chat</div>
+          <button id="chatSettingsBtn" class="chat-icon-btn" title="Provider & model" aria-label="Toggle provider & model" aria-expanded="false">⚙</button>
+          <button id="chatSetKeyBtn" class="chat-icon-btn chat-icon-btn-key" title="Set API key" aria-label="Set API key">🔑</button>
+          <button id="chatCloseBtn" class="chat-icon-btn" title="Close chat" aria-label="Close chat">✕</button>
+        </div>
+        <div class="chat-panel-header-row chat-panel-header-meta" hidden>
+          <select
+            id="chatProvider"
+            class="chat-select"
+            title="LLM provider — the AI service that answers your messages (separate from the Live2D character)"
+          ></select>
+          <div class="chat-model-combo" id="chatModelCombo">
+            <input
+              id="chatModel"
+              class="chat-input-model"
+              placeholder="AI model id"
+              spellcheck="false"
+              autocomplete="off"
+              title="AI model id for the current provider. Click to pick from suggestions or type a custom id. This is the language model — NOT the Live2D anime character."
+            />
+            <button
+              type="button"
+              id="chatModelComboBtn"
+              class="chat-model-combo-btn"
+              tabindex="-1"
+              title="Show available models"
+              aria-label="Show available models"
+            >▾</button>
+            <ul
+              id="chatModelComboList"
+              class="chat-model-combo-list"
+              role="listbox"
+              hidden
+            ></ul>
+          </div>
+        </div>
+        <div class="chat-panel-header-row chat-panel-header-account">
+          <button
+            type="button"
+            id="chatCopilotAccountBtn"
+            class="chat-account-btn"
+            title="Choose which GitHub account Anime Companion should use for Copilot"
+            hidden
+          >GitHub account</button>
+        </div>
+      </header>
+
+      <div class="chat-panel-body">
+        <div id="chatSidebar" class="chat-sidebar" hidden>
+          <div class="chat-sidebar-header">
+            <button id="chatNewBtn" class="chat-btn-primary" style="flex:1">＋ New chat</button>
+            <button id="chatSidebarCloseBtn" class="chat-icon-btn" title="Close conversation list" aria-label="Close conversation list">✕</button>
+          </div>
+          <div id="chatConvList" class="chat-conv-list" role="listbox"></div>
+        </div>
+
+        <div id="chatLog" class="chat-log" aria-live="polite"></div>
+        <div id="chatStatus" class="chat-status" hidden></div>
+        <form id="chatForm" class="chat-form">
+        <div id="chatInfoRow" class="chat-info-row">
+          <span id="chatStagedSelection" class="chat-chip-staged" hidden>
+            <span class="chat-chip-staged-label"></span>
+            <button type="button" class="chat-chip-staged-clear" title="Clear staged selection">×</button>
+          </span>
+          <span id="chatTokenTotal" class="chat-token-total" hidden></span>
+        </div>
+        <div class="chat-input-wrap">
+          <textarea id="chatTextarea" rows="2" placeholder="Ask the companion… (Enter to send, Shift+Enter for newline, # for file)" spellcheck="false"></textarea>
+          <div id="chatMentionPicker" class="chat-mention-picker" hidden role="listbox"></div>
+        </div>
+        <div class="chat-form-actions">
+          <button
+            type="button"
+            id="chatChipSelection"
+            class="chat-icon-toggle"
+            title="Attach editor selection to your next message"
+            aria-pressed="false"
+            aria-label="Include editor selection"
+          >📌</button>
+          <button
+            type="button"
+            id="chatChipActiveFile"
+            class="chat-icon-toggle"
+            title="Attach the whole active file to your next message"
+            aria-pressed="false"
+            aria-label="Include active file"
+          >📄</button>
+          <span class="chat-actions-spacer"></span>
+          <button type="button" id="chatCancelBtn" class="chat-btn-secondary" hidden>Stop</button>
+          <button type="submit" id="chatSendBtn" class="chat-btn-primary">Send</button>
+        </div>
+      </form>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -485,12 +680,18 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__VISIBLE_MODELS__ = ${JSON.stringify(visibleModels)};
     window.__WEBVIEW_STRINGS__ = ${JSON.stringify(webviewStrings)};
     window.__COMPANION_POSITION__ = ${JSON.stringify(getStoredPanelPosition() ?? null)};
+    window.__COMPANION_AVATAR_DEFAULT__ = "${characterUri}";
+    window.__COMPANION_AVATAR_CHIBI__ = ${JSON.stringify(this._resolveChibiAvatarUrl(webview, selectedModel.id))};
+    window.__COMPANION_AVATAR__ = window.__COMPANION_AVATAR_CHIBI__ || window.__COMPANION_AVATAR_DEFAULT__;
+    window.__COMPANION_DISPLAY_NAME__ = ${JSON.stringify(selectedModel.name)};
+    window.__CURSOR_CHIBI_STATE__ = ${JSON.stringify(cursorChibiState)};
   </script>
 
   <script src="${cubismCoreUri}"></script>
   <script src="${pixiUri}"></script>
   <script src="${cubism4Uri}"></script>
   <script type="module" src="${webviewScriptUri}"></script>
+  <script type="module" src="${chatScriptUri}"></script>
 </body>
 </html>`;
   }

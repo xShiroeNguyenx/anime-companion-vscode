@@ -1,0 +1,204 @@
+/* =========================================================================
+ * Cursor chibi position tuning widget.
+ *
+ * IMPORTANT: this stylesheet is dedicated to the cursor chibi orb feature
+ * (floating widget that lets the user nudge the in-editor chibi sprite's
+ * position/size). It MUST stay isolated from chat.css.
+ *
+ * Class prefix:  chibi-orb-*
+ * HTML location: companion-view.ts → #cursorOrbShell block
+ * JS:            media/webview/chat.js → primeCursorOrbGlyphs / toggleCursorOrb
+ *                / renderCursorOrb / handleCursorOrbAction
+ *
+ * Do NOT add chat.* selectors here, and do NOT add .chibi-orb-* selectors
+ * to chat.css — keeping the prefixes disjoint prevents cross-contamination
+ * when either UI is restyled.
+ * ========================================================================= */
+
+/* Floating shell — pinned to the bottom-right of the character column,
+ * appears only while the user is tuning chibi position. */
+.chibi-orb-shell {
+  position: absolute;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+.chibi-orb-shell[hidden] { display: none; }
+.chibi-orb-shell-floating {
+  bottom: 12px;
+  right: 12px;
+}
+
+/* Trigger button — pill that summarises current chibi state (model + offset). */
+.chibi-orb-trigger {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 158, 199, 0.92), rgba(255, 208, 226, 0.92));
+  color: #6b2547;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  font-family: var(--vscode-font-family, "Segoe UI", sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(255, 158, 199, 0.45);
+  text-align: left;
+  line-height: 1.2;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.chibi-orb-trigger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255, 158, 199, 0.55);
+}
+.chibi-orb-kicker {
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.chibi-orb-name {
+  font-size: 12px;
+  font-weight: 700;
+  max-width: 160px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.chibi-orb-summary {
+  font-size: 10px;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Expanded panel: D-pad arrows around a centre reset, then a stats/size card. */
+.chibi-orb-panel {
+  display: grid;
+  grid-template-columns: 32px 32px 32px;
+  grid-template-rows: 32px 32px 32px auto;
+  grid-template-areas:
+    ".    up    .   "
+    "left center right"
+    ".    down  .   "
+    "card card  card";
+  gap: 4px;
+  padding: 10px;
+  background: rgba(40, 28, 38, 0.96);
+  border: 1px solid rgba(255, 158, 199, 0.45);
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+}
+.chibi-orb-panel[hidden] { display: none; }
+
+.chibi-orb-node {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 158, 199, 0.35);
+  background: rgba(255, 158, 199, 0.1);
+  color: #ffd0e2;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  transition: background 0.12s, transform 0.1s;
+  padding: 0;
+}
+.chibi-orb-node:hover {
+  background: rgba(255, 158, 199, 0.25);
+  color: #fff;
+}
+.chibi-orb-node:active { transform: scale(0.92); }
+.chibi-orb-node.up     { grid-area: up; }
+.chibi-orb-node.right  { grid-area: right; }
+.chibi-orb-node.down   { grid-area: down; }
+.chibi-orb-node.left   { grid-area: left; }
+.chibi-orb-node.center {
+  grid-area: center;
+  background: rgba(255, 158, 199, 0.18);
+  font-size: 13px;
+}
+
+.chibi-orb-card {
+  grid-area: card;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px;
+  background: rgba(255, 158, 199, 0.08);
+  border-radius: 8px;
+}
+
+.chibi-orb-stats {
+  font-size: 10px;
+  text-align: center;
+  color: #ffd0e2;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+}
+
+.chibi-orb-size {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.chibi-orb-size-label {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  color: #d9b8c4;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.chibi-orb-size-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 158, 199, 0.35);
+  background: rgba(255, 158, 199, 0.1);
+  color: #ffd0e2;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.chibi-orb-size-btn:hover {
+  background: rgba(255, 158, 199, 0.25);
+  color: #fff;
+}
+.chibi-orb-size-btn:active { transform: scale(0.92); }
+
+.chibi-orb-done-btn {
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  background: linear-gradient(135deg, #ff9ec7, #ff7ab1);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 2px 8px rgba(255, 158, 199, 0.4);
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+.chibi-orb-done-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 158, 199, 0.55);
+}
+.chibi-orb-done-btn:active { transform: translateY(0); }
