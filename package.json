@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -574,7 +574,7 @@
             "Ollama local server — no API key, configure endpoint via animeCompanion.chat.ollamaEndpoint"
           ],
           "default": "copilot",
-          "description": "LLM provider used for companion chat. Copilot routes through your existing Copilot subscription. Ollama talks to a local server. BYOK providers store the key securely via the 'Configure Chat Provider' command — never paste keys into settings."
+          "description": "LLM provider used for companion chat. Copilot routes through your existing Copilot subscription. Ollama talks to a local server. BYOK providers store the key securely via the 'Configure Chat Provider' command — never paste keys into settings. When a workspace is open, changing this from the chat UI saves it to that workspace."
         },
         "animeCompanion.chat.ollamaEndpoint": {
           "type": "string",
@@ -584,7 +584,7 @@
         "animeCompanion.chat.model": {
           "type": "string",
           "default": "",
-          "description": "Override model id for the active chat provider. Leave empty to use the provider's default (e.g. claude-haiku-4-5-20251001 / gpt-4o-mini / gemini-2.5-flash / grok-2-latest / deepseek-chat / openrouter/auto / llama3.2)."
+          "description": "Override model id for the active chat provider. Leave empty to use the provider's default (e.g. claude-haiku-4-5-20251001 / gpt-4o-mini / gemini-2.5-flash / grok-2-latest / deepseek-chat / openrouter/auto / llama3.2). When a workspace is open, changing this from the chat UI saves it to that workspace."
         },
         "animeCompanion.chat.personaPreset": {
           "type": "string",

@@ -1017,16 +1017,78 @@ function splitFencedCode(text) {
   return out;
 }
 
-function renderInlineCode(container, text) {
-  const parts = text.split(/(`[^`\n]+`)/g);
-  for (const p of parts) {
-    if (p.startsWith('`') && p.endsWith('`') && p.length > 1) {
-      const code = document.createElement('code');
-      code.textContent = p.slice(1, -1);
-      container.appendChild(code);
-    } else if (p) {
-      container.appendChild(document.createTextNode(p));
+// Anime-companion personas often emit narrative actions like
+// `*blushes softly and smiles warmly*`. Asterisks render as raw text in our
+// minimal markdown so we substitute the whole block with a single emoji that
+// stands in for the action. Keywords are matched in declaration order — list
+// the more specific verbs first so e.g. "headpat" wins over "pat".
+const ROLEPLAY_ACTION_EMOJI = [
+  { keywords: ['headpat', 'pat head', 'pat the', "pats your", 'pats anh'], emoji: '🫳' },
+  { keywords: ['hug', 'embrace', 'cuddle', 'snuggle', 'ôm'], emoji: '🤗' },
+  { keywords: ['kiss', 'hôn'], emoji: '😘' },
+  { keywords: ['blush', 'flush', 'redden', 'đỏ mặt'], emoji: '☺️' },
+  { keywords: ['giggle', 'laugh', 'chuckle', 'cười'], emoji: '😄' },
+  { keywords: ['smile', 'grin', 'beam', 'mỉm cười'], emoji: '🙂' },
+  { keywords: ['wink', 'nháy mắt'], emoji: '😉' },
+  { keywords: ['pout', 'sulk', 'huff', 'phụng phịu'], emoji: '😤' },
+  { keywords: ['cry', 'sob', 'tear', 'khóc'], emoji: '🥺' },
+  { keywords: ['gasp'], emoji: '😮' },
+  { keywords: ['sigh', 'thở dài'], emoji: '😮‍💨' },
+  { keywords: ['yawn', 'ngáp'], emoji: '🥱' },
+  { keywords: ['nod', 'gật đầu'], emoji: '🙆' },
+  { keywords: ['wave', 'vẫy'], emoji: '👋' },
+  { keywords: ['whisper', 'murmur', 'thì thầm'], emoji: '🤫' },
+  { keywords: ['think', 'ponder', 'wonder', 'tilt', 'nghĩ'], emoji: '🤔' },
+  { keywords: ['jump', 'bounce', 'excited', 'nhảy'], emoji: '✨' },
+  { keywords: ['shy', 'bashful', 'nervous', 'ngại'], emoji: '😳' },
+  { keywords: ['heart', 'love', 'tim', 'yêu'], emoji: '💖' },
+  { keywords: ['sparkle', 'shine', 'glow', 'lấp lánh'], emoji: '✨' },
+  { keywords: ['look', 'gaze', 'stare', 'watch', 'nhìn'], emoji: '👀' },
+  { keywords: ['clap', 'vỗ tay'], emoji: '👏' },
+  { keywords: ['bow', 'cúi'], emoji: '🙇' },
+  { keywords: ['point', 'chỉ'], emoji: '👉' },
+  { keywords: ['warm', 'soft', 'gentle', 'dịu'], emoji: '🌸' },
+];
+
+function roleplayActionToEmoji(action) {
+  const lower = action.toLowerCase();
+  for (const entry of ROLEPLAY_ACTION_EMOJI) {
+    for (const k of entry.keywords) {
+      if (lower.includes(k)) return entry.emoji;
     }
+  }
+  return '🌸';
+}
+
+function renderInlineCode(container, text) {
+  // Single pass: find inline code `…` and roleplay actions *…*. Action must
+  // start with a letter (avoids matching markdown bold `**…**` or stray
+  // asterisks on bullet lines) and stay on one line.
+  const re = /(`[^`\n]+`)|(\*[A-Za-zÀ-ỹ][^*\n]*?\*)/g;
+  let lastIndex = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > lastIndex) {
+      container.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
+    }
+    if (m[1]) {
+      const code = document.createElement('code');
+      code.textContent = m[1].slice(1, -1);
+      container.appendChild(code);
+    } else if (m[2]) {
+      const inner = m[2].slice(1, -1);
+      const span = document.createElement('span');
+      span.className = 'chat-roleplay-emoji';
+      span.textContent = roleplayActionToEmoji(inner);
+      // Tooltip exposes the original action so the user can still read what
+      // the model actually wrote when they're curious.
+      span.title = inner;
+      container.appendChild(span);
+    }
+    lastIndex = re.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    container.appendChild(document.createTextNode(text.slice(lastIndex)));
   }
 }
 

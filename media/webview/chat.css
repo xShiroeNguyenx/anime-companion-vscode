@@ -940,3 +940,15 @@
 .chat-msg.streaming .chat-msg-copy {
   display: none;
 }
+
+/* Roleplay actions like *blushes softly* render as a single emoji chip
+   instead of raw asterisked text. Slightly larger so it reads as an icon,
+   inline-baseline so it sits naturally with the surrounding sentence. */
+.chat-roleplay-emoji {
+  display: inline-block;
+  font-size: 1.15em;
+  line-height: 1;
+  vertical-align: -0.05em;
+  margin: 0 1px;
+  cursor: help;
+}

@@ -19,12 +19,19 @@ interface CopilotAccountPreference {
 
 export class ChatManager {
   private static readonly COPILOT_ACCOUNT_KEY = 'chat.copilotAccountPreference';
+  private static readonly PROVIDER_STATE_KEY = 'chat.providerSelection';
+  private static readonly MODEL_STATE_KEY = 'chat.modelSelection';
   private static readonly GITHUB_AUTH_PROVIDER = 'github';
   private static readonly GITHUB_AUTH_SCOPES = ['read:user'];
+  private static readonly MODEL_CACHE_TTL_MS = 5 * 60 * 1000;
 
   private _abort?: AbortController;
   private _inFlight = false;
   private _streamingMessageId = 0;
+  // Cached dynamic model lists keyed by provider id. Refetched when stale so
+  // the dropdown shows whatever the provider actually supports for this key
+  // (e.g. Gemini 2.5/3.x families appear without a code release).
+  private _modelListCache = new Map<ProviderId, { models: string[]; ts: number }>();
   // Selection captured by the askSelection command. Cleared after the user
   // submits the next message so it doesn't leak into unrelated turns.
   private _stagedSelection?: { filePath: string; text: string; languageId?: string };
@@ -50,7 +57,7 @@ export class ChatManager {
     }
 
     const cfg = vscode.workspace.getConfiguration('animeCompanion');
-    const providerId = (cfg.get<string>('chat.provider', 'copilot') as ProviderId);
+    const providerId = this._resolveActiveProvider();
     const provider = getProvider(providerId);
     if (!provider) {
       this._post({ command: 'chat:error', message: `Unknown chat provider "${providerId}".` });
@@ -76,10 +83,7 @@ export class ChatManager {
       apiKey = stored;
     }
 
-    const model =
-      (cfg.get<string>('chat.model', '') || '').trim() ||
-      PROVIDER_INFO.find((p) => p.id === providerId)?.defaultModel ||
-      provider.defaultModel;
+    const model = this._resolveActiveModel(providerId) || provider.defaultModel;
 
     // Resolve context attachments before saving the turn so the user's
     // stored message includes everything that was sent to the model.
@@ -99,7 +103,7 @@ export class ChatManager {
     // Load or create the active conversation. A user typing into an empty
     // panel implicitly starts a new conversation — no need for a separate
     // "new chat" click before sending.
-    let conv = await this._loadActiveOrCreate(providerId, model);
+    const conv = await this._loadActiveOrCreate(providerId, model);
     conv.meta.providerId = providerId;
     conv.meta.model = model;
 
@@ -117,7 +121,9 @@ export class ChatManager {
       attachedContext: built.attached,
     });
 
-    const modelName = getSelectedModel().name;
+    // Chat replies live in the panel, so the persona should track the panel's
+    // active Live2D model even when the desktop companion is enabled.
+    const modelName = getSelectedModel('panel').name;
     const systemPrompt = resolveSystemPrompt(modelName);
     const providerMessages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
@@ -218,12 +224,8 @@ export class ChatManager {
 
   async newConversation(): Promise<void> {
     if (this._inFlight) this.cancel();
-    const cfg = vscode.workspace.getConfiguration('animeCompanion');
-    const providerId = cfg.get<string>('chat.provider', 'copilot') as ProviderId;
-    const model =
-      (cfg.get<string>('chat.model', '') || '').trim() ||
-      PROVIDER_INFO.find((p) => p.id === providerId)?.defaultModel ||
-      '';
+    const providerId = this._resolveActiveProvider();
+    const model = this._resolveActiveModel(providerId);
 
     // If the user already sits in an empty unsent conversation, reuse it
     // instead of stacking up another identical "New chat" entry. Also clean
@@ -314,11 +316,11 @@ export class ChatManager {
   }
 
   async sendSnapshot(): Promise<void> {
-    const cfg = vscode.workspace.getConfiguration('animeCompanion');
-    const providerId = cfg.get<string>('chat.provider', 'copilot') as ProviderId;
+    const providerId = this._resolveActiveProvider();
     const provider = getProvider(providerId);
     const requiresKey = provider?.requiresApiKey ?? true;
     const hasKey = requiresKey ? !!(await this._secrets.get(providerId)) : true;
+    const resolvedModel = this._resolveActiveModel(providerId);
 
     const conversations = await this._store.list();
     const activeId = this._store.getActiveId();
@@ -344,12 +346,25 @@ export class ChatManager {
       }
     }
 
+    // Provider-specific dynamic model lists. Fetched lazily and cached so the
+    // dropdown reflects whatever the user's API key actually supports — the
+    // hardcoded examples in PROVIDER_INFO are stale the moment a vendor ships
+    // a new model family.
+    if (providerId === 'gemini' && hasKey) {
+      const key = await this._secrets.get('gemini');
+      if (key) {
+        const dynamic = await this._fetchProviderModels('gemini', key);
+        if (dynamic && dynamic.length > 0) {
+          const entry = providersForUi.find((p) => p.id === 'gemini');
+          if (entry) entry.modelExamples = dynamic;
+        }
+      }
+    }
+
     this._post({
       command: 'chat:snapshot',
       providerId,
-      model:
-        (cfg.get<string>('chat.model', '') || '').trim() ||
-        PROVIDER_INFO.find((p) => p.id === providerId)?.defaultModel,
+      model: resolvedModel,
       requiresApiKey: requiresKey,
       hasApiKey: hasKey,
       providers: providersForUi,
@@ -364,15 +379,104 @@ export class ChatManager {
 
   async setProvider(providerId: ProviderId): Promise<void> {
     if (!PROVIDER_INFO.some((p) => p.id === providerId)) return;
+    // Persist into workspaceState first — that's the source of truth the
+    // snapshot reads from. The VS Code config write is mirrored so the value
+    // is still visible/editable in the Settings UI, but if it ever fails or
+    // gets overridden, the dropdown survives the next reload.
+    await this._context.workspaceState.update(ChatManager.PROVIDER_STATE_KEY, providerId);
     const cfg = vscode.workspace.getConfiguration('animeCompanion');
-    await cfg.update('chat.provider', providerId, vscode.ConfigurationTarget.Global);
+    try {
+      await cfg.update('chat.provider', providerId, this._chatConfigTarget());
+    } catch (err) {
+      log(`ChatManager: failed to mirror provider to settings.json: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    // Invalidate the model list cache — provider switched, the old list is
+    // for a different vendor and would mislead the dropdown.
+    this._modelListCache.clear();
     await this.sendSnapshot();
   }
 
   async setModel(model: string): Promise<void> {
+    await this._context.workspaceState.update(ChatManager.MODEL_STATE_KEY, model);
     const cfg = vscode.workspace.getConfiguration('animeCompanion');
-    await cfg.update('chat.model', model, vscode.ConfigurationTarget.Global);
+    try {
+      await cfg.update('chat.model', model, this._chatConfigTarget());
+    } catch (err) {
+      log(`ChatManager: failed to mirror model to settings.json: ${err instanceof Error ? err.message : String(err)}`);
+    }
     await this.sendSnapshot();
+  }
+
+  // Resolve the current provider/model with workspaceState as the durable
+  // source. cfg is consulted as a fallback for users who edited settings.json
+  // by hand. The published default ('copilot' / '') only kicks in when both
+  // sources are empty.
+  private _resolveActiveProvider(): ProviderId {
+    const stored = this._context.workspaceState.get<string>(ChatManager.PROVIDER_STATE_KEY);
+    if (stored && PROVIDER_INFO.some((p) => p.id === stored)) return stored as ProviderId;
+    const cfg = vscode.workspace.getConfiguration('animeCompanion');
+    const fromCfg = cfg.get<string>('chat.provider', 'copilot');
+    return (PROVIDER_INFO.some((p) => p.id === fromCfg) ? fromCfg : 'copilot') as ProviderId;
+  }
+
+  private async _fetchProviderModels(providerId: ProviderId, apiKey: string): Promise<string[] | undefined> {
+    const cached = this._modelListCache.get(providerId);
+    if (cached && Date.now() - cached.ts < ChatManager.MODEL_CACHE_TTL_MS) {
+      return cached.models;
+    }
+    let models: string[] | undefined;
+    try {
+      if (providerId === 'gemini') {
+        models = await this._fetchGeminiModels(apiKey);
+      }
+    } catch (err) {
+      log(`ChatManager: model list fetch failed for ${providerId}: ${err instanceof Error ? err.message : String(err)}`);
+      return undefined;
+    }
+    if (models && models.length > 0) {
+      this._modelListCache.set(providerId, { models, ts: Date.now() });
+    }
+    return models;
+  }
+
+  private async _fetchGeminiModels(apiKey: string): Promise<string[]> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=200`;
+    const resp = await fetch(url, { method: 'GET' });
+    if (!resp.ok) {
+      log(`Gemini ListModels: HTTP ${resp.status}`);
+      return [];
+    }
+    const json = (await resp.json()) as { models?: Array<{ name?: string; supportedGenerationMethods?: string[] }> };
+    const out: string[] = [];
+    for (const m of json.models ?? []) {
+      if (!m.name) continue;
+      const methods = Array.isArray(m.supportedGenerationMethods) ? m.supportedGenerationMethods : [];
+      // Only models that can answer a streaming chat are useful here. Skip
+      // embedding / vision-only entries so the dropdown doesn't get noisy.
+      if (!methods.includes('generateContent') && !methods.includes('streamGenerateContent')) continue;
+      const id = m.name.replace(/^models\//, '');
+      // Drop legacy 1.x families — they're deprecated and clutter the picker.
+      if (/^gemini-1\./.test(id)) continue;
+      out.push(id);
+    }
+    // Sort newest-first by version number when possible so 3.x/2.5 land above
+    // the older 2.0 entries, then alphabetical within a version.
+    out.sort((a, b) => {
+      const va = parseFloat(a.match(/gemini-(\d+\.\d+)/)?.[1] ?? '0');
+      const vb = parseFloat(b.match(/gemini-(\d+\.\d+)/)?.[1] ?? '0');
+      if (va !== vb) return vb - va;
+      return a.localeCompare(b);
+    });
+    return out;
+  }
+
+  private _resolveActiveModel(providerId: ProviderId): string {
+    const stored = this._context.workspaceState.get<string>(ChatManager.MODEL_STATE_KEY);
+    if (stored && stored.trim()) return stored.trim();
+    const cfg = vscode.workspace.getConfiguration('animeCompanion');
+    const fromCfg = (cfg.get<string>('chat.model', '') || '').trim();
+    if (fromCfg) return fromCfg;
+    return PROVIDER_INFO.find((p) => p.id === providerId)?.defaultModel || '';
   }
 
   async pickCopilotAccount(): Promise<void> {
@@ -520,6 +624,12 @@ export class ChatManager {
 
   private _post(msg: any) {
     this._hostRef()?.postMessage(msg);
+  }
+
+  private _chatConfigTarget(): vscode.ConfigurationTarget {
+    return vscode.workspace.workspaceFolders?.length
+      ? vscode.ConfigurationTarget.Workspace
+      : vscode.ConfigurationTarget.Global;
   }
 
   private async _ensureCopilotAccountAccess(): Promise<void> {

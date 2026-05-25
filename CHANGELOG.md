@@ -3,6 +3,22 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-05-25
+
+### Added
+
+- **Dynamic Gemini model list** ([src/chat/chat-manager.ts](src/chat/chat-manager.ts)) — when the active provider is Gemini and an API key is stored, the chat panel now calls `GET https://generativelanguage.googleapis.com/v1beta/models` and populates the model dropdown with whatever the key actually supports. Result is cached in-memory for 5 minutes (per-provider, `_modelListCache`) and invalidated on provider switch. Filter keeps only models whose `supportedGenerationMethods` include `generateContent` / `streamGenerateContent`; drops the deprecated `gemini-1.*` family; sorts newest version first. The hardcoded `PROVIDER_INFO.modelExamples` for Gemini stays as fallback when the key is missing or the API call fails. Cache helper is generic (`_fetchProviderModels(providerId, apiKey)`) so OpenAI/OpenRouter listing can plug in later without restructuring.
+- **Roleplay actions render as emoji icons** ([media/webview/chat.js](media/webview/chat.js), [media/webview/chat.css](media/webview/chat.css)) — anime-companion personas often emit narrative actions like `*blushes softly and smiles warmly*` or `*ôm chặt anh*`. The minimal webview markdown previously showed these as raw asterisked text. Now `renderInlineCode()` runs a single regex pass that detects both inline `` `code` `` and `*action*` blocks (action must start with a letter to avoid swallowing `**bold**` or bullet-list asterisks) and substitutes each action with a single representative emoji via `ROLEPLAY_ACTION_EMOJI` — ~25 keyword clusters covering EN + VI verbs (hug/ôm → 🤗, blush/đỏ mặt → ☺️, kiss/hôn → 😘, headpat → 🫳, wink/nháy mắt → 😉, pout/phụng phịu → 😤, cry/khóc → 🥺, sigh/thở dài → 😮‍💨, think/nghĩ → 🤔, wave/vẫy → 👋, etc.). Unmatched actions fall back to 🌸. The emoji span carries `title={original action}` so hovering still surfaces the model's exact wording for debugging or curiosity. CSS class `.chat-roleplay-emoji` bumps font-size to `1.15em` with `cursor: help`.
+
+### Fixed
+
+- **Chat provider & model selection survives reload + Q&A turns** ([src/chat/chat-manager.ts](src/chat/chat-manager.ts)) — picking "Google Gemini" + `gemini-2.5-pro` in the panel header and then sending a message could leave the dropdown reset to GitHub Copilot on the next snapshot, even though the API call itself used the right provider. Root cause was that `sendSnapshot()` re-read `cfg.get('chat.provider')` and any scope/persistence hiccup on the workspace-target write surfaced as the dropdown silently snapping back to the default. Fix introduces a durable layer: `workspaceState` keys `chat.providerSelection` and `chat.modelSelection` are written first in `setProvider()` / `setModel()` (synchronous, never fails), then the VS Code config is mirrored inside a `try/catch` (best-effort, still editable from Settings UI). New `_resolveActiveProvider()` / `_resolveActiveModel()` helpers read workspaceState first, fall back to cfg, then to the provider's default — every snapshot, every send, every new-conversation call goes through them so the user's choice is the source of truth instead of a derived computation.
+
+### Changed
+
+- **Cute persona — bolder waifu tone, language-aware addressing** ([src/chat/persona.ts](src/chat/persona.ts)) — `cute` preset rewritten to be "warm, affectionate, playful, slightly clingy, with a bold waifu vibe". Explicit per-language guidance for self-reference and the user's address form: Vietnamese → "em"/"bé" for self + "anh"/"Onii-chan" for the user; English → "Onii-chan"/"big bro"; Japanese → "Onii-chan"/"anata". Soft-flirty allowed but explicitly blocked from explicit/sexual/rude content. Companion stays in character (no "as an AI" breaks). Other presets (`professional`, `tsundere`, `energetic`) untouched.
+- **`package.json` setting descriptions** — `chat.provider` and `chat.model` descriptions now mention that the chat-panel-driven write lands in the workspace `.vscode/settings.json` when a workspace is open, so users editing settings.json directly know which scope owns the value.
+
 ## [0.3.1] - 2026-05-25
 
 ### Added — 4 new chat providers + tri-lingual docs
