@@ -628,6 +628,22 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('animeCompanion.switchToPanel', async () => {
       await setDesktopCompanionEnabled(false);
     }),
+    vscode.commands.registerCommand('animeCompanion.toggleDesktopClickThrough', async () => {
+      const cfg = vscode.workspace.getConfiguration('animeCompanion');
+      if (!cfg.get<boolean>('desktopCompanion.enabled', false)) {
+        vscode.window.showInformationMessage(
+          'Click-through only applies to Desktop Companion mode. Enable Desktop mode first.'
+        );
+        return;
+      }
+      const next = !cfg.get<boolean>('desktopCompanion.clickThrough', false);
+      await cfg.update('desktopCompanion.clickThrough', next, vscode.ConfigurationTarget.Global);
+      vscode.window.showInformationMessage(
+        next
+          ? 'Desktop click-through ON — clicks pass through to apps behind.'
+          : 'Desktop click-through OFF — companion is interactive again.'
+      );
+    }),
     vscode.commands.registerCommand('animeCompanion.resetWorkspaceModel', async () => {
       if (!hasWorkspaceModel()) {
         vscode.window.showInformationMessage('No per-workspace model is set. Falling back to global setting.');

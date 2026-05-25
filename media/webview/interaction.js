@@ -32,6 +32,13 @@ function escapeHtml(value) {
 
 const WEBVIEW_STRINGS = window.__WEBVIEW_STRINGS__ || {};
 
+function syncMessageLanguageDomState(messageLanguage = window.__MESSAGE_LANGUAGE__ || 'vi') {
+  document.documentElement.lang = messageLanguage;
+  document.body?.setAttribute('data-message-language', messageLanguage);
+}
+
+syncMessageLanguageDomState();
+
 function getWebviewValue(path, fallback) {
   let current = WEBVIEW_STRINGS;
   for (const part of path.split('.')) {
@@ -505,6 +512,12 @@ function setupContextMenu() {
     <div class="companion-menu-item" data-action="change-model">
       <span style="font-size: 11px;">🌸</span> ${t('menu.model', 'Model')}
     </div>
+    <div class="companion-menu-item" data-action="play-motion">
+      <span style="font-size: 11px;">🎬</span> ${t('menu.motion', 'Motion')}
+    </div>
+    <div class="companion-menu-item" data-action="poke">
+      <span style="font-size: 11px;">👉</span> ${t('menu.poke', 'Poke')}
+    </div>
     <div class="companion-menu-item" data-action="switch-host-mode">
       <span style="font-size: 11px;">${window.__DESKTOP_PET_MODE__ ? '🪟' : '🖥️'}</span>
       ${window.__DESKTOP_PET_MODE__ ? t('menu.panel', 'Panel') : t('menu.desktop', 'Desktop')}
@@ -527,12 +540,6 @@ function setupContextMenu() {
     </div>
     ` : ''}
     <div class="companion-menu-separator"></div>
-    <div class="companion-menu-item" data-action="poke">
-      <span style="font-size: 11px;">👉</span> ${t('menu.poke', 'Poke')}
-    </div>
-    <div class="companion-menu-item" data-action="play-motion">
-      <span style="font-size: 11px;">🎬</span> ${t('menu.motion', 'Motion')}
-    </div>
     <div class="companion-menu-item" data-action="pomodoro">
       <span style="font-size: 11px;">🍅</span> ${t('menu.pomodoro', 'Pomodoro')}
     </div>
@@ -660,80 +667,137 @@ function setupContextMenu() {
 }
 
 function setupCompactContextMenu() {
-  const menu = document.createElement('div');
-  const settingsMenu = document.createElement('div');
-  menu.className = 'companion-context-menu';
-  settingsMenu.className = 'companion-context-menu companion-context-submenu';
+  const isDesktop = !!window.__DESKTOP_PET_MODE__;
 
-  menu.innerHTML = `
+  // Functional categories per roadmap v0.4.0 §4.1. Each category produces one
+  // submenu; the main menu just lists categories + a couple of quick actions.
+  const categories = [
+    {
+      id: 'git',
+      icon: '🔧',
+      label: t('menu.gitCategory', 'Git'),
+      items: [
+        { icon: '📦', label: t('menu.commit', 'Commit'),  action: 'commit' },
+        { icon: '⬇️', label: t('menu.pull', 'Pull'),     action: 'pull' },
+        { icon: '⬆️', label: t('menu.push', 'Push'),     action: 'push' },
+      ],
+    },
+    {
+      id: 'chat',
+      icon: '💬',
+      label: t('menu.chatCategory', 'AI Chat'),
+      items: [
+        { icon: '💬', label: t('menu.chatOpen', 'Open Chat'),                 action: 'chat-open' },
+        { icon: '🆕', label: t('menu.chatNew', 'New Conversation'),           action: 'chat-new' },
+        { icon: '📌', label: t('menu.chatAskSelection', 'Ask About Selection'), action: 'chat-ask-selection' },
+        { icon: '🔑', label: t('menu.chatConfigure', 'Configure Provider'),   action: 'chat-configure' },
+        { icon: '🗑️', label: t('menu.chatClear', 'Clear All'),                action: 'chat-clear' },
+      ],
+    },
+    {
+      id: 'appearance',
+      icon: '🌸',
+      label: t('menu.appearanceCategory', 'Appearance'),
+      items: [
+        { icon: '🌸', label: t('menu.model', 'Model'),                          action: 'change-model' },
+        { icon: '📸', label: t('menu.captureChibi', 'Capture Chibi'),           action: 'capture-chibi' },
+        { icon: '🐾', label: t('menu.toggleCursorChibi', 'Toggle Cursor Chibi'),action: 'toggle-cursor-chibi' },
+        { icon: '🎯', label: t('menu.tuneCursorChibi', 'Tune Cursor Chibi'),    action: 'tune-cursor-chibi' },
+        { icon: '📍', label: t('menu.resetPosition', 'Reset Position'),         action: 'reset-position' },
+        { icon: '🎬', label: t('menu.motion', 'Motion'),                        action: 'play-motion' },
+        { icon: '👉', label: t('menu.poke', 'Poke'),                            action: 'poke' },
+      ],
+    },
+    {
+      id: 'voice',
+      icon: '🔊',
+      label: t('menu.voiceCategory', 'Voice & Sound'),
+      items: [
+        { icon: '🗣️', label: t('menu.voice', 'Voice'),                     action: 'change-voice' },
+        { icon: '💬', label: t('menu.messages', 'Messages'),               action: 'change-message-language' },
+        { icon: '🎧', label: t('menu.ambient', 'Ambient'),                 action: 'ambient' },
+        { icon: '🔇', label: t('menu.mute', 'Mute'),                       action: 'toggle-mute', mute: true },
+      ],
+    },
+    {
+      id: 'workflow',
+      icon: '🍅',
+      label: t('menu.workflowCategory', 'Workflow'),
+      items: [
+        { icon: '▶️', label: t('menu.startPomodoro', 'Start Pomodoro'),  action: 'start-pomodoro' },
+        { icon: '⏹️', label: t('menu.stopPomodoro', 'Stop Pomodoro'),    action: 'stop-pomodoro' },
+        { icon: '📊', label: t('menu.stats', 'Stats'),                    action: 'stats' },
+        { icon: '🏆', label: t('menu.achievements', 'Achievements'),      action: 'achievements' },
+      ],
+    },
+    {
+      id: 'desktop',
+      icon: '🖥️',
+      label: t('menu.desktopCategory', 'Desktop Companion'),
+      items: [
+        {
+          icon: isDesktop ? '🪟' : '🖥️',
+          label: isDesktop ? t('menu.switchToPanel', 'Switch to Panel') : t('menu.switchToDesktop', 'Switch to Desktop'),
+          action: 'switch-host-mode',
+        },
+        ...(isDesktop ? [{
+          icon: '🖱️',
+          label: t('menu.clickThrough', 'Toggle Click-Through'),
+          action: 'toggle-click-through',
+        }] : []),
+        { icon: '🔄', label: t('menu.resetWorkspaceModel', 'Reset Workspace Model'), action: 'reset-workspace-model' },
+      ],
+    },
+  ];
+
+  const mainMenu = document.createElement('div');
+  mainMenu.className = 'companion-context-menu';
+
+  const categoryRowsHtml = categories.map((cat) => `
+    <div class="companion-menu-item" data-category="${cat.id}">
+      <span style="font-size: 11px;">${cat.icon}</span> ${cat.label}
+      <span class="companion-submenu-arrow">&#x203A;</span>
+    </div>
+  `).join('');
+
+  mainMenu.innerHTML = `
     <div class="companion-menu-item" data-action="start-server">
       <span style="font-size: 11px;">🚀</span> ${t('menu.run', 'Run')}
     </div>
-    <div class="companion-menu-separator"></div>
-    <div class="companion-menu-item" data-action="commit">
-      <span style="font-size: 11px;">📦</span> ${t('menu.commit', 'Commit')}
-    </div>
-    <div class="companion-menu-item" data-action="pull">
-      <span style="font-size: 11px;">⬇️</span> ${t('menu.pull', 'Pull')}
-    </div>
-    <div class="companion-menu-item" data-action="push">
-      <span style="font-size: 11px;">⬆️</span> ${t('menu.push', 'Push')}
-    </div>
-    <div class="companion-menu-item" data-action="pomodoro">
-      <span style="font-size: 11px;">🍅</span> ${t('menu.pomodoro', 'Pomodoro')}
-    </div>
-    <div class="companion-menu-separator"></div>
-    <div class="companion-menu-item" data-action="achievements">
-      <span style="font-size: 11px;">🏆</span> ${t('menu.achievements', 'Achievements')}
-    </div>
-    <div class="companion-menu-separator"></div>
-    <div class="companion-menu-item" data-action="settings">
-      <span style="font-size: 11px;">⚙️</span> ${t('menu.settings', 'Settings')}
-      <span class="companion-submenu-arrow">&#x203A;</span>
-    </div>
-  `;
-
-  settingsMenu.innerHTML = `
-    <div class="companion-menu-item" data-action="change-model">
-      <span style="font-size: 11px;">🌸</span> ${t('menu.model', 'Model')}
-    </div>
-    <div class="companion-menu-item" data-action="switch-host-mode">
-      <span style="font-size: 11px;">${window.__DESKTOP_PET_MODE__ ? '🪟' : '🖥️'}</span>
-      ${window.__DESKTOP_PET_MODE__ ? t('menu.panel', 'Panel') : t('menu.desktop', 'Desktop')}
-    </div>
-    <div class="companion-menu-item" data-action="change-voice">
-      <span style="font-size: 11px;">🗣️</span> ${t('menu.voice', 'Voice')}
-    </div>
-    <div class="companion-menu-item" data-action="change-message-language">
-      <span style="font-size: 11px;">💬</span> ${t('menu.messages', 'Messages')}
-    </div>
-    <div class="companion-menu-item" data-action="ambient">
-      <span style="font-size: 11px;">🎧</span> ${t('menu.ambient', 'Ambient')}
-    </div>
-    <div class="companion-menu-item" data-action="toggle-mute">
-      <span class="companion-mute-icon" style="font-size: 11px;">🔇</span> <span class="companion-mute-label">${t('menu.mute', 'Mute')}</span>
-    </div>
-    <div class="companion-menu-item" data-action="poke">
-      <span style="font-size: 11px;">👉</span> ${t('menu.poke', 'Poke')}
-    </div>
-    <div class="companion-menu-item" data-action="play-motion">
-      <span style="font-size: 11px;">🎬</span> ${t('menu.motion', 'Motion')}
-    </div>
-    <div class="companion-menu-item" data-action="stats">
-      <span style="font-size: 11px;">📊</span> ${t('menu.stats', 'Stats')}
-    </div>
+    ${categoryRowsHtml}
     <div class="companion-menu-separator"></div>
     <div class="companion-menu-item" data-action="open-all-settings">
-      <span style="font-size: 11px;">⚙️</span> ${t('menu.all', 'All')}
+      <span style="font-size: 11px;">⚙️</span> ${t('menu.allSettings', 'All Settings')}
     </div>
   `;
 
-  document.body.appendChild(menu);
-  document.body.appendChild(settingsMenu);
+  // Append main menu FIRST, then submenus, so submenus paint on top when they
+  // overlap. Both share z-index 1000 — stacking falls back to DOM order, and
+  // narrow-panel layouts almost always force the submenu to overlap the main.
+  document.body.appendChild(mainMenu);
+
+  const submenus = {};
+  for (const cat of categories) {
+    const submenu = document.createElement('div');
+    submenu.className = 'companion-context-menu companion-context-submenu';
+    submenu.innerHTML = cat.items.map((item) => {
+      const iconClass = item.mute ? 'companion-mute-icon' : '';
+      const labelClass = item.mute ? 'companion-mute-label' : '';
+      return `
+        <div class="companion-menu-item" data-action="${item.action}">
+          <span class="${iconClass}" style="font-size: 11px;">${item.icon}</span>
+          <span class="${labelClass}">${item.label}</span>
+        </div>
+      `;
+    }).join('');
+    document.body.appendChild(submenu);
+    submenus[cat.id] = submenu;
+  }
+
+  const allMenus = [mainMenu, ...Object.values(submenus)];
 
   const closeContextMenus = () => {
-    menu.classList.remove('show');
-    settingsMenu.classList.remove('show');
+    for (const m of allMenus) m.classList.remove('show');
   };
 
   const positionMenu = (targetMenu, left, top) => {
@@ -750,20 +814,35 @@ function setupCompactContextMenu() {
     targetMenu.style.top = nextTop + 'px';
   };
 
+  const openSubmenu = (categoryId) => {
+    const submenu = submenus[categoryId];
+    if (!submenu) return;
+    syncMuteMenuLabel(submenu);
+    const trigger = mainMenu.querySelector(`[data-category="${categoryId}"]`);
+    const mainRect = mainMenu.getBoundingClientRect();
+    const itemRect = trigger ? trigger.getBoundingClientRect() : mainRect;
+    for (const cat of categories) {
+      if (cat.id !== categoryId) submenus[cat.id].classList.remove('show');
+    }
+    // Reveal off-screen so offsetWidth is measurable, then decide a cascade
+    // direction. Narrow panel webviews (~250 px) often can't fit a submenu to
+    // the right of the main menu — flip to the left side when needed.
+    submenu.style.left = '-9999px';
+    submenu.style.top = '-9999px';
+    submenu.classList.add('show');
+    const submenuWidth = submenu.offsetWidth;
+    const gap = 6;
+    const vw = window.innerWidth;
+    let left = mainRect.right + gap;
+    if (left + submenuWidth + 4 > vw) {
+      const leftSide = mainRect.left - submenuWidth - gap;
+      left = leftSide >= 4 ? leftSide : left;
+    }
+    positionMenu(submenu, left, itemRect.top);
+  };
+
   const handleMenuAction = (action) => {
     if (!action) return;
-
-    if (action === 'settings') {
-      syncMuteMenuLabel(settingsMenu);
-      const settingsItem = menu.querySelector('[data-action="settings"]');
-      const menuRect = menu.getBoundingClientRect();
-      const itemRect = settingsItem ? settingsItem.getBoundingClientRect() : menuRect;
-      menu.classList.remove('show');
-      settingsMenu.classList.add('show');
-      positionMenu(settingsMenu, menuRect.right + 6, itemRect.top);
-      return;
-    }
-
     closeContextMenus();
 
     if (action === 'start-server') {
@@ -779,9 +858,12 @@ function setupCompactContextMenu() {
     } else if (action === 'push') {
       showBubble(t('bubbles.push', 'Push code lên remote cho an tâm nha~ ☁️'));
       vscode.postMessage({ command: 'runCommand', action: 'git.push' });
-    } else if (action === 'pomodoro') {
+    } else if (action === 'start-pomodoro') {
       showBubble(t('bubbles.pomodoro', 'Bắt đầu Pomodoro nha~ em canh giờ giúp Onii-chan! 🍅'));
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.startPomodoro' });
+    } else if (action === 'stop-pomodoro') {
+      showBubble(t('bubbles.stopPomodoro', 'Dừng Pomodoro nha~ nghỉ tay một chút đi! ☕'));
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.stopPomodoro' });
     } else if (action === 'poke') {
       if (state.model) { try { state.model.motion('TapBody'); } catch (_) { /* ignore */ } }
       vscode.postMessage({ command: 'poke' });
@@ -812,6 +894,13 @@ function setupCompactContextMenu() {
         ? t('bubbles.muteOn', 'Em sẽ im lặng một chút nha~ 🤫')
         : t('bubbles.muteOff', 'Em ríu rít lại rồi nè~ 🎀'));
       vscode.postMessage({ command: 'setMuted', muted: nextMuted });
+    } else if (action === 'toggle-click-through') {
+      const nextClickThrough = !window.__CLICK_THROUGH__;
+      window.__CLICK_THROUGH__ = nextClickThrough;
+      showBubble(nextClickThrough
+        ? t('bubbles.clickThroughOn', 'Em ẩn dạng thôi nha~ click vào em sẽ xuyên qua app phía sau! 👻')
+        : t('bubbles.clickThroughOff', 'Em quay lại rồi nè~ click được lên em rồi! ✨'));
+      vscode.postMessage({ command: 'setClickThrough', value: nextClickThrough });
     } else if (action === 'open-all-settings') {
       showBubble(t('bubbles.settings', 'Mở Settings ra cho Onii-chan liền nha~ ⚙️'));
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.openSettings' });
@@ -822,6 +911,26 @@ function setupCompactContextMenu() {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showAchievements' });
     } else if (action === 'stats') {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showStats' });
+    } else if (action === 'chat-open') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.chat.open' });
+    } else if (action === 'chat-new') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.chat.newConversation' });
+    } else if (action === 'chat-ask-selection') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.chat.askSelection' });
+    } else if (action === 'chat-configure') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.chat.setApiKey' });
+    } else if (action === 'chat-clear') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.chat.clearHistory' });
+    } else if (action === 'capture-chibi') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.captureModelToChibi' });
+    } else if (action === 'toggle-cursor-chibi') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.toggleCursorChase' });
+    } else if (action === 'tune-cursor-chibi') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.tuneCursorChibi' });
+    } else if (action === 'reset-position') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.resetPosition' });
+    } else if (action === 'reset-workspace-model') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.resetWorkspaceModel' });
     }
   };
 
@@ -840,32 +949,42 @@ function setupCompactContextMenu() {
 
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    syncMuteMenuLabel(menu);
-    syncMuteMenuLabel(settingsMenu);
-    menu.classList.add('show');
-    settingsMenu.classList.remove('show');
-    positionMenu(menu, e.clientX, e.clientY);
+    syncMuteMenuLabel(mainMenu);
+    for (const id of Object.keys(submenus)) syncMuteMenuLabel(submenus[id]);
+    closeContextMenus();
+    mainMenu.classList.add('show');
+    positionMenu(mainMenu, e.clientX, e.clientY);
   }, true);
 
   window.addEventListener('click', (e) => {
-    if (!menu.contains(e.target) && !settingsMenu.contains(e.target)) closeContextMenus();
+    if (allMenus.some((m) => m.contains(e.target))) return;
+    closeContextMenus();
   }, true);
 
-  menu.addEventListener('click', (e) => {
+  mainMenu.addEventListener('click', (e) => {
     const item = e.target.closest('.companion-menu-item');
     if (!item) return;
+    const categoryId = item.getAttribute('data-category');
+    if (categoryId) {
+      openSubmenu(categoryId);
+      return;
+    }
     const action = item.getAttribute('data-action');
-    console.log('[AnimeCompanion] menu click action=' + action);
+    if (!action) return;
+    console.log('[AnimeCompanion] main menu action=' + action);
     handleMenuAction(action);
   });
 
-  settingsMenu.addEventListener('click', (e) => {
-    const item = e.target.closest('.companion-menu-item');
-    if (!item) return;
-    const action = item.getAttribute('data-action');
-    console.log('[AnimeCompanion] settings menu click action=' + action);
-    handleMenuAction(action);
-  });
+  for (const cat of categories) {
+    submenus[cat.id].addEventListener('click', (e) => {
+      const item = e.target.closest('.companion-menu-item');
+      if (!item) return;
+      const action = item.getAttribute('data-action');
+      if (!action) return;
+      console.log('[AnimeCompanion] submenu ' + cat.id + ' action=' + action);
+      handleMenuAction(action);
+    });
+  }
 }
 
 function syncMuteMenuLabel(menu) {
@@ -962,6 +1081,8 @@ function setupMessagePanel() {
     const messageLanguage = option.getAttribute('data-message-language');
     if (!messageLanguage) return;
 
+    window.__MESSAGE_LANGUAGE__ = messageLanguage;
+    syncMessageLanguageDomState(messageLanguage);
     panel.classList.remove('show');
     vscode.postMessage({ command: 'setMessageLanguage', messageLanguage });
   });

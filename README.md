@@ -6,9 +6,9 @@
 
 > ⚠️ **Experimental — v0.3.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.3.1
+**Current version:** v0.3.3
 
-> 🆕 **What's new in v0.3.1**: **4 new chat providers** — xAI Grok, DeepSeek, OpenRouter (100+ models), and **Ollama for local/offline chat with no API key**. New `OpenAICompatibleProvider` factory drives all 4 OpenAI-style providers from a single implementation. Setup command renamed to **Configure Chat Provider** and now handles both API keys and the Ollama endpoint. Plus: **copy-reply button** on every assistant message (clipboard → checkmark animation), and the Live2D model now **resizes live with the panel** — drag the bottom panel taller/shorter and the character refits in real time (no more clipped feet).
+> 🆕 **What's new in v0.3.3**: the companion's right-click menu is now reorganized into **6 functional submenus** — **AI Chat**, **Appearance**, **Voice & Sound**, **Workflow**, **Git**, and **Desktop**. That means you can now open chat, start a new conversation, ask about the current selection, switch models, access Cursor Chibi controls, and toggle desktop-only actions directly from the pet. Menu labels were also polished across English / Vietnamese / Japanese, and the Vietnamese menu now uses a dedicated rounded font fallback so accented characters render cleanly without breaking the existing cute style.
 
 ![Anime Companion hero](docs/images/01-hero-companion-panel.png)
 

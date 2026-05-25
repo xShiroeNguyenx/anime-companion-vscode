@@ -3,6 +3,23 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-05-25
+
+### Changed
+
+- **Right-click menu reorganization** ([media/webview/interaction.js](media/webview/interaction.js)) — the companion's in-webview context menu is now grouped into 6 functional submenus instead of a single flat "Settings ›" list per roadmap v0.4.0 §4.1: 💬 **AI Chat** (Open Chat · New Conversation · Ask About Selection · Configure Provider · Clear All) · 🌸 **Appearance** (Model · Capture Chibi · Cursor Chibi toggle/tune · Reset Position · Motion · Poke) · 🔊 **Voice & Sound** (Voice · Messages · Ambient · Mute) · 🍅 **Workflow** (Start/Stop Pomodoro · Stats · Achievements) · 🔧 **Git** (Commit · Pull · Push · Run) · 🖥️ **Desktop** (Switch Desktop/Panel · Click-Through · Reset Workspace Model). Top level now keeps only `All Settings` as the quick action below the category list. Implementation is now data-driven (single `categories` array) so adding/removing items is one entry instead of HTML+handler+i18n in three places.
+
+### Added
+
+- **AI Chat entries reachable from the companion's right-click menu** — previously the chat commands (`animeCompanion.chat.open`, `.newConversation`, `.askSelection`, `.setApiKey`, `.clearHistory`) were only in the Command Palette and the editor context menu. They now appear under the companion's **AI Chat ›** submenu so the pet itself can launch a conversation without leaving the mouse.
+- **Cursor Chibi controls in the right-click menu** — `Capture Chibi`, `Toggle Cursor Chibi`, `Tune Cursor Chibi`, and `Reset Position` were previously only command-palette accessible. They are now grouped under **Appearance ›**.
+- **i18n keys for new menu labels** ([media/messages/{en,vi,ja}.json](media/messages/)) — `menu.chatCategory`, `menu.appearanceCategory`, `menu.voiceCategory`, `menu.workflowCategory`, `menu.gitCategory`, `menu.desktopCategory`, `menu.allSettings`, plus per-item keys (`menu.chatOpen`, `menu.startPomodoro`, `menu.stopPomodoro`, `menu.switchToDesktop`, `menu.switchToPanel`, `menu.clickThrough`, `menu.resetWorkspaceModel`, etc.). Vietnamese and Japanese menu strings translated; previously several entries were left as English ("Model", "Voice", "Messages") in vi.json/ja.json — now properly localized.
+
+### Fixed
+
+- **`animeCompanion.toggleDesktopClickThrough` command was declared in `package.json` but never registered** ([src/extension.ts](src/extension.ts)) — invoking it from the Command Palette since v0.1.x silently did nothing. Handler now reads `desktopCompanion.clickThrough`, flips it, and shows an info toast. Refuses with a hint message if the user is still in Panel mode (the setting only takes effect when Desktop Companion is enabled).
+- **Menu label fit + Vietnamese glyph rendering** ([media/messages/{en,vi,ja}.json](media/messages/), [media/companion.css](media/companion.css)) — shortened the top-level `Desktop Companion` label to `Desktop` across EN / VI / JA, tightened several Vietnamese menu labels (`Chat AI`, `Âm thanh`, `Quy trình`, `Cài đặt`) to avoid wrapping in narrow panels, and added a Vietnamese-only rounded font fallback for the context menu so accented characters render cleanly without losing the current cute visual tone.
+
 ## [0.3.2] - 2026-05-25
 
 ### Added

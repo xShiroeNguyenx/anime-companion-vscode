@@ -9,9 +9,9 @@
 
 > ⚠️ **実験版 — v0.3.x.** これは early-access ビルドです。v1.0 に到達するまで、マイナーバージョン間で API、設定、振る舞いが変わることがあります。バグや感想は [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) で歓迎します。
 
-**現在のバージョン:** v0.3.1
+**現在のバージョン:** v0.3.3
 
-> 🆕 **v0.3.1 の新着**: **4 つの新しいチャットプロバイダー** — xAI Grok、DeepSeek、OpenRouter（100 以上のモデル）、そして **API キー不要でローカル／オフラインのチャットができる Ollama**。新しい `OpenAICompatibleProvider` ファクトリが、OpenAI 互換の 4 プロバイダーを単一の実装で駆動します。セットアップコマンドは **Configure Chat Provider** に改名され、API キーと Ollama エンドポイントの両方を扱えるようになりました。さらに: 各アシスタント返信に **コピー用ボタン**（クリップボード → チェックマークのアニメーション）、そして Live2D モデルが **パネルのリサイズに合わせてライブで再フィット** — パネルを高く／低く／広くドラッグするとキャラクターがリアルタイムで再配置されます（足が切れる問題も解消）。
+> 🆕 **v0.3.3 の新着**: companion の右クリックメニューが **6 つの機能別サブメニュー** に整理されました。**AI Chat**、**Appearance**、**Voice & Sound**、**Workflow**、**Git**、**Desktop** です。これにより、チャット開始、新規会話、選択中コードについて質問、モデル切り替え、Cursor Chibi 関連操作、Desktop 専用アクションなどを pet から直接開けます。あわせて英語 / ベトナム語 / 日本語のメニュー文言も短く整え、ベトナム語メニューではアクセント付き文字が崩れないよう専用の丸みあるフォントフォールバックも追加しました。
 
 ![Anime Companion hero](images/01-hero-companion-panel.png)
 

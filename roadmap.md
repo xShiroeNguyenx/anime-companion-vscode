@@ -1,6 +1,6 @@
 # 🌸 Anime Companion VSCode — Roadmap
 
-> **Phiên bản hiện tại:** v0.3.1 — *cập nhật 2026-05-25*
+> **Phiên bản hiện tại:** v0.3.3 — *cập nhật 2026-05-25*
 >
 > Tài liệu này là single-source-of-truth cho **trạng thái feature**, việc **còn phải làm** và **hướng phát triển tương lai**. Chi tiết implementation ở [FEATURES.md](./FEATURES.md), lịch sử release ở [CHANGELOG.md](./CHANGELOG.md), kế hoạch chi tiết từng version ở [PLAN.md](./PLAN.md).
 
@@ -12,7 +12,8 @@
 v0.1.x  ──→  v0.1.27   Live2D + Reactive Engine + Pomodoro + Ambient + Desktop Companion v1 (Windows)
 v0.3.0  ────────────   AI Chat Companion (4 providers: Copilot / Claude / GPT / Gemini)
 v0.3.1  ────────────   +4 providers (Grok/DeepSeek/OpenRouter/Ollama) · Tri-lingual docs · Copy-reply · Live resize fix
-v0.4.0  ────────────   Pet desktop quick chat · Right-click menu reorganization          [NEXT]
+v0.3.3  ────────────   Right-click menu reorganization (6 functional submenus)
+v0.4.0  ────────────   Pet desktop quick chat                                            [NEXT]
 v0.5.x  ────────────   Slash commands · Diff-aware chat · Privacy redaction · Stats heatmap [PLANNED]
 v0.6.x  ────────────   Real-time TTS · OpenRouter model discovery · Conversation export   [PLANNED]
 v1.x    ────────────   Mac/Linux Desktop Companion · Multi-character · Motion editor      [VISION]
@@ -20,7 +21,7 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 
 ---
 
-## ✅ Đã ship (v0.3.1)
+## ✅ Đã ship (v0.3.3)
 
 <details>
 <summary>Expand — danh sách đầy đủ feature đã có</summary>
@@ -118,22 +119,24 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 
 > Các item này đã được **thiết kế và defer rõ ràng** từ v0.3.1. Implementation plan có sẵn ở [docs/PLAN_v0.3.1.md §4](./docs/PLAN_v0.3.1.md).
 
-### 4.1 Pet Desktop Quick Chat
+### 4.1 Right-click Menu Reorganization — ✅ shipped in v0.3.3
+- [x] Companion right-click menu nay nhóm vào 6 submenu functional area thay vì flat list, implement trong [media/webview/interaction.js](./media/webview/interaction.js) (data-driven `categories` array):
+  - 💬 **AI Chat** ➤ (Open Chat · New Conversation · Ask About Selection · Configure Provider · Clear All)
+  - 🌸 **Appearance** ➤ (Change Model · Capture Chibi · Toggle Cursor Chibi · Tune · Reset Position · Motion)
+  - 🔊 **Voice & Sound** ➤ (Change Voice · Change Message Lang · Toggle Mute · Ambient)
+  - 🍅 **Workflow** ➤ (Start/Stop Pomodoro · Show Stats · Show Achievements)
+  - 🔧 **Git Shortcuts** ➤ (Commit · Pull · Push · Run)
+  - 🖥️ **Desktop Companion** ➤ (Toggle Desktop/Panel Mode · Toggle Click-Through · Reset Workspace Model)
+- [x] Top-level giữ lại `Poke` + `All Settings` làm quick action.
+- [x] Fix bug `animeCompanion.toggleDesktopClickThrough` declared trong package.json nhưng never registered → command palette giờ chạy được.
+
+### 4.2 Pet Desktop Quick Chat
 - [ ] Right-click trên desktop pet → "💬 Chat with me" → input overlay
 - [ ] Submit qua WebSocket bridge → response render trong speech bubble trên pet
 - [ ] Auto-dismiss sau N giây, click-to-pin
 - [ ] New WS events: `pet:chat:request`, `pet:chat:delta`, `pet:chat:response`
 - [ ] Reuse `chatManager.sendUserMessage` với flag `transient:true` (không persist history)
 - [ ] Cap `maxTokens: 200` (speech bubble không gian hạn chế)
-
-### 4.2 Right-click Menu Reorganization
-- [ ] Gom nhóm flat menu hiện tại thành submenu theo functional area:
-  - 💬 **AI Chat** ➤ (Open Chat · New Conversation · Ask About Selection · Configure Provider · Clear All)
-  - 🌸 **Appearance** ➤ (Change Model · Capture Chibi · Toggle Cursor Chibi · Tune · Reset Position)
-  - 🔊 **Voice & Sound** ➤ (Change Voice · Change Message Lang · Toggle Mute · Ambient)
-  - 🍅 **Workflow** ➤ (Start/Stop Pomodoro · Show Stats · Show Achievements)
-  - 🔧 **Git Shortcuts** ➤ (Commit · Pull · Push · Run)
-  - 🖥️ **Desktop Companion** ➤ (Toggle Desktop Mode · Toggle Click-Through · Reset Model)
 
 ---
 
@@ -331,4 +334,4 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 
 ---
 
-*Cập nhật lần cuối: 2026-05-25 · v0.3.1 — roadmap revision r2 (expanded vague items, pruned low-value optionals, added slash commands / diff-aware chat / privacy redaction / focus widget)*
+*Cập nhật lần cuối: 2026-05-25 · v0.3.3 — roadmap revision r3 (menu reorganization shipped, release docs synced, localization/menu polish folded into current public release)*

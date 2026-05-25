@@ -1,12 +1,24 @@
 # 🌸 Anime Companion VS Code Extension — Features Documentation
 
-Tài liệu mô tả chi tiết các tính năng đã được lập trình và tích hợp tính đến **v0.3.1** (cập nhật 2026-05-25). Roadmap chi tiết ở [PLAN.md](./PLAN.md), tiến độ ở [CHECKLIST.md](./CHECKLIST.md), lệnh build/release ở [DEV_COMMANDS.md](./DEV_COMMANDS.md). Kế hoạch tổng quan chat ở [docs/AI_CHAT_PLAN.md](./docs/AI_CHAT_PLAN.md). Implementation plan v0.3.1 ở [docs/PLAN_v0.3.1.md](./docs/PLAN_v0.3.1.md).
+Tài liệu mô tả chi tiết các tính năng đã được lập trình và tích hợp tính đến **v0.3.3** (cập nhật 2026-05-25). Roadmap chi tiết ở [PLAN.md](./PLAN.md), tiến độ ở [CHECKLIST.md](./CHECKLIST.md), lệnh build/release ở [DEV_COMMANDS.md](./DEV_COMMANDS.md). Kế hoạch tổng quan chat ở [docs/AI_CHAT_PLAN.md](./docs/AI_CHAT_PLAN.md). Implementation plan v0.3.1 ở [docs/PLAN_v0.3.1.md](./docs/PLAN_v0.3.1.md).
 
 ---
 
-## ⭐ What's new in v0.3.1
+## ⭐ What's new in v0.3.3
 
-v0.3.1 mở rộng 4 → 8 providers, không duplicate code nhờ abstraction mới, và polish UX chat + Live2D. Section dưới cùng deep-dive từng phần; section `0. AI Chat Companion` bên dưới vẫn mô tả core v0.3.0 (giữ làm reference).
+v0.3.3 tập trung vào khả năng khám phá tính năng ngay từ pet: menu chuột phải được tổ chức lại thành các nhóm dễ nhớ, bớt dài dòng hơn ở từng ngôn ngữ, và phần menu tiếng Việt có fallback font riêng để chữ có dấu hiển thị sạch. Section dưới mô tả phần mới của v0.3.3 trước; phần `0. AI Chat Companion` bên dưới vẫn giữ làm reference cho nền tảng chat ship từ v0.3.0/v0.3.1.
+
+### Right-click menu reorganization
+
+- Menu chuột phải trong webview giờ chia thành 6 submenu chức năng: `AI Chat`, `Appearance`, `Voice & Sound`, `Workflow`, `Git`, `Desktop`.
+- Các action chat trước đây nằm trong Command Palette như mở chat, tạo conversation mới, hỏi về selection, configure provider, clear history giờ có thể mở trực tiếp từ pet.
+- Các action Cursor Chibi như capture, bật/tắt follow cursor, tinh chỉnh vị trí, reset vị trí cũng đã được gom về `Appearance`.
+
+### Menu copy + localization polish
+
+- Nhãn top-level được rút gọn để tránh xuống dòng trong panel hẹp: ví dụ `Desktop Companion` → `Desktop`, `Workflow` tiếng Việt → `Quy trình`, `Voice & Sound` tiếng Việt → `Âm thanh`.
+- `Poke / Chọc nhẹ` không còn đứng riêng ở quick action top-level mà nằm trong `Appearance`, và được đặt ở cuối nhóm này để menu gọn hơn.
+- Menu tiếng Việt dùng fallback font rounded riêng để các ký tự có dấu không bị vỡ glyph nhưng vẫn giữ vibe mềm, dễ thương gần với font hiện tại.
 
 ### 4 provider mới
 

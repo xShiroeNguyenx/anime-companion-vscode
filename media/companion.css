@@ -2,7 +2,7 @@
    🌸 Anime Companion — Webview Styles (Panel View + Live2D)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Nunito:wght@700;800&display=swap');
 
 * {
   margin: 0;
@@ -342,6 +342,12 @@ body {
   color: var(--vscode-menu-foreground, #cccccc);
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+body[data-message-language="vi"] .companion-context-menu {
+  font-family: 'Nunito', 'Segoe UI', 'Noto Sans', var(--vscode-font-family, sans-serif);
+  font-weight: 800;
+  letter-spacing: 0.1px;
 }
 
 .companion-context-menu.show {

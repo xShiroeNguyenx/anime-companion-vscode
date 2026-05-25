@@ -1,47 +1,47 @@
 # Public Release Guide
 
-> Bản hiện tại đang publish: **v0.3.1** (release notes ngay bên dưới). Phần `v0.1.50` cũ giữ làm reference cho flow chung.
+> Bản hiện tại đang publish: **v0.3.3** (release notes ngay bên dưới). Phần `v0.1.50` cũ giữ làm reference cho flow chung.
 
 ---
 
-## 📦 v0.3.1 Release (2026-05-25)
+## 📦 v0.3.3 Release (2026-05-25)
 
 ### Scope
 
-- Extension version public: `0.3.1`
+- Extension version public: `0.3.3`
 - Headline user-facing:
-  - **4 chat providers mới**: xAI Grok, DeepSeek, OpenRouter (gateway 100+ models), Ollama (local, no API key)
-  - **Copy-reply button** trên mọi assistant message
-  - **Live2D model live resize**: kéo panel cao/thấp/rộng → character refit realtime, không cắt chân nữa
-  - Documentation 3 ngôn ngữ: EN root, VI + JA dưới `docs/`
+  - **Right-click menu reorganization**: 6 submenu chức năng (`AI Chat` / `Appearance` / `Voice & Sound` / `Workflow` / `Git` / `Desktop`)
+  - **AI Chat actions ngay trên pet**: open chat / new conversation / ask selection / configure provider / clear history
+  - **Cursor Chibi controls trong menu**: capture / toggle / tune / reset position
+  - **Menu localization polish**: label ngắn gọn hơn cho EN / VI / JA, menu tiếng Việt có font fallback riêng để chữ có dấu render đẹp
 - Platform support: như v0.3.0 (Panel mode trên VS Code / Cursor / VSCodium / Open VSX; Desktop Companion vẫn Windows-only)
 
 ### Marketplace / Release notes pitch
 
-- 8 providers chat hỗ trợ giờ gồm cả **xAI Grok**, **DeepSeek**, **OpenRouter** (1 key dùng 100+ models, có cả `:free` tier), và **Ollama** (chat local 100% offline, không cần API key).
-- Mỗi câu trả lời của companion giờ có nút **copy nhanh** với checkmark animation xác nhận.
-- Live2D model giờ **resize live** theo panel — kéo panel nhỏ lại không còn cắt chân, kéo to ra model tự refit.
-- Documentation tách 3 ngôn ngữ: tiếng Anh (mặc định trên Marketplace), tiếng Việt (`docs/README.vi.md`), tiếng Nhật (`docs/README.ja.md`), có language switcher header.
-- Command `Set Chat API Key` rename thành `Configure Chat Provider (API Key / Endpoint)` — id cũ giữ nguyên để keybindings không vỡ.
+- Right-click menu của companion giờ được chia theo khu chức năng thay vì một danh sách phẳng dài, giúp discover feature tốt hơn ngay từ pet.
+- `AI Chat` submenu mở thẳng các action chat quan trọng mà trước đây phải vào Command Palette hoặc editor context menu.
+- `Appearance` submenu giờ ôm luôn Cursor Chibi controls và `Poke`, nên toàn bộ nhóm tương tác hình ảnh nằm cùng một chỗ.
+- Menu labels đã được rút gọn cho panel hẹp; `Desktop Companion` được rút còn `Desktop` ở cả EN / VI / JA.
+- Menu tiếng Việt có thêm font fallback bo tròn riêng để ký tự có dấu hiển thị sạch mà không làm mất style kawaii hiện tại.
 
-### Pre-publish checklist v0.3.1
+### Pre-publish checklist v0.3.3
 
-- [x] `package.json` ở `0.3.1`
+- [x] `package.json` ở `0.3.3`
 - [x] `README.md` (EN, source of truth cho marketplace) + `docs/README.vi.md` + `docs/README.ja.md`
-- [x] `CHANGELOG.md` có entry `## [0.3.1] - 2026-05-25` đầy đủ Added / Changed / Fixed / Removed / Notes
-- [x] `FEATURES.md` có section "What's new in v0.3.1"
+- [x] `CHANGELOG.md` có entry `## [0.3.3] - 2026-05-25` đầy đủ changelog cho menu reorganization + localization polish
+- [x] `FEATURES.md` có section "What's new in v0.3.3"
 - [x] `docs/PLAN_v0.3.1.md` — implementation plan + v0.4.0 deferred
 - [x] `docs/images/README.md` — screenshot manifest 12 ảnh với capture specs
 - [x] `files` array có `"docs/images/**"` để screenshots bundle vào VSIX
 - [x] Local verify `npm run compile` clean
-- [ ] **Chụp 12 screenshots** theo manifest và commit vào `docs/images/`
-- [ ] **Smoke test** 4 provider mới (cần API keys cho xAI/DeepSeek/OpenRouter, `ollama serve` local)
+- [ ] **Chụp / refresh screenshot** menu chuột phải mới cho release notes hoặc marketplace
+- [ ] **Smoke test** right-click menu ở panel mode + desktop mode (submenu open, action routes đúng, label không xuống dòng ở EN / VI / JA)
 - [ ] (Optional) Review tiếng Nhật ở `docs/README.ja.md`, xóa các marker `<!-- TRANSLATION-REVIEW-NEEDED -->` sau khi review
 
 ### Publish flow
 
 ```bash
-# 1. Bump version đã xong (package.json = 0.3.1)
+# 1. Bump version đã xong (package.json = 0.3.3)
 # 2. Build VSIX final
 npm run package
 
@@ -50,8 +50,8 @@ npm run package:install
 
 # 4. Tag + push để trigger release workflow
 git add -A
-git commit -m "release: v0.3.1 — 4 chat providers + copy button + live resize"
-git tag v0.3.1
+git commit -m "release: v0.3.3 — right-click menu reorganization"
+git tag v0.3.3
 git push origin main --tags
 # Workflow .github/workflows/release.yml sẽ tự package + publish lên VS Code Marketplace qua VSCE_PAT
 
@@ -63,7 +63,7 @@ npm run publish:ovsx
 
 Đã document ở [docs/PLAN_v0.3.1.md §4](./docs/PLAN_v0.3.1.md):
 - Pet desktop quick chat (right-click → input → speech bubble response)
-- Right-click menu functional-area reorganization (AI Chat / Appearance / Voice & Sound / Workflow / Git Shortcuts / Desktop Companion submenus)
+- Chat directly from the desktop pet via speech bubble response / input flow
 
 ---
 

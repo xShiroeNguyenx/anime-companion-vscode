@@ -8,9 +8,9 @@
 
 > ⚠️ **Experimental — v0.3.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.3.1
+**Phiên bản hiện tại:** v0.3.3
 
-> 🆕 **Có gì mới ở v0.3.1**: Thêm **4 provider chat mới** — xAI Grok, DeepSeek, OpenRouter (100+ models), và **Ollama cho chat local/offline không cần API key**. Factory `OpenAICompatibleProvider` mới drive cả 4 provider OpenAI-style từ 1 implementation duy nhất. Command setup được rename thành **Configure Chat Provider** và giờ handle cả API key lẫn endpoint Ollama. Thêm: **nút copy câu trả lời** cho mỗi message của companion (clipboard → checkmark animation), và Live2D model **re-size live theo panel** — kéo panel cao/thấp/rộng thì character tự refit realtime (không còn bị cắt chân).
+> 🆕 **Có gì mới ở v0.3.3**: menu chuột phải của companion giờ được gom lại thành **6 nhóm chức năng** — **Chat AI**, **Diện mạo**, **Âm thanh**, **Quy trình**, **Git**, và **Desktop**. Từ đây bạn có thể mở chat, tạo cuộc trò chuyện mới, hỏi về đoạn code đang chọn, đổi model, dùng các nút Cursor Chibi, hoặc bật các hành động riêng cho Desktop ngay trên pet. Nhãn menu cũng đã được rút gọn và đồng bộ hơn giữa tiếng Anh / Việt / Nhật, đồng thời menu tiếng Việt có thêm font fallback bo tròn riêng để chữ có dấu hiển thị đẹp mà vẫn giữ đúng vibe hiện tại.
 
 ![Anime Companion hero](images/01-hero-companion-panel.png)
 
