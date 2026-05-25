@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -181,7 +181,7 @@
       },
       {
         "command": "animeCompanion.chat.setApiKey",
-        "title": "Set Chat API Key (BYOK)",
+        "title": "Configure Chat Provider (API Key / Endpoint)",
         "category": "Anime Companion"
       },
       {
@@ -557,21 +557,34 @@
             "copilot",
             "anthropic",
             "openai",
-            "gemini"
+            "gemini",
+            "xai",
+            "deepseek",
+            "openrouter",
+            "ollama"
           ],
           "enumDescriptions": [
             "GitHub Copilot via VS Code Language Model API — no API key needed (requires Copilot subscription)",
             "Anthropic Claude (api.anthropic.com) — BYOK",
             "OpenAI GPT (api.openai.com) — BYOK",
-            "Google Gemini (generativelanguage.googleapis.com) — BYOK (free tier available)"
+            "Google Gemini (generativelanguage.googleapis.com) — BYOK (free tier available)",
+            "xAI Grok (api.x.ai) — BYOK, OpenAI-compatible",
+            "DeepSeek (api.deepseek.com) — BYOK, OpenAI-compatible",
+            "OpenRouter gateway (100+ models via openrouter.ai) — BYOK, OpenAI-compatible",
+            "Ollama local server — no API key, configure endpoint via animeCompanion.chat.ollamaEndpoint"
           ],
           "default": "copilot",
-          "description": "LLM provider used for companion chat. Copilot routes through your existing Copilot subscription. BYOK providers store the key securely via the 'Set Chat API Key' command — never paste keys into settings."
+          "description": "LLM provider used for companion chat. Copilot routes through your existing Copilot subscription. Ollama talks to a local server. BYOK providers store the key securely via the 'Configure Chat Provider' command — never paste keys into settings."
+        },
+        "animeCompanion.chat.ollamaEndpoint": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Base URL of the local Ollama server used by the 'ollama' chat provider. Do NOT include /api/chat — the path is appended automatically. Examples: http://localhost:11434, http://192.168.1.10:11434"
         },
         "animeCompanion.chat.model": {
           "type": "string",
           "default": "",
-          "description": "Override model id for the active chat provider. Leave empty to use the provider's default (claude-haiku-4-5-20251001 / gpt-4o-mini / gemini-2.5-flash)."
+          "description": "Override model id for the active chat provider. Leave empty to use the provider's default (e.g. claude-haiku-4-5-20251001 / gpt-4o-mini / gemini-2.5-flash / grok-2-latest / deepseek-chat / openrouter/auto / llama3.2)."
         },
         "animeCompanion.chat.personaPreset": {
           "type": "string",

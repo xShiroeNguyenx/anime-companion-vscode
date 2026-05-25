@@ -43,15 +43,44 @@ export interface LLMProvider {
 }
 
 import { AnthropicProvider } from './providers/anthropic';
-import { OpenAIProvider } from './providers/openai';
+import { OpenAICompatibleProvider } from './providers/openai-compatible';
 import { GeminiProvider } from './providers/gemini';
 import { CopilotProvider } from './providers/copilot';
+import { OllamaProvider } from './providers/ollama';
 
 const PROVIDERS: Record<ProviderId, LLMProvider> = {
   anthropic: new AnthropicProvider(),
-  openai: new OpenAIProvider(),
+  openai: new OpenAICompatibleProvider({
+    id: 'openai',
+    baseUrl: 'https://api.openai.com/v1',
+    defaultModel: 'gpt-4o-mini',
+    displayName: 'OpenAI',
+  }),
   gemini: new GeminiProvider(),
   copilot: new CopilotProvider(),
+  xai: new OpenAICompatibleProvider({
+    id: 'xai',
+    baseUrl: 'https://api.x.ai/v1',
+    defaultModel: 'grok-2-latest',
+    displayName: 'xAI Grok',
+  }),
+  deepseek: new OpenAICompatibleProvider({
+    id: 'deepseek',
+    baseUrl: 'https://api.deepseek.com/v1',
+    defaultModel: 'deepseek-chat',
+    displayName: 'DeepSeek',
+  }),
+  openrouter: new OpenAICompatibleProvider({
+    id: 'openrouter',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    defaultModel: 'openrouter/auto',
+    displayName: 'OpenRouter',
+    extraHeaders: () => ({
+      'HTTP-Referer': 'https://github.com/xShiroeNguyenx/anime-companion-vscode',
+      'X-Title': 'Anime Companion VSCode',
+    }),
+  }),
+  ollama: new OllamaProvider(),
 };
 
 export function getProvider(id: ProviderId): LLMProvider {
@@ -106,5 +135,49 @@ export const PROVIDER_INFO: ProviderInfo[] = [
     ],
     keyHint: 'AIza… — generate at aistudio.google.com/apikey',
     requiresApiKey: true,
+  },
+  {
+    id: 'xai',
+    label: 'xAI Grok — BYOK',
+    defaultModel: 'grok-2-latest',
+    modelExamples: ['grok-2-latest', 'grok-2', 'grok-3', 'grok-beta'],
+    keyHint: 'xai-… — generate at console.x.ai',
+    requiresApiKey: true,
+  },
+  {
+    id: 'deepseek',
+    label: 'DeepSeek — BYOK',
+    defaultModel: 'deepseek-chat',
+    modelExamples: ['deepseek-chat', 'deepseek-reasoner'],
+    keyHint: 'sk-… — generate at platform.deepseek.com',
+    requiresApiKey: true,
+    // deepseek-reasoner emits chain-of-thought via `reasoning_content`. We only
+    // yield the final `delta.content`, so the bubble shows the answer only.
+    notes: 'Reasoner model hides chain-of-thought; only the final answer is rendered.',
+  },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter (100+ models) — BYOK',
+    defaultModel: 'openrouter/auto',
+    modelExamples: [
+      'openrouter/auto',
+      'anthropic/claude-3.5-sonnet',
+      'openai/gpt-4o',
+      'meta-llama/llama-3.3-70b-instruct',
+      'google/gemini-2.0-flash-exp:free',
+      'deepseek/deepseek-chat',
+    ],
+    keyHint: 'sk-or-v1-… — generate at openrouter.ai/keys',
+    requiresApiKey: true,
+    notes: 'Browse full catalog at openrouter.ai/models. Models with the `:free` suffix have no per-token cost.',
+  },
+  {
+    id: 'ollama',
+    label: 'Ollama (local, no key)',
+    defaultModel: 'llama3.2',
+    modelExamples: ['llama3.2', 'llama3.1', 'qwen2.5-coder', 'mistral', 'gemma2', 'phi3'],
+    keyHint: 'No API key — configure endpoint (default http://localhost:11434).',
+    requiresApiKey: false,
+    notes: 'Requires Ollama installed and running locally. Pull a model first with `ollama pull llama3.2`.',
   },
 ];

@@ -334,6 +334,24 @@ export function setupModel() {
     resizeObserver.observe(wrapper);
   }
 
+  // When the user drags the companion, the container gets pinned with
+  // position:fixed + explicit width/height (see beginDrag / applyStoredPanelPosition).
+  // After pinning, the wrapper inside has frozen pixel dimensions, so the
+  // ResizeObserver above never fires when the parent panel is resized.
+  // Re-sync the pinned size to the viewport on window resize AND on body
+  // resize (VS Code's bottom-panel drag doesn't always emit window.resize),
+  // then explicitly refit the model — belt-and-suspenders so the model keeps
+  // following live regardless of which observer chain ends up triggering.
+  const handleViewportChange = () => {
+    syncPinnedContainerSize();
+    fitModel();
+  };
+  window.addEventListener('resize', handleViewportChange);
+  if (typeof ResizeObserver === 'function') {
+    const bodyObserver = new ResizeObserver(handleViewportChange);
+    bodyObserver.observe(document.body);
+  }
+
   state.app.ticker.add(() => updateExpressionTick());
   debugLog('Expression system started');
 
@@ -366,6 +384,35 @@ function applyStoredPanelPosition() {
   container.style.top = y + 'px';
 }
 
+// Keep a pinned (position:fixed) container's width/height in sync with the
+// viewport so the inner wrapper — and the Live2D model rendered into it —
+// follow live panel resize. No-op when the container is still in its default
+// flex layout (rest of CSS handles that case naturally).
+function syncPinnedContainerSize() {
+  const container = document.querySelector('.companion-container');
+  if (!container) return;
+  if (container.style.position !== 'fixed') return;
+
+  const parent = container.parentElement || document.body;
+  const parentRect = parent.getBoundingClientRect();
+  const newWidth = Math.max(1, Math.round(parentRect.width));
+  const newHeight = Math.max(1, Math.round(parentRect.height));
+
+  container.style.width = newWidth + 'px';
+  container.style.height = newHeight + 'px';
+
+  // Clamp left/top so the companion stays inside the viewport after shrink.
+  const left = parseFloat(container.style.left) || 0;
+  const top = parseFloat(container.style.top) || 0;
+  const maxLeft = Math.max(0, window.innerWidth - newWidth);
+  const maxTop = Math.max(0, window.innerHeight - newHeight);
+  container.style.left = Math.min(Math.max(0, left), maxLeft) + 'px';
+  container.style.top = Math.min(Math.max(0, top), maxTop) + 'px';
+
+  // ResizeObserver on the wrapper picks up the dimension change and triggers
+  // fitModel — no explicit call needed.
+}
+
 function applyModelHoverCursor() {
   const wrapper = document.getElementById('characterWrapper');
   const canvas = document.getElementById('live2dCanvas');
@@ -392,20 +439,49 @@ export function fitModel() {
 
   state.app.renderer.resize(w, h);
 
+  // Use the Live2D-designed canvas (originalWidth/Height) as the size source.
+  // PIXI's getLocalBounds() reports the rigging-bone bounds, which under-counts
+  // physics-driven parts (hair sway, skirt, breathing chest motion). Scaling
+  // to those smaller bounds makes the actual rendered character overflow the
+  // panel — most visibly chopping the feet at the bottom when the panel is short.
   const internal = state.model.internalModel;
-  const originalWidth = internal ? (internal.originalWidth || internal.width || 1) : 1;
-  const originalHeight = internal ? (internal.originalHeight || internal.height || 1) : 1;
+  const modelWidth = internal ? (internal.originalWidth || internal.width || 1) : 1;
+  const modelHeight = internal ? (internal.originalHeight || internal.height || 1) : 1;
 
-  const scaleX = w / originalWidth;
-  const scaleY = h / originalHeight;
-  const scale = Math.min(scaleX, scaleY) * 0.9;
+  // Small breathing margin so animation sway (breathing, idle motion) doesn't
+  // poke past the edges. Bottom margin matters most — that's where feet sit.
+  const horizontalPadding = Math.max(8, w * 0.04);
+  const topPadding = Math.max(4, h * 0.015);
+  const bottomPadding = Math.max(6, h * 0.02);
+  const availableWidth = Math.max(1, w - horizontalPadding * 2);
+  const availableHeight = Math.max(1, h - topPadding - bottomPadding);
+
+  const previousX = state.model.x;
+  const previousY = state.model.y;
+  const previousScale = state.model.scale.x || 1;
+
+  const scale = Math.min(availableWidth / modelWidth, availableHeight / modelHeight);
+  const scaledWidth = modelWidth * scale;
+  const scaledHeight = modelHeight * scale;
 
   state.model.scale.set(scale);
-  state.model.anchor.set(0.5, 1.0);
-  state.model.x = w / 2;
-  state.model.y = h;
+  // Live2D canvas origin is top-left at (0,0). Center horizontally; pin the
+  // canvas bottom edge inside `bottomPadding` so the feet never get clipped.
+  state.model.x = (w - scaledWidth) / 2;
+  state.model.y = h - bottomPadding - scaledHeight;
 
-  debugLog('Fit: scale=' + scale.toFixed(4) + ', pos=(' + state.model.x + ',' + state.model.y + ')');
+  if (!Number.isFinite(state.model.x) || !Number.isFinite(state.model.y)) {
+    state.model.scale.set(previousScale);
+    state.model.position.set(previousX, previousY);
+    debugLog('Fit fallback: restored previous transform because computed position was invalid');
+    return;
+  }
+
+  debugLog(
+    'Fit: scale=' + scale.toFixed(4) +
+    ', model=' + modelWidth + 'x' + modelHeight +
+    ', pos=(' + state.model.x.toFixed(2) + ',' + state.model.y.toFixed(2) + ')'
+  );
 }
 
 function setupContextMenu() {

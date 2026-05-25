@@ -1,6 +1,72 @@
 # 🌸 Anime Companion VS Code Extension — Features Documentation
 
-Tài liệu mô tả chi tiết các tính năng đã được lập trình và tích hợp tính đến **v0.3.0** (cập nhật 2026-05-13). Roadmap chi tiết ở [PLAN.md](./PLAN.md), tiến độ ở [CHECKLIST.md](./CHECKLIST.md), lệnh build/release ở [DEV_COMMANDS.md](./DEV_COMMANDS.md). Kế hoạch tổng quan chat ở [docs/AI_CHAT_PLAN.md](./docs/AI_CHAT_PLAN.md).
+Tài liệu mô tả chi tiết các tính năng đã được lập trình và tích hợp tính đến **v0.3.1** (cập nhật 2026-05-25). Roadmap chi tiết ở [PLAN.md](./PLAN.md), tiến độ ở [CHECKLIST.md](./CHECKLIST.md), lệnh build/release ở [DEV_COMMANDS.md](./DEV_COMMANDS.md). Kế hoạch tổng quan chat ở [docs/AI_CHAT_PLAN.md](./docs/AI_CHAT_PLAN.md). Implementation plan v0.3.1 ở [docs/PLAN_v0.3.1.md](./docs/PLAN_v0.3.1.md).
+
+---
+
+## ⭐ What's new in v0.3.1
+
+v0.3.1 mở rộng 4 → 8 providers, không duplicate code nhờ abstraction mới, và polish UX chat + Live2D. Section dưới cùng deep-dive từng phần; section `0. AI Chat Companion` bên dưới vẫn mô tả core v0.3.0 (giữ làm reference).
+
+### 4 provider mới
+
+| Provider | Default model | API key | Endpoint | Notes |
+|---|---|---|---|---|
+| **xAI Grok** | `grok-2-latest` | ✅ | `https://api.x.ai/v1` (OpenAI-compatible) | Streaming qua SSE giống OpenAI, share toàn bộ logic. Key prefix `xai-…` từ console.x.ai. |
+| **DeepSeek** | `deepseek-chat` | ✅ | `https://api.deepseek.com/v1` | OpenAI-compatible. Model `deepseek-reasoner` có chain-of-thought trong `reasoning_content` — extension cố ý KHÔNG yield field này để bubble không phình với CoT (chỉ render final answer, giống Gemini 2.5 thinking). |
+| **OpenRouter** | `openrouter/auto` | ✅ | `https://openrouter.ai/api/v1` | Gateway 100+ models. 1 key dùng được Claude / GPT / Llama / Gemini / DeepSeek / ... Models có suffix `:free` không tính phí. Header `HTTP-Referer` + `X-Title` gắn cho dashboard attribution. Key prefix `sk-or-v1-…`. |
+| **Ollama (local)** | `llama3.2` | ❌ | `animeCompanion.chat.ollamaEndpoint` (default `http://localhost:11434`) | NDJSON streaming (không phải SSE) qua `POST /api/chat`. Đọc endpoint live mỗi request — đổi setting không cần reload. Token usage map từ `prompt_eval_count` + `eval_count` chunk cuối. Friendly ECONNREFUSED error → gợi ý `ollama serve` + `ollama pull`. |
+
+### `OpenAICompatibleProvider` abstraction ([src/chat/providers/openai-compatible.ts](src/chat/providers/openai-compatible.ts))
+
+Tách core stream logic của OpenAI ra factory class — config per-instance:
+
+```ts
+interface OpenAICompatConfig {
+  id: ProviderId;
+  baseUrl: string;            // KHÔNG bao gồm /chat/completions
+  defaultModel: string;
+  extraHeaders?: () => Record<string, string>;  // OpenRouter HTTP-Referer + X-Title
+  displayName?: string;
+}
+```
+
+Cùng class drive 4 providers (OpenAI + xAI + DeepSeek + OpenRouter). Eliminate 3× duplication. File cũ `src/chat/providers/openai.ts` deleted — registry chỉ tạo factory instance.
+
+### `Configure Chat Provider` command
+
+Command id giữ nguyên `animeCompanion.chat.setApiKey` (backwards-compat cho keybindings). Title rename `Set Chat API Key (BYOK)` → `Configure Chat Provider (API Key / Endpoint)`. Flow branch theo provider:
+
+- `copilot` — không xuất hiện trong picker (no config).
+- `ollama` — InputBox cho endpoint URL với validate `^https?://.+`, normalize trailing `/`, save vào `chat.ollamaEndpoint` setting (`ConfigurationTarget.Global`).
+- Còn lại (BYOK) — InputBox masked cho API key, lưu `vscode.SecretStorage`.
+
+`ProviderId` type extend 4 → 8 ids. `needsKey()` refactor sang Set check (`NO_KEY_PROVIDERS = {copilot, ollama}`). `hasAny()` dùng explicit `BYOK_PROVIDERS` list để không nhầm khi thêm no-key providers sau.
+
+### Copy-reply button
+
+Mỗi assistant message bubble có nút copy nhỏ ở góc bottom-right ([media/webview/chat.js](media/webview/chat.js) — `buildMessageCopyButton`). Hidden khi đang streaming (CSS `.chat-msg.streaming .chat-msg-copy { display: none }`). Click → checkmark icon pop-in với keyframe `chat-msg-copy-pop` (260ms, easing `cubic-bezier(0.34, 1.56, 0.64, 1)`), background xanh 1.4 s, rồi revert.
+
+Source copy text được stash vào `el.dataset.copySource` (raw markdown) thay vì đọc `innerText` — tránh dính label "Copy" từ code-block buttons.
+
+### Live panel resize cho Live2D model
+
+Fix 2 bug trong `fitModel()` ([media/webview/interaction.js](media/webview/interaction.js)):
+
+1. **Feet clipping**: `getLocalBounds()` chỉ report rigging-bone bounds, miss physics parts (hair sway, váy). Khi panel thấp + scale tính theo bounds (đã bé hơn thực tế), model render to hơn không gian dự kiến → chân tràn xuống dưới. Switched sang `internalModel.originalWidth/Height` (Live2D-designed canvas = authoritative). Thêm `bottomPadding = max(6, h*0.02)` cho breathing room.
+
+2. **Drag-pinned container không follow panel resize**: Sau khi drag companion, container chuyển `position: fixed` + cứng `width: Xpx; height: Ypx`. Wrapper bên trong cũng cứng → existing `ResizeObserver` trên wrapper không fire khi parent resize. Thêm window-level `resize` listener + body-level `ResizeObserver` → `syncPinnedContainerSize()` update pinned dimensions theo parent, clamp `left/top` để không out-of-viewport, rồi explicitly refit. No-op khi container ở default flex layout.
+
+### Tri-lingual documentation
+
+README ship trong 3 ngôn ngữ với language switcher header:
+- [README.md](README.md) — **English** (source of truth cho marketplace listing)
+- [docs/README.vi.md](docs/README.vi.md) — **Tiếng Việt**
+- [docs/README.ja.md](docs/README.ja.md) — **日本語**
+
+Sync convention: EN là source of truth. 2 file non-EN có header comment `<!-- Source of truth: ../README.md -->`. JA file có thêm `<!-- TRANSLATION-REVIEW-NEEDED -->` marker ở section nhiều idiom.
+
+Screenshot manifest [docs/images/README.md](docs/images/README.md) — 12 ảnh placeholder với capture specs. `docs/images/**` thêm vào `package.json` `files` array để bundle vào VSIX.
 
 ---
 

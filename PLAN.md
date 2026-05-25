@@ -1,9 +1,17 @@
 # 📋 Roadmap Phát Triển — Anime Companion
 
-**Phiên bản hiện tại:** v0.1.27  
-**Cập nhật:** 2026-05-05
+**Phiên bản hiện tại:** v0.3.1
+**Cập nhật:** 2026-05-25
 
 Tài liệu này theo dõi định hướng phát triển của extension. Các tính năng đã ship được liệt kê chi tiết trong [FEATURES.md](./FEATURES.md), tiến độ task ở [CHECKLIST.md](./CHECKLIST.md), và lịch sử release ở [CHANGELOG.md](./CHANGELOG.md).
+
+> **Note**: Section "Tình trạng hiện tại" bên dưới được viết cho v0.1.27 và chưa sync với v0.3.x. Đọc [FEATURES.md](./FEATURES.md) + [CHANGELOG.md](./CHANGELOG.md) cho danh sách tính năng đúng up-to-date. Section dưới giữ làm reference roadmap dài hạn.
+
+**v0.3.1 highlights** (chi tiết ở [docs/PLAN_v0.3.1.md](./docs/PLAN_v0.3.1.md)):
+- 4 chat providers mới (xAI Grok, DeepSeek, OpenRouter, Ollama) qua `OpenAICompatibleProvider` abstraction.
+- Tri-lingual README (EN/VI/JA) với language switcher.
+- Polish: copy-reply button cho assistant message, Live2D model live resize theo panel.
+- **Deferred v0.4.0**: pet desktop quick chat + right-click menu reorganization (xem [docs/PLAN_v0.3.1.md §4](./docs/PLAN_v0.3.1.md)).
 
 ---
 

@@ -810,11 +810,67 @@ function buildMessageEl(role, content) {
   body.className = 'chat-msg-body';
   renderInto(body, content);
 
+  // Small copy button at the bottom-right of every finalized assistant reply.
+  // Hidden during streaming (CSS toggles via `.chat-msg.streaming`) so it can't
+  // be tapped while the text is still arriving. The raw markdown source is
+  // stashed on the message element so the button copies plain text (no code-
+  // block button labels, no rendered HTML noise).
+  if (role === 'assistant') {
+    el.dataset.copySource = content || '';
+    body.appendChild(buildMessageCopyButton(el));
+  }
+
   content_wrap.appendChild(roleLabel);
   content_wrap.appendChild(body);
   el.appendChild(avatar);
   el.appendChild(content_wrap);
   return el;
+}
+
+// Codicon-style clipboard glyph (default state).
+const COPY_ICON_CLIPBOARD =
+  '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">'
+  + '<path fill="currentColor" d="M4 1.5A1.5 1.5 0 0 1 5.5 0h5A1.5 1.5 0 0 1 12 1.5V2h1.5A1.5 1.5 0 0 1 15 3.5v11A1.5 1.5 0 0 1 13.5 16h-9A1.5 1.5 0 0 1 3 14.5V3.5A1.5 1.5 0 0 1 4.5 2H5v-.5h-1zm1 .5v1h6v-1h-6zm-.5 2A.5.5 0 0 0 4 4.5v10a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-10a.5.5 0 0 0-.5-.5h-9z"/>'
+  + '</svg>';
+// Bold checkmark for the "copied" confirmation flash.
+const COPY_ICON_CHECK =
+  '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">'
+  + '<path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M3 8.5l3.2 3.2L13 5"/>'
+  + '</svg>';
+
+function buildMessageCopyButton(messageEl) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'chat-msg-copy';
+  btn.title = 'Copy reply';
+  btn.setAttribute('aria-label', 'Copy reply');
+  btn.innerHTML = COPY_ICON_CLIPBOARD;
+  btn.addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    const src = messageEl.dataset.copySource
+      || messageEl.querySelector('.chat-msg-body')?.innerText
+      || '';
+    if (!src.trim()) return;
+    try {
+      await navigator.clipboard.writeText(src);
+      btn.classList.add('copied');
+      btn.innerHTML = COPY_ICON_CHECK;
+      btn.title = 'Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = COPY_ICON_CLIPBOARD;
+        btn.title = 'Copy reply';
+      }, 1400);
+    } catch {
+      btn.classList.add('failed');
+      btn.title = 'Copy failed';
+      setTimeout(() => {
+        btn.classList.remove('failed');
+        btn.title = 'Copy reply';
+      }, 1500);
+    }
+  });
+  return btn;
 }
 
 function beginStreaming(streamId) {
@@ -856,17 +912,29 @@ function appendStreamingDelta(delta) {
 function finishStreaming(data) {
   if (!state.streaming) return;
   const el = state.streaming.element;
+  const bodyEl = state.streaming.bodyEl;
   if (el) el.classList.remove('streaming');
   // Use authoritative content from the host (may include "(cancelled)" suffix
   // or extra punctuation that didn't come through deltas).
-  if (data?.message?.content && state.streaming.bodyEl) {
+  if (data?.message?.content && bodyEl) {
     state.streaming.text = data.message.content;
-    renderInto(state.streaming.bodyEl, state.streaming.text);
+    renderInto(bodyEl, state.streaming.text);
   } else if (data?.error && !state.streaming.text && el) {
     // Errored before any chunk arrived — drop the empty bubble entirely so
     // the user doesn't see a misleading "(empty response)" placeholder. The
     // error itself surfaces in the status bar below.
     el.remove();
+    state.streaming = null;
+    return;
+  }
+  // Stash the raw markdown source so the copy button yields plain text instead
+  // of the rendered DOM (which would interleave code-block "Copy" labels).
+  // Then re-attach the copy button — every appendStreamingDelta / renderInto
+  // call above wipes the body's children, including any previously attached
+  // button.
+  if (el && bodyEl && state.streaming.text) {
+    el.dataset.copySource = state.streaming.text;
+    bodyEl.appendChild(buildMessageCopyButton(el));
   }
   state.streaming = null;
 }

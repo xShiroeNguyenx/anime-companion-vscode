@@ -583,20 +583,26 @@ function extractMentions(prompt: string): string[] {
   return out;
 }
 
-// Interactive command flow: pick a BYOK provider, paste the key, store in
-// SecretStorage. Copilot is omitted because it doesn't take a key.
+// Interactive command flow: pick a provider, then either paste an API key
+// (BYOK providers) or set an endpoint URL (Ollama). Copilot is omitted because
+// it authenticates through vscode.lm — no configuration step on our side.
 export async function runSetApiKeyCommand(secrets: ChatSecrets): Promise<void> {
-  const byokOptions = PROVIDER_INFO.filter((p) => p.requiresApiKey).map((p) => ({
+  const configurable = PROVIDER_INFO.filter((p) => p.id !== 'copilot').map((p) => ({
     label: p.label,
     description: p.keyHint,
     id: p.id,
   }));
 
-  const pick = await vscode.window.showQuickPick(byokOptions, {
-    placeHolder: 'Pick the provider whose API key you want to set',
-    title: 'Anime Companion: Set Chat API Key',
+  const pick = await vscode.window.showQuickPick(configurable, {
+    placeHolder: 'Pick the provider you want to configure',
+    title: 'Anime Companion: Configure Chat Provider',
   });
   if (!pick) return;
+
+  if (pick.id === 'ollama') {
+    await configureOllamaEndpoint();
+    return;
+  }
 
   const value = await vscode.window.showInputBox({
     prompt: `Paste your ${pick.label} API key. It will be stored in VS Code's encrypted secret storage.`,
@@ -622,5 +628,26 @@ export async function runSetApiKeyCommand(secrets: ChatSecrets): Promise<void> {
   // Copilot the first time they curiously paste a key.
   vscode.window.showInformationMessage(
     `Saved API key for ${pick.label}. Pick "${pick.label}" from the chat panel's provider dropdown when you want to use it.`
+  );
+}
+
+async function configureOllamaEndpoint(): Promise<void> {
+  const cfg = vscode.workspace.getConfiguration('animeCompanion');
+  const current = cfg.get<string>('chat.ollamaEndpoint', 'http://localhost:11434');
+
+  const next = await vscode.window.showInputBox({
+    prompt: 'Ollama server endpoint. Do NOT include /api/chat — the path is appended automatically.',
+    value: current,
+    placeHolder: 'http://localhost:11434',
+    ignoreFocusOut: true,
+    validateInput: (v) =>
+      v && /^https?:\/\/.+/.test(v.trim()) ? null : 'Must start with http:// or https://',
+  });
+  if (next === undefined) return;
+
+  const normalized = next.trim().replace(/\/+$/, '');
+  await cfg.update('chat.ollamaEndpoint', normalized, vscode.ConfigurationTarget.Global);
+  vscode.window.showInformationMessage(
+    `Ollama endpoint saved: ${normalized}. Pick "Ollama" from the chat panel's provider dropdown to use it.`
   );
 }

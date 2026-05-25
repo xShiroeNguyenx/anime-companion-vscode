@@ -1,14 +1,18 @@
 # 🌸 Anime Companion for VS Code
 
-> Một bạn đồng hành Live2D dễ thương ngự ngay trong VS Code, phản ứng theo lúc bạn code: lỗi, save, commit, build, debug, Pomodoro… **và giờ có thể chat với bạn qua GitHub Copilot hoặc API key của bạn** (Anthropic / OpenAI / Gemini).
+> **Language**: **English** · [Tiếng Việt](docs/README.vi.md) · [日本語](docs/README.ja.md)
 
-> ⚠️ **Experimental — v0.3.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
+> A cute Live2D companion that lives in your VS Code panel and reacts to your coding flow — errors, saves, commits, builds, debug sessions, Pomodoro… **and now chats with you** through GitHub Copilot or your own API key (Anthropic / OpenAI / Gemini / xAI / DeepSeek / OpenRouter / Ollama).
 
-**Phiên bản hiện tại:** v0.3.0
+> ⚠️ **Experimental — v0.3.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-> 🆕 **v0.3.0**: AI Chat Companion — chat trực tiếp với companion qua GitHub Copilot (không cần API key) hoặc BYOK Anthropic/OpenAI/Gemini. Streaming, multi-conversation, context-aware (selection / file / `#mention`), sentiment-driven Live2D reactions. Xem section [💬 AI Chat](#-ai-chat-companion-mới-trong-v030) bên dưới.
+**Current version:** v0.3.1
 
-## 📦 Cài đặt
+> 🆕 **What's new in v0.3.1**: **4 new chat providers** — xAI Grok, DeepSeek, OpenRouter (100+ models), and **Ollama for local/offline chat with no API key**. New `OpenAICompatibleProvider` factory drives all 4 OpenAI-style providers from a single implementation. Setup command renamed to **Configure Chat Provider** and now handles both API keys and the Ollama endpoint. Plus: **copy-reply button** on every assistant message (clipboard → checkmark animation), and the Live2D model now **resizes live with the panel** — drag the bottom panel taller/shorter and the character refits in real time (no more clipped feet).
+
+![Anime Companion hero](docs/images/01-hero-companion-panel.png)
+
+## 📦 Install
 
 ### VS Code (Microsoft Marketplace)
 ```bash
@@ -19,164 +23,206 @@ code --install-extension shiroenguyen.anime-companion-vscode
 ```bash
 code --install-extension shiroenguyen.anime-companion-vscode
 ```
-Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroenguyen/anime-companion-vscode) → `code --install-extension <file>`.
+Or download the `.vsix` from the [Open VSX page](https://open-vsx.org/extension/shiroenguyen/anime-companion-vscode) → `code --install-extension <file>`.
 
-### Manual install (mọi VS Code-based editor)
-1. Tải `.vsix` mới nhất từ [GitHub Releases](https://github.com/xShiroeNguyenx/anime-companion-vscode/releases).
-2. Trong editor: `Ctrl+Shift+P` → **Extensions: Install from VSIX...** → chọn file vừa tải.
+### Manual install (any VS Code-based editor)
+1. Grab the latest `.vsix` from [GitHub Releases](https://github.com/xShiroeNguyenx/anime-companion-vscode/releases).
+2. In the editor: `Ctrl+Shift+P` → **Extensions: Install from VSIX...** → pick the downloaded file.
 
 ---
 
-## ✨ Tính năng nổi bật
+## ✨ Features
 
-### 💬 AI Chat Companion (mới trong v0.3.0)
-- **Chat trực tiếp với companion** qua panel slide-in cạnh Live2D character. Hỏi về code đang viết, lấy ý tưởng, học framework mới — companion giữ persona anime trong khi trả lời.
-- **4 LLM provider** với 1 default no-key:
-  - 🟢 **GitHub Copilot (mặc định, không cần API key)** — dùng subscription Copilot có sẵn qua `vscode.lm`. Hỗ trợ mọi model Copilot expose: gpt-4o, claude-3.5/3.7-sonnet, gemini-1.5-pro, o1-mini…
-  - 🤖 **Anthropic Claude — BYOK**: claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5.
-  - 🤖 **OpenAI GPT — BYOK**: gpt-4o, gpt-4o-mini, o1-mini.
-  - 🤖 **Google Gemini — BYOK** (free tier khả thi): gemini-2.5-flash/pro/flash-lite, gemini-2.0-flash.
-- **BYOK an toàn**: API keys lưu trong VS Code SecretStorage (OS keychain encrypted). Webview không bao giờ thấy key.
-- **Streaming token-by-token** với sparkle caret ✨ + thinking dots animation 3 chấm hồng khi đợi response.
-- **Multi-conversation**: persist history qua restart, list/rename/delete trong sidebar, active conversation per-workspace.
-- **Context awareness**:
-  - 📌 Toggle attach editor selection.
-  - 📄 Toggle attach toàn bộ active file.
-  - `#filename` — autocomplete picker file trong workspace.
-  - Right-click code → "Ask Companion About Selection" → stage selection + open chat.
-- **Sentiment reactions**: companion thật sự visibly phản ứng — câu trả lời vui → `TapBody` + happy mood; thinking → `TapHead` + idle; lỗi/buồn → sleepy.
-- **Persona**: 4 preset (`cute` / `professional` / `tsundere` / `energetic`) hoặc custom system prompt riêng.
-- **Avatar + tên** lấy từ Live2D model đang dùng — assistant bubble hiển thị "Hiyori" hoặc "Miara" thay vì "Companion" generic.
+### 💬 AI Chat Companion
 
-Quick start:
-1. Mở panel Anime Companion (bottom panel hoặc `Ctrl+Shift+P` → `Anime Companion: Show`).
-2. Click nút 💬 góc dưới phải để mở chat panel.
-3. Mặc định provider là **GitHub Copilot** — chỉ cần đã sign in Copilot trong VS Code là gõ câu hỏi và Send.
-4. Muốn dùng BYOK? Click ⚙ → đổi provider → click 🔑 → paste key.
+![Chat panel streaming](docs/images/03-chat-panel-streaming.png)
+
+- **Chat directly with the companion** through a slide-in panel next to the Live2D character. Ask about the code you're writing, brainstorm ideas, learn a new framework — the companion stays in its anime persona while answering.
+- **8 LLM providers, one default needs no key:**
+  - 🟢 **GitHub Copilot (default, no API key)** — uses your existing Copilot subscription via `vscode.lm`. Supports every model Copilot exposes: gpt-4o, claude-3.5/3.7-sonnet, gemini-1.5-pro, o1-mini, …
+  - 🤖 **Anthropic Claude (BYOK)** — claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5.
+  - 🤖 **OpenAI GPT (BYOK)** — gpt-4o, gpt-4o-mini, o1-mini.
+  - 🤖 **Google Gemini (BYOK, free tier)** — gemini-2.5-flash/pro/flash-lite, gemini-2.0-flash.
+  - 🆕 **xAI Grok (BYOK)** — grok-2-latest, grok-3, grok-beta.
+  - 🆕 **DeepSeek (BYOK)** — deepseek-chat, deepseek-reasoner (chain-of-thought hidden).
+  - 🆕 **OpenRouter (BYOK)** — gateway to 100+ models including `:free` tier (Claude, GPT, Llama, Gemini, DeepSeek, …) through a single key.
+  - 🆕 **Ollama (local, no key)** — talks to a local Ollama server (default `http://localhost:11434`). Fully offline. Pull any model with `ollama pull llama3.2`.
+
+![Provider picker](docs/images/04-chat-provider-picker.png)
+
+- **Secure BYOK**: API keys are stored in VS Code SecretStorage (OS keychain encrypted). The webview never sees the key.
+- **Streaming token-by-token** with a sparkle caret ✨ and 3-dot pink thinking animation while waiting.
+- **Multi-conversation**: history persists across restarts. List / rename / delete in the sidebar. Active conversation pinned per-workspace.
+- **Context awareness:**
+  - 📌 Toggle to attach editor selection.
+  - 📄 Toggle to attach the whole active file.
+  - `#filename` autocomplete picker scoped to the workspace.
+  - Right-click code → "Ask Companion About Selection" → stages selection + opens chat.
+
+![Context mention](docs/images/05-chat-context-mention.png)
+
+- **Sentiment reactions**: the companion visibly reacts to its own reply — happy answer → `TapBody` + happy mood; thinking → `TapHead` + idle; sad/error → sleepy.
+- **Copy reply** with one click: every finalised assistant bubble shows a small clipboard icon at the bottom-right (hidden during streaming). Click swaps to a checkmark with a pop animation and the bubble flashes green. Copies the raw markdown source — code-block "Copy" buttons inside the reply don't leak into the clipboard.
+- **Persona**: 4 presets (`cute` / `professional` / `tsundere` / `energetic`) or a fully custom system prompt.
+- **Avatar + name** come from the current Live2D model — assistant bubble shows "Hiyori" or "Miara" instead of a generic "Companion".
+
+**Quick start:**
+1. Open the Anime Companion panel (bottom panel or `Ctrl+Shift+P` → `Anime Companion: Show`).
+2. Click the 💬 button in the bottom-right to open the chat panel.
+3. The default provider is **GitHub Copilot** — if you're already signed in to Copilot in VS Code, just type and Send.
+4. Want to use BYOK or Ollama? Click ⚙ → pick a provider → click 🔑 → paste the key (or set the endpoint for Ollama).
 
 ### 🎭 Live2D Companion
-- **4 model Live2D Sample** dùng Free Material License: **Hiyori**, **Haru**, **Mao**, **Miara**. Hiyori bundled trong `.vsix`, 3 model còn lại lazy download lần đầu chọn.
-- Render bằng `pixi-live2d-display` + Cubism Core qua local HTTP server (bypass CSP của VS Code).
-- Có fallback ảnh tĩnh nếu Live2D load lỗi.
-- Expression blending mượt qua PIXI ticker — chuyển trạng thái cảm xúc không bị giật.
-- Có thể thêm model local do chính user tự tải về qua setting `animeCompanion.customModelRoots` hoặc `animeCompanion.customModels` (xem [MODEL_LICENSE_AUDIT.md](MODEL_LICENSE_AUDIT.md)).
-- Nếu đang mở workspace, model được lưu theo từng workspace; có command reset về global model.
+
+![Live2D models](docs/images/02-live2d-models-gallery.png)
+
+- **4 Live2D Sample models** under Free Material License: **Hiyori**, **Haru**, **Mao**, **Miara**. Hiyori is bundled in the `.vsix`; the other three lazy-download the first time you pick them.
+- Rendered via `pixi-live2d-display` + Cubism Core through a local HTTP server (to bypass VS Code's CSP).
+- **Live panel resize**: drag the VS Code panel taller/shorter/wider and the character refits in real time. Works both in default flex layout and after you've dragged the companion to a custom spot — feet never clip thanks to a small bottom breathing margin for animation sway.
+- Falls back to a static image if Live2D fails to load.
+- Smooth expression blending through PIXI ticker — mood transitions don't jitter.
+- Add your own local models via `animeCompanion.customModelRoots` or `animeCompanion.customModels` (see [MODEL_LICENSE_AUDIT.md](MODEL_LICENSE_AUDIT.md)).
+- When you have a workspace open, the model is remembered per-workspace; there's a command to reset back to your global model.
 
 ### 🐥 Cursor Chibi
-- Có thể bật **chibi sprite bám theo con trỏ editor** bằng `Anime Companion: Toggle Cursor Chibi` hoặc setting `animeCompanion.cursorChase.enabled`.
-- Có command `Anime Companion: Tune Cursor Chibi Position` để chỉnh live theo `Up/Down/Left/Right`, tăng giảm size, rồi lưu vào settings global.
-- Có thể **capture chibi trực tiếp từ model Live2D đang render** bằng `Anime Companion: Capture Chibi from Model`; extension sẽ auto-crop nền trong suốt, scale gọn, rồi dùng ngay làm sprite cho model hiện tại.
-- Có command `Anime Companion: Reset Captured Chibi` để xoá PNG đã capture và fallback về icon bundled.
-- Chibi chỉ bám theo editor thật (`file`, `untitled`, `vscode-userdata`) để tránh leak sang Output / Debug Console.
+
+![Cursor chibi](docs/images/07-cursor-chibi.png)
+
+- Toggle a **chibi sprite that follows the editor cursor** via `Anime Companion: Toggle Cursor Chibi` or the `animeCompanion.cursorChase.enabled` setting.
+- `Anime Companion: Tune Cursor Chibi Position` lets you nudge it live with `Up/Down/Left/Right` + resize, then saves to global settings.
+- **Capture a chibi directly from the rendered Live2D model** via `Anime Companion: Capture Chibi from Model`. The extension auto-crops the transparent background, scales it down, and uses it as the sprite for the active model.
+- `Anime Companion: Reset Captured Chibi` clears the captured PNG and falls back to the bundled icon.
+- The chibi only follows real editors (`file`, `untitled`, `vscode-userdata`) to avoid leaking into Output / Debug Console.
 
 ### 🪟 Desktop Companion (Windows v1)
-- Có thể chạy companion thành **cửa sổ desktop nổi riêng** thay vì chỉ nằm trong panel của VS Code.
-- Bật bằng setting `animeCompanion.desktopCompanion.enabled`, sau đó reload window để áp dụng.
-- Khi Desktop Companion bật, panel trong VS Code sẽ tự ẩn để tránh chạy 2 instance Live2D cùng lúc.
-- Binary desktop pet được **lazy download** từ GitHub Releases ở lần bật đầu tiên; có thể override bằng `animeCompanion.desktopCompanion.devBinaryPath` khi test local.
-- Hỗ trợ các tùy chọn `alwaysOnTop`, `clickThrough`, `size`, `position`, `opacity`.
-- v1 hiện **Windows-only**. Mac/Linux chưa ship binary chính thức ở bản này.
 
-### 💫 Tương tác đa dạng
-- **Single Click** — chạm nhẹ (Surprised).
-- **Double / Triple Click** — vui vẻ (Happy).
-- **Long Press > 0.8s** — Headpat → Shy → Love kèm hiệu ứng trái tim.
-- **Spam Click** — companion sẽ cáu (Angry) "Đừng bấm nữa!".
+![Desktop pet](docs/images/06-desktop-pet-window.png)
 
-### 🔊 Audio + Lip-sync 3 ngôn ngữ
-- **Japanese (ja)** — VoiceVox Shikoku Metan, giọng anime Nhật.
-- **Tiếng Việt (vi)** — bundled lines + extended voice assets lazy-download khi cần.
-- **English (en)** — bundled lines + extended voice assets lazy-download khi cần.
-- Bubble message và voice tách riêng: có thể để voice `ja` nhưng text `vi` / `en` / `ja`.
-- Tự động nhép môi qua `model.speak()`, fallback HTML5 Audio nếu PIXI Audio plugin gặp sự cố.
-- Có thể tắt extended voice assets bằng `animeCompanion.voiceAssets.enableExtended` nếu muốn chỉ dùng audio bundled.
+- Run the companion as a **floating desktop window** instead of just inside the VS Code panel.
+- Enable with `animeCompanion.desktopCompanion.enabled`, then reload the window.
+- When Desktop Companion is on, the VS Code panel auto-hides so you don't have two Live2D instances at once.
+- The desktop pet binary is **lazy-downloaded** from GitHub Releases on first launch. Override with `animeCompanion.desktopCompanion.devBinaryPath` for local testing.
+- Supports `alwaysOnTop`, `clickThrough`, `size`, `position`, `opacity`.
+- v1 is **Windows-only**. Mac/Linux binaries are planned for a later release.
+
+### 💫 Interactions
+
+- **Single Click** — gentle touch (Surprised).
+- **Double / Triple Click** — happy (Happy).
+- **Long Press > 0.8s** — Headpat → Shy → Love with heart effects.
+- **Spam Click** — angry response ("Stop poking me!").
+
+### 🔊 Audio + Lip-sync in 3 languages
+
+- **Japanese (ja)** — VoiceVox Shikoku Metan, anime-style JP voice.
+- **Vietnamese (vi)** — bundled lines + extended voice assets lazy-downloaded when needed.
+- **English (en)** — bundled lines + extended voice assets lazy-downloaded when needed.
+- Bubble text and voice are independent: voice can be `ja` while text is `vi` / `en` / `ja`.
+- Automatic lip-sync via `model.speak()`, falls back to HTML5 Audio if the PIXI Audio plugin hiccups.
+- Disable extended voice assets with `animeCompanion.voiceAssets.enableExtended` if you only want the bundled audio.
 
 ### 🎧 Background Ambient
-- Có sẵn **3 preset ambient**: **Lofi**, **Rain**, **Cafe** để bật nhạc nền/không khí làm việc ngay trong companion.
-- Ambient phát loop riêng với voice của companion, nên vẫn nghe được reaction voice + nhạc nền cùng lúc.
-- Có thể tắt hẳn bằng preset `off` hoặc chỉnh volume bằng `animeCompanion.ambientVolume`.
-- Hỗ trợ thêm **custom local ambient tracks** qua setting `animeCompanion.customAmbientTracks`.
 
-### 🤖 Reactive Engine — phản ứng theo môi trường code
-| Sự kiện | Phản ứng |
+![Ambient menu](docs/images/10-ambient-menu.png)
+
+- **3 built-in presets**: **Lofi**, **Rain**, **Cafe**.
+- Ambient loops independently from the companion's voice, so you hear reaction lines AND background music at the same time.
+- Turn off entirely with the `off` preset, or adjust volume via `animeCompanion.ambientVolume`.
+- Add **custom local ambient tracks** via `animeCompanion.customAmbientTracks`.
+
+### 🤖 Reactive Engine — reacts to your coding environment
+
+| Event | Reaction |
 |---|---|
-| Lỗi tăng / giảm trong Problems panel | Bubble than vãn / khen ngợi |
-| Save spam (Ctrl+S liên tục) | "Ctrl+S warrior detected! 🛡️" |
-| Typing nhanh | "Speed coding mode activated! 💨" |
-| Gõ `TODO` / `FIXME` / `console.log` | Easter egg riêng cho từng keyword |
-| Từ khoá custom do user định nghĩa | Bubble riêng theo `animeCompanion.customKeywords` |
-| Build success / fail | "Build OK! 🎉" / "Toang rồi 😭" |
+| Errors increase / decrease in Problems panel | Whine / praise bubble |
+| Save spam (Ctrl+S repeatedly) | "Ctrl+S warrior detected! 🛡️" |
+| Fast typing | "Speed coding mode activated! 💨" |
+| Typing `TODO` / `FIXME` / `console.log` | Easter egg per keyword |
+| User-defined custom keywords | Custom bubble via `animeCompanion.customKeywords` |
+| Build success / fail | "Build OK! 🎉" / "Broken! 😭" |
 | Debug start / stop | "Detective mode: ON 🕵️" |
-| Đổi git branch | "Đổi branch rồi à? 🌿" |
-| Commit mới | "Nice commit! 💪" |
-| Merge conflict | "Merge conflict kìa! 😨" |
-| Nhiều file uncommitted | "{count} files thay đổi rồi, commit sớm nha!" |
-| Code 30 phút liên tục | Nhắc nghỉ ngơi, uống nước |
-| Ít hoạt động / nhiều lỗi / vừa code sung | Đổi mood `sleepy` / `angry` / `happy` |
+| Git branch switch | "Switched branch? 🌿" |
+| New commit | "Nice commit! 💪" |
+| Merge conflict | "Merge conflict over there! 😨" |
+| Many uncommitted files | "{count} files changed, commit soon!" |
+| 30 min of continuous coding | Break reminder, drink water |
+| Idle / many errors / coding streak | Mood swaps to `sleepy` / `angry` / `happy` |
 
-Mỗi kênh đều có thể bật/tắt độc lập qua settings.
+Every channel can be toggled independently in settings.
 
 ### 🏆 Achievements
-- Tự unlock khi đạt mốc: `save50`, `save100`, `error_fix_10`, `error_fix_50`, `coding_1h`, `coding_3h`, `commit10`.
-- Có command xem danh sách achievements đã mở / chưa mở ngay trong VS Code.
+
+![Achievements](docs/images/09-achievements-panel.png)
+
+- Auto-unlock when you hit milestones: `save50`, `save100`, `error_fix_10`, `error_fix_50`, `coding_1h`, `coding_3h`, `commit10`.
+- Built-in command to view locked/unlocked achievements.
 
 ### 📊 Stats
-- Theo dõi số lần `save`, `commit`, số lỗi đã fix, thời gian code hôm nay và tổng thời gian code all-time.
-- Có command mở quick view stats ngay trong VS Code.
+- Tracks `save` count, `commit` count, errors fixed, today's coding time, and all-time coding time.
+- Built-in command for a quick stats view.
 
-### 🍅 Pomodoro tích hợp
-- Vòng work/break tự động (mặc định 25/5 phút, tuỳ chỉnh được).
-- Status bar hiển thị countdown `🔥 23:42` lúc đang focus, `☕ 04:12` lúc break.
-- Có overlay ring ngay trên companion.
-- Click status bar để stop nhanh.
+### 🍅 Pomodoro
 
-### 🖱️ Custom Right-click Menu (15 mục)
-Click chuột phải lên companion để mở menu inline — không phải mở Command Palette:
+![Pomodoro running](docs/images/08-pomodoro-running.png)
+
+- Automatic work/break loop (default 25/5 min, configurable).
+- Status bar shows `🔥 23:42` during focus, `☕ 04:12` during break.
+- Visual ring overlay on the character.
+- Click the status bar to stop quickly.
+
+### 🖱️ Custom Right-click Menu (15 items)
+
+![Right-click menu](docs/images/11-rightclick-menu.png)
+
+Right-click on the companion to open an inline menu — no Command Palette needed:
 
 - 🚀 **Run** — restart-or-start debug session
-- 📦 **Commit** — commit với guard cho protected branch (`main`/`master`/`production`), hỏi stage-all nếu cần, nhập message ngay trong webview
-- ⬇️ **Pull** / ⬆️ **Push** — có feedback thật ("succeeded / nothing to do / failed")
-- 🌸 **Model** — inline picker panel chọn model ngay trên character
+- 📦 **Commit** — guarded against protected branches (`main`/`master`/`production`), asks to stage-all if needed, message input inline
+- ⬇️ **Pull** / ⬆️ **Push** — real feedback ("succeeded / nothing to do / failed")
+- 🌸 **Model** — inline picker right on the character
 - 🗣️ **Voice** — inline picker `ja` / `vi` / `en`
-- 💬 **Messages** — đổi ngôn ngữ bubble `vi` / `en` / `ja`
-- 🎧 **Ambient** — mở panel chọn `off` / `lofi` / `rain` / `cafe` và các track custom
-- 🔇 **Mute** — toggle audio (label tự đổi `Mute` ↔ `Unmute`)
-- 👉 **Poke** — chạm model
-- 🎬 **Motion** — play nhanh `TapBody` / `TapHead` / `Idle`
+- 💬 **Messages** — switch bubble language `vi` / `en` / `ja`
+- 🎧 **Ambient** — pick `off` / `lofi` / `rain` / `cafe` + custom tracks
+- 🔇 **Mute** — toggles audio (label flips `Mute` ↔ `Unmute`)
+- 👉 **Poke** — touch the model
+- 🎬 **Motion** — quick play `TapBody` / `TapHead` / `Idle`
 - 🍅 **Pomodoro** — start
-- 🏆 **Achievements** — mở danh sách achievement
-- 📊 **Stats** — mở thống kê
-- ⚙️ **Settings** — mở Settings UI đã filter sẵn
+- 🏆 **Achievements** — open achievement list
+- 📊 **Stats** — open the stats view
+- ⚙️ **Settings** — open Settings UI pre-filtered
 
 ### 🌙 Quiet Hours
-Đặt khung giờ tắt mọi bubble, ví dụ trong giờ họp:
+
+Set time ranges that mute every bubble — e.g. during meetings:
 
 ```json
 "animeCompanion.quietHours": ["09:00-12:00", "22:00-06:00"]
 ```
 
-Mood/expression vẫn cập nhật bình thường — chỉ tắt message để không phân tâm.
+Mood/expression still update — only messages are silenced.
 
 ### 🪄 Custom Phrases & Keywords
-Bạn có thể thêm câu riêng cho companion:
+
+Add your own lines:
 
 ```json
-"animeCompanion.customPhrases.idle": ["Nhớ uống nước nha~"],
-"animeCompanion.customPhrases.save": ["Save đẹp lắm đó!"],
-"animeCompanion.customPhrases.error": ["Bình tĩnh, mình sửa được mà."]
+"animeCompanion.customPhrases.idle": ["Remember to drink water~"],
+"animeCompanion.customPhrases.save": ["Beautiful save!"],
+"animeCompanion.customPhrases.error": ["Calm down, you got this."]
 ```
 
-Hoặc thêm keyword reaction riêng:
+Or your own keyword reactions:
 
 ```json
 "animeCompanion.customKeywords": {
-  "refactor": ["Refactor gọn gàng nha~"],
-  "NOTE": ["Có note mới rồi đó!"]
+  "refactor": ["Clean refactor~"],
+  "NOTE": ["New note dropped!"]
 }
 ```
 
 ### 🎵 Custom Ambient Tracks
-Bạn có thể thêm track local của riêng mình để hiện trong Ambient panel:
+
+Add your own local audio files to the Ambient menu:
 
 ```json
 "animeCompanion.customAmbientTracks": [
@@ -188,14 +234,15 @@ Bạn có thể thêm track local của riêng mình để hiện trong Ambient 
 ]
 ```
 
-Sau đó mở menu chuột phải → **Ambient** để chọn track. Volume dùng chung setting:
+Then right-click → **Ambient** to pick. Shared volume setting:
 
 ```json
 "animeCompanion.ambientVolume": 30
 ```
 
 ### 📁 Custom Local Models
-Nếu bạn có một thư mục gốc như `D:/model` và bên trong là nhiều thư mục con model local, chỉ cần trỏ một lần:
+
+Point at a root folder that contains your local Live2D model subfolders:
 
 ```json
 "animeCompanion.customModelRoots": [
@@ -203,9 +250,9 @@ Nếu bạn có một thư mục gốc như `D:/model` và bên trong là nhiề
 ]
 ```
 
-Extension sẽ tự quét từng thư mục con trực tiếp. Thư mục nào có file `.model3.json` sẽ tự xuất hiện trong model picker.
+Each direct child folder with a `.model3.json` shows up in the model picker.
 
-Nếu muốn chỉnh riêng tên hiển thị, mô tả, hoặc chỉ định file `.model3.json` cụ thể, bạn vẫn có thể override bằng:
+For custom display name / description / specific model file, override via:
 
 ```json
 "animeCompanion.customModels": {
@@ -220,151 +267,135 @@ Nếu muốn chỉnh riêng tên hiển thị, mô tả, hoặc chỉ định fi
 
 ---
 
-## 📦 Cài đặt
+## ⚙️ Configuration
 
-### Từ file `.vsix` (hiện tại)
-```bash
-code --install-extension anime-companion-vscode-0.3.0.vsix
-```
+![Settings UI](docs/images/12-settings-ui.png)
 
-### Từ source
-```bash
-git clone https://github.com/xShiroeNguyenx/anime-companion-vscode.git
-cd anime-companion-vscode
-npm install
-npm run package:install
-```
+Open Settings (`Ctrl+,`) → search `Anime Companion`, or click **Settings** in the companion's right-click menu.
 
-> **Marketplace:** đã có trên VS Code Marketplace và Open VSX. Bạn vẫn có thể cài từ `.vsix` nếu muốn test local hoặc pin version cụ thể.
-
----
-
-## ⚙️ Cấu hình
-
-Mở Settings (`Ctrl+,`) → tìm `Anime Companion`, hoặc click **Settings** trong right-click menu của companion.
-
-| Setting | Default | Mô tả |
+| Setting | Default | Description |
 |---|---|---|
-| `animeCompanion.model` | `hiyori` | Chọn model hiện tại. |
-| `animeCompanion.customModelRoots` | `[]` | Danh sách thư mục gốc để tự quét model local. |
-| `animeCompanion.customModels` | `{}` | Khai báo thêm model local do user tự tải về. |
-| `animeCompanion.modelDownloadBaseUrl` | GitHub Releases URL | Base URL để lazy-download model zip. |
-| `animeCompanion.voiceLanguage` | `ja` | `ja` / `vi` / `en` cho audio. |
-| `animeCompanion.messageLanguage` | `vi` | `vi` / `en` / `ja` cho bubble text. |
-| `animeCompanion.muted` | `false` | Tắt toàn bộ audio. |
-| `animeCompanion.ambientPreset` | `off` | Ambient hiện tại: `off` / `lofi` / `rain` / `cafe` hoặc track custom. |
-| `animeCompanion.ambientVolume` | `30` | Âm lượng ambient từ `0` đến `100`. |
-| `animeCompanion.customAmbientTracks` | `[]` | Danh sách track ambient local tự thêm. |
+| `animeCompanion.model` | `hiyori` | Active Live2D model. |
+| `animeCompanion.customModelRoots` | `[]` | Root folders to auto-scan for local Live2D models. |
+| `animeCompanion.customModels` | `{}` | Declare extra user-supplied local models. |
+| `animeCompanion.modelDownloadBaseUrl` | GitHub Releases URL | Base URL for lazy-downloading model zips. |
+| `animeCompanion.voiceLanguage` | `ja` | `ja` / `vi` / `en` for audio. |
+| `animeCompanion.messageLanguage` | `vi` | `vi` / `en` / `ja` for bubble text. |
+| `animeCompanion.muted` | `false` | Mute all audio. |
+| `animeCompanion.ambientPreset` | `off` | Current ambient: `off` / `lofi` / `rain` / `cafe` or a custom track. |
+| `animeCompanion.ambientVolume` | `30` | Ambient volume `0`–`100`. |
+| `animeCompanion.customAmbientTracks` | `[]` | List of custom local ambient tracks. |
 | `animeCompanion.characterSize` | `medium` | `small` / `medium` / `large`. |
-| `animeCompanion.showOnStartup` | `true` | Tự hiện panel khi VS Code khởi động. |
-| `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Khoảng cách giữa các idle bubble (giây). |
-| `animeCompanion.pomodoroWorkTime` / `BreakTime` | `25` / `5` | Thời lượng work / break (phút). |
-| `animeCompanion.breakReminderMinutes` | `30` | Phút code liên tục trước khi nhắc nghỉ. |
-| `animeCompanion.cursorChase.enabled` | `false` | Bật chibi sprite bám theo vị trí con trỏ trong editor. |
-| `animeCompanion.cursorChase.size` | `small` | Preset size cho cursor chibi: `small` / `medium` / `large`. |
-| `animeCompanion.cursorChase.sizePx` | `0` | Override size pixel chính xác cho cursor chibi. `0` = dùng preset. |
-| `animeCompanion.cursorChase.offsetX` / `offsetY` | `0` / `0` | Offset tinh chỉnh vị trí cursor chibi theo pixel. |
-| `animeCompanion.reactive.diagnostics` | `true` | Toggle phản ứng theo errors/warnings. |
-| `animeCompanion.reactive.save` | `true` | Toggle phản ứng theo save. |
-| `animeCompanion.reactive.typing` | `true` | Toggle phản ứng tốc độ gõ + Easter eggs. |
-| `animeCompanion.reactive.git` | `true` | Toggle Git polling. |
-| `animeCompanion.quietHours` | `[]` | Khung giờ tắt message. |
-| `animeCompanion.customPhrases.idle` | `[]` | Thêm câu cho idle bubble. |
-| `animeCompanion.customPhrases.save` | `[]` | Thêm câu cho save reaction. |
-| `animeCompanion.customPhrases.error` | `[]` | Thêm câu cho error reaction. |
-| `animeCompanion.customKeywords` | `{}` | Map keyword → list message custom. |
-| `animeCompanion.desktopCompanion.enabled` | `false` | Bật companion dạng cửa sổ desktop nổi thay cho panel VS Code. |
-| `animeCompanion.desktopCompanion.alwaysOnTop` | `true` | Giữ cửa sổ Desktop Companion luôn nổi trên các cửa sổ khác. |
-| `animeCompanion.desktopCompanion.clickThrough` | `false` | Cho phép click xuyên qua cửa sổ Desktop Companion. |
-| `animeCompanion.desktopCompanion.size` | `medium` | Kích thước cửa sổ desktop: `small` / `medium` / `large`. |
-| `animeCompanion.desktopCompanion.position` | `{ "anchor": "bottom-right" }` | Vị trí khởi tạo của Desktop Companion. |
-| `animeCompanion.desktopCompanion.opacity` | `1` | Độ trong suốt của Desktop Companion, từ `0.5` đến `1`. |
-| `animeCompanion.desktopCompanion.downloadBaseUrl` | GitHub Releases URL | Base URL để lazy-download binary desktop companion. |
-| `animeCompanion.desktopCompanion.devBinaryPath` | `""` | Đường dẫn tuyệt đối tới binary local để test Desktop Companion. |
-| `animeCompanion.voiceAssets.downloadBaseUrl` | GitHub Releases URL | Base URL để tải extended voice asset zip cho `en` / `vi`. |
-| `animeCompanion.voiceAssets.enableExtended` | `true` | Cho phép lazy-download extended voice assets thay vì chỉ dùng audio bundled. |
-| `animeCompanion.chat.provider` | `copilot` | LLM provider cho chat: `copilot` / `anthropic` / `openai` / `gemini`. Copilot không cần API key. |
-| `animeCompanion.chat.model` | `""` | Override model id cho provider hiện tại. Empty = dùng default của provider. |
-| `animeCompanion.chat.personaPreset` | `cute` | Preset persona: `cute` / `professional` / `tsundere` / `energetic`. Bỏ qua khi `systemPrompt` non-empty. |
-| `animeCompanion.chat.systemPrompt` | `""` | Custom system prompt thay thế hoàn toàn persona preset. |
-| `animeCompanion.chat.maxTokens` | `2048` | Max tokens generate mỗi response. Gemini 2.5 thinking models cần ≥ 2048. |
-| `animeCompanion.chat.temperature` | `0.7` | Sampling temperature (0 = deterministic, càng cao càng creative). |
-| `animeCompanion.chat.reactionsEnabled` | `true` | Sentiment-driven Live2D reactions sau khi chat reply. |
+| `animeCompanion.showOnStartup` | `true` | Auto-show panel on VS Code startup. |
+| `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Idle bubble interval (seconds). |
+| `animeCompanion.pomodoroWorkTime` / `BreakTime` | `25` / `5` | Work / break duration (minutes). |
+| `animeCompanion.breakReminderMinutes` | `30` | Minutes of continuous coding before a break nudge. |
+| `animeCompanion.cursorChase.enabled` | `false` | Show a chibi sprite at the editor cursor. |
+| `animeCompanion.cursorChase.size` | `small` | Cursor chibi preset: `small` / `medium` / `large`. |
+| `animeCompanion.cursorChase.sizePx` | `0` | Exact pixel size override. `0` = use preset. |
+| `animeCompanion.cursorChase.offsetX` / `offsetY` | `0` / `0` | Fine-tune cursor chibi position in pixels. |
+| `animeCompanion.reactive.diagnostics` | `true` | React to errors/warnings. |
+| `animeCompanion.reactive.save` | `true` | React on save. |
+| `animeCompanion.reactive.typing` | `true` | React to typing speed + Easter eggs. |
+| `animeCompanion.reactive.git` | `true` | Poll Git state for reactions. |
+| `animeCompanion.quietHours` | `[]` | Time ranges to mute messages. |
+| `animeCompanion.customPhrases.idle` | `[]` | Extra idle phrases. |
+| `animeCompanion.customPhrases.save` | `[]` | Extra save reaction phrases. |
+| `animeCompanion.customPhrases.error` | `[]` | Extra error reaction phrases. |
+| `animeCompanion.customKeywords` | `{}` | Keyword → message list. |
+| `animeCompanion.desktopCompanion.enabled` | `false` | Run as a floating desktop window instead of inside the VS Code panel. |
+| `animeCompanion.desktopCompanion.alwaysOnTop` | `true` | Keep desktop window above other windows. |
+| `animeCompanion.desktopCompanion.clickThrough` | `false` | Let clicks pass through the desktop window. |
+| `animeCompanion.desktopCompanion.size` | `medium` | Desktop window size: `small` / `medium` / `large`. |
+| `animeCompanion.desktopCompanion.position` | `{ "anchor": "bottom-right" }` | Initial position of the desktop window. |
+| `animeCompanion.desktopCompanion.opacity` | `1` | Desktop window opacity, `0.5`–`1`. |
+| `animeCompanion.desktopCompanion.downloadBaseUrl` | GitHub Releases URL | Base URL to lazy-download the desktop binary. |
+| `animeCompanion.desktopCompanion.devBinaryPath` | `""` | Absolute path to a locally-built sidecar for testing. |
+| `animeCompanion.voiceAssets.downloadBaseUrl` | GitHub Releases URL | Base URL for extended voice asset zips. |
+| `animeCompanion.voiceAssets.enableExtended` | `true` | Lazy-download extended voice assets instead of only bundled ones. |
+| `animeCompanion.chat.provider` | `copilot` | LLM chat provider: `copilot` / `anthropic` / `openai` / `gemini` / `xai` / `deepseek` / `openrouter` / `ollama`. Copilot and Ollama need no key. |
+| `animeCompanion.chat.ollamaEndpoint` | `http://localhost:11434` | Base URL of your local Ollama server. Do NOT include `/api/chat` — the path is appended automatically. |
+| `animeCompanion.chat.model` | `""` | Override model id for the active provider. Empty = use the provider's default. |
+| `animeCompanion.chat.personaPreset` | `cute` | Persona preset: `cute` / `professional` / `tsundere` / `energetic`. Ignored when `systemPrompt` is non-empty. |
+| `animeCompanion.chat.systemPrompt` | `""` | Custom system prompt that replaces the persona preset. |
+| `animeCompanion.chat.maxTokens` | `2048` | Max tokens per response. Gemini 2.5 thinking models need ≥ 2048. |
+| `animeCompanion.chat.temperature` | `0.7` | Sampling temperature (0 = deterministic, higher = more creative). |
+| `animeCompanion.chat.reactionsEnabled` | `true` | Sentiment-driven Live2D reactions after a chat reply. |
 
-> ⚠️ **API keys không lưu ở `settings.json`** — luôn dùng command `Anime Companion: Set Chat API Key (BYOK)` để lưu vào VS Code SecretStorage encrypted.
+> ⚠️ **API keys are NOT stored in `settings.json`.** Always use the `Anime Companion: Configure Chat Provider (API Key / Endpoint)` command — keys go into VS Code SecretStorage (encrypted). The same command sets the Ollama endpoint.
 
 ---
 
 ## 🎮 Commands
 
-Mở Command Palette (`Ctrl+Shift+P`) và gõ `Anime Companion`:
+Open the Command Palette (`Ctrl+Shift+P`) and type `Anime Companion`:
 
-| Command | Mô tả |
+| Command | Description |
 |---|---|
-| `Anime Companion: Show` / `Hide` / `Toggle` | Bật/tắt panel companion |
-| `Anime Companion: Change Model` | Quick pick chọn model (✓ ở model đang chọn) |
-| `Anime Companion: Reset Workspace Model` | Bỏ model per-workspace, quay về global setting |
-| `Anime Companion: Change Voice` | Quick pick chọn giọng |
-| `Anime Companion: Change Message Language` | Quick pick chọn ngôn ngữ bubble |
-| `Anime Companion: Toggle Mute` | Bật/tắt audio |
-| `Anime Companion: Toggle Cursor Chibi` | Bật/tắt chibi sprite đi theo con trỏ editor |
-| `Anime Companion: Tune Cursor Chibi Position` | Chỉnh live vị trí và size của cursor chibi |
-| `Anime Companion: Capture Chibi from Model` | Capture sprite PNG từ model đang render trong panel mode |
-| `Anime Companion: Reset Captured Chibi (use bundled icon)` | Xoá sprite đã capture của model hiện tại |
-| `Anime Companion: Start Pomodoro` / `Stop Pomodoro` | Bắt đầu / dừng Pomodoro |
-| `Anime Companion: Show Stats` | Mở quick stats |
-| `Anime Companion: Show Achievements` | Mở danh sách achievements |
-| `Anime Companion: Play Motion` | Chạy nhanh `TapBody` / `TapHead` / `Idle` |
-| `Anime Companion: Reset Companion Position` | Reset vị trí companion trong panel mode |
-| `Anime Companion: Open Settings` | Mở Settings đã filter |
-| `Anime Companion: Open Chat` | Mở chat panel + focus textarea |
-| `Anime Companion: Set Chat API Key (BYOK)` | Lưu API key cho Anthropic/OpenAI/Gemini vào SecretStorage |
-| `Anime Companion: New Chat Conversation` | Tạo conversation mới (reuse empty active nếu có) |
-| `Anime Companion: Clear All Chat Conversations` | Xoá toàn bộ history (có confirm modal) |
-| `Anime Companion: Ask Companion About Selection` | Stage code đang select rồi mở chat panel (cũng có ở editor right-click menu) |
+| `Anime Companion: Show` / `Hide` / `Toggle` | Show/hide the companion panel |
+| `Anime Companion: Change Model` | Quick pick for the active model (✓ on the current one) |
+| `Anime Companion: Reset Workspace Model` | Drop the per-workspace pick, fall back to global |
+| `Anime Companion: Change Voice` | Quick pick for voice language |
+| `Anime Companion: Change Message Language` | Quick pick for bubble text language |
+| `Anime Companion: Toggle Mute` | Mute / unmute audio |
+| `Anime Companion: Toggle Cursor Chibi` | Toggle the chibi sprite that follows the cursor |
+| `Anime Companion: Tune Cursor Chibi Position` | Adjust cursor chibi position and size live |
+| `Anime Companion: Capture Chibi from Model` | Capture a sprite PNG from the rendered model |
+| `Anime Companion: Reset Captured Chibi (use bundled icon)` | Delete the captured sprite for the current model |
+| `Anime Companion: Start Pomodoro` / `Stop Pomodoro` | Start / stop the Pomodoro timer |
+| `Anime Companion: Show Stats` | Open a quick stats view |
+| `Anime Companion: Show Achievements` | Show the achievements list |
+| `Anime Companion: Play Motion` | Quick play `TapBody` / `TapHead` / `Idle` |
+| `Anime Companion: Reset Companion Position` | Reset companion position in panel mode |
+| `Anime Companion: Open Settings` | Open Settings (pre-filtered) |
+| `Anime Companion: Open Chat` | Open the chat panel and focus the textarea |
+| `Anime Companion: Configure Chat Provider (API Key / Endpoint)` | Pick a provider → store API key in SecretStorage, OR set Ollama endpoint |
+| `Anime Companion: New Chat Conversation` | Create a new conversation (reuses empty active if present) |
+| `Anime Companion: Clear All Chat Conversations` | Delete all chat history (confirm modal) |
+| `Anime Companion: Ask Companion About Selection` | Stage the editor selection and open chat (also on the editor right-click menu) |
 
 ---
 
-## 🛠️ Phát triển
+## 🛠️ Development
 
-Yêu cầu: **Node.js ≥ 18** và **npm**.
+Requirements: **Node.js ≥ 18** and **npm**.
 
 ```bash
-npm install              # Cài dependency
+npm install              # Install deps
 npm run compile          # Build TypeScript → out/
 npm run watch            # Watch mode
-npm run package          # Đóng .vsix
-npm run package:install  # Đóng + cài đè vào VS Code local
+npm run package          # Build a .vsix
+npm run package:install  # Build + install over local VS Code
 npm test                 # Compile + smoke test
 ```
 
-Hoặc dùng script tổng hợp tự bump version + package + install:
+Or the all-in-one script that bumps version + packages + installs:
 ```bash
 ./build-install.sh
 ```
 
-Trong VS Code, nhấn `F5` để mở **Extension Development Host** với extension đã load sẵn.
+Inside VS Code, hit `F5` to open the **Extension Development Host** with the extension loaded.
 
-### Cấu trúc
+### Structure
 
 ```
 src/
   extension.ts          activate, status bar, command registration
   companion-view.ts     WebviewViewProvider, idle bubble timer
   companion-message-dispatcher.ts  webview ↔ extension message routing
-  reactive.ts           ReactiveManager — toàn bộ event hooks
+  reactive.ts           ReactiveManager — all event hooks
   pomodoro.ts           PomodoroManager
   stats.ts              StatsStore + achievement unlock
   models.ts             MODEL_MAP + workspace model
   model-downloader.ts   Lazy download/extract model zip
-  model-server.ts       Local HTTP server cho model assets
-  git-ops.ts            pull/push/commit có feedback
+  model-server.ts       Local HTTP server for model assets
+  git-ops.ts            pull/push/commit with feedback
   messages.ts           Message bank + i18n + custom phrases
   cursor-chibi.ts       Cursor chibi sprite manager
   log.ts                Output channel logger
   chat/                 AI chat module (v0.3.0+)
     chat-manager.ts        Orchestrator: provider routing + streaming
-    secrets.ts             SecretStorage wrapper cho API keys
+    secrets.ts             SecretStorage wrapper for API keys
     persona.ts             Preset system prompts
     sentiment.ts           Sentiment heuristic → Live2D mood/motion
     conversation-store.ts  Multi-conversation file store
@@ -372,15 +403,15 @@ src/
     sse-parser.ts          Server-Sent Events parser
     llm-provider.ts        Interface + factory
     providers/
-      anthropic.ts · openai.ts · gemini.ts · copilot.ts
+      anthropic.ts · openai-compatible.ts · gemini.ts · copilot.ts · ollama.ts
 
 media/
-  webview/              Runtime webview (đã tách module)
+  webview/              Runtime webview (modular)
     main.js · core.js · interaction.js
     audio.js · expression.js · ui.js
     chat.js · chat.css           Chat panel UI
     cursor-chibi.css             Cursor chibi tuning widget (isolated)
-  audio/{ja,vi,en}/     MP3 cho từng ngôn ngữ
+  audio/{ja,vi,en}/     MP3 per language
   messages/             Bubble text i18n
   live2d/               Cubism model assets
   lib/                  pixi-live2d-display + Cubism core
@@ -388,31 +419,34 @@ media/
 
 ---
 
-## 📚 Tài liệu
+## 📚 Documentation
 
-- [FEATURES.md](./FEATURES.md) — Mô tả chi tiết toàn bộ tính năng đã ship.
-- [MODELS.md](./MODELS.md) — Thông tin model bundled, lazy download, custom local models.
-- [CHANGELOG.md](./CHANGELOG.md) — Lịch sử thay đổi các version.
-- [PLAN.md](./PLAN.md) — Roadmap (sprint hiện tại, ngắn hạn, trung hạn, vision).
-- [CHECKLIST.md](./CHECKLIST.md) — Tiến độ từng task.
-- [DECISIONS.md](./DECISIONS.md) — Ghi chú kiến trúc + technical decisions.
-- [MODEL_LICENSE_AUDIT.md](./MODEL_LICENSE_AUDIT.md) — Ghi chú license/re-distribution cho model và audio.
+- [docs/README.vi.md](docs/README.vi.md) — Vietnamese version of this README.
+- [docs/README.ja.md](docs/README.ja.md) — Japanese version of this README.
+- [FEATURES.md](FEATURES.md) — Full feature list.
+- [MODELS.md](MODELS.md) — Bundled models, lazy-download, custom local models.
+- [CHANGELOG.md](CHANGELOG.md) — Per-version history.
+- [PLAN.md](PLAN.md) — Roadmap (current sprint, short-term, mid-term, vision).
+- [docs/PLAN_v0.3.1.md](docs/PLAN_v0.3.1.md) — v0.3.1 implementation plan + v0.4.0 deferred work.
+- [CHECKLIST.md](CHECKLIST.md) — Per-task progress.
+- [DECISIONS.md](DECISIONS.md) — Architecture and technical decisions.
+- [MODEL_LICENSE_AUDIT.md](MODEL_LICENSE_AUDIT.md) — License / redistribution notes for models and audio.
 
 ---
 
 ## 📜 License
 
-[MIT License](./LICENSE).
+[MIT License](LICENSE).
 
-Live2D Cubism SDK, các model Live2D, audio VoiceVox, và extended voice assets generated via ElevenLabs có license riêng. Các model không có quyền redistribute rõ ràng không còn được ship trong extension; nếu user tự tải về để dùng local thì cấu hình qua `animeCompanion.customModelRoots` hoặc `animeCompanion.customModels` — xem [MODEL_LICENSE_AUDIT.md](./MODEL_LICENSE_AUDIT.md).
+Live2D Cubism SDK, the Live2D models, VoiceVox audio, and ElevenLabs-generated extended voice assets have their own licenses. Models without clear redistribution rights are no longer shipped with the extension; bring your own via `animeCompanion.customModelRoots` or `animeCompanion.customModels` — see [MODEL_LICENSE_AUDIT.md](MODEL_LICENSE_AUDIT.md).
 
 ---
 
-## 💖 Credit
+## 💖 Credits
 
 - **Live2D Cubism Core SDK** — Live2D Inc.
 - **Bundled / standard models:** Hiyori, Haru, Mao, Miara (Live2D Sample).
-- **User-added local models:** do người dùng tự tải và tự chịu trách nhiệm license khi thêm qua `animeCompanion.customModelRoots` hoặc `animeCompanion.customModels`.
-- **Audio:** VoiceVox (Shikoku Metan) cho `ja`; `vi` / `en` dùng bundled audio và extended voice assets từ ElevenLabs.
+- **User-added local models:** the user is responsible for licensing when adding via `animeCompanion.customModelRoots` or `animeCompanion.customModels`.
+- **Audio:** VoiceVox (Shikoku Metan) for `ja`; `vi` / `en` use bundled audio plus extended voice assets from ElevenLabs.
 
 Made with 🌸 by [xShiroeNguyenx](https://github.com/xShiroeNguyenx).

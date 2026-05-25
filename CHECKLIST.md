@@ -2,7 +2,46 @@
 
 Bảng theo dõi tiến độ phát triển của Anime Companion. Chi tiết roadmap ở [PLAN.md](./PLAN.md).
 
-**Phiên bản hiện tại:** v0.1.50 — *cập nhật 2026-05-11*
+**Phiên bản hiện tại:** v0.3.1 — *cập nhật 2026-05-25*
+
+> **Note**: Các block "Public release readiness" / "Đã hoàn thành" bên dưới còn ở snapshot v0.1.50 và chưa sync hết qua v0.3.x. Để xem feature set thực tế đang ship, đọc [FEATURES.md](./FEATURES.md) + [CHANGELOG.md](./CHANGELOG.md). Khối dưới giữ làm reference cho lịch sử checklist.
+
+## 🚀 v0.3.1 Release Readiness
+
+### Tài liệu & public-facing
+- [x] README.md (EN) — viết lại sang English với language switcher header.
+- [x] docs/README.vi.md — port từ README VI cũ, update cho v0.3.1.
+- [x] docs/README.ja.md — bản tiếng Nhật (có marker `TRANSLATION-REVIEW-NEEDED`).
+- [x] FEATURES.md — thêm section "What's new in v0.3.1" lên đầu.
+- [x] CHANGELOG.md — entry `## [0.3.1] - 2026-05-25` với Added/Changed/Fixed/Removed/Notes.
+- [x] docs/PLAN_v0.3.1.md — implementation plan + v0.4.0 deferred work.
+- [x] docs/images/README.md — screenshot manifest 12 ảnh với capture specs.
+- [ ] Chụp 12 screenshots theo manifest và commit vào docs/images/.
+- [ ] Review tiếng Nhật ở docs/README.ja.md (sections có `TRANSLATION-REVIEW-NEEDED` marker).
+
+### Code & build
+- [x] `package.json` ở `0.3.1`. Command title rename `Configure Chat Provider`.
+- [x] `chat.provider` enum mở rộng 4 → 8 ids. New `chat.ollamaEndpoint` setting.
+- [x] `docs/images/**` thêm vào `files` array.
+- [x] `src/chat/providers/openai-compatible.ts` (NEW) — factory cho xAI/DeepSeek/OpenRouter/OpenAI.
+- [x] `src/chat/providers/ollama.ts` (NEW) — NDJSON streaming, no-key, configurable endpoint.
+- [x] `src/chat/providers/openai.ts` (DELETED) — replaced by factory.
+- [x] `src/chat/secrets.ts` — ProviderId 4 → 8, `needsKey` Set-based.
+- [x] `src/chat/chat-manager.ts:588` — `runSetApiKeyCommand` branch Ollama.
+- [x] `media/webview/chat.{js,css}` — copy-reply button với checkmark pop animation.
+- [x] `media/webview/interaction.js` — `fitModel` dùng `internalModel.originalWidth/Height`, live panel resize sync.
+- [x] Local verify: `npm run compile` clean.
+- [ ] Smoke test 4 provider mới (cần API keys + Ollama local).
+
+### Known limitations cần nói rõ khi publish v0.3.1
+- [x] Ollama yêu cầu `ollama serve` đang chạy + `ollama pull` model trước.
+- [x] OpenRouter `:free` tier có rate limit; user phải tự check usage trên dashboard.
+- [x] DeepSeek `deepseek-reasoner` ẩn chain-of-thought (chỉ render final answer).
+- [x] Pet desktop chat + right-click menu reorganization defer sang v0.4.0.
+
+---
+
+## 🗂️ Lịch sử checklist v0.1.50 (snapshot, không sync)
 
 ## 🚀 Public release readiness (v0.1.50)
 

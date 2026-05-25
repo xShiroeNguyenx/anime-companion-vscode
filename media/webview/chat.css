@@ -395,6 +395,7 @@
 .chat-msg.user .chat-msg-role { color: var(--ac-blue-2); }
 
 .chat-msg-body {
+  position: relative;
   background: linear-gradient(135deg, rgba(255, 208, 226, 0.95), rgba(255, 183, 213, 0.95));
   color: var(--ac-pink-3);
   padding: 9px 12px;
@@ -877,4 +878,65 @@
   background: #89d185;
   color: #1a3315;
   border-color: #89d185;
+}
+
+/* ───────────────────────────────── Assistant reply copy button ───────────────────────────────── */
+.chat-msg-copy {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ac-pink-3);
+  border: 1px solid rgba(255, 150, 190, 0.35);
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  backdrop-filter: blur(4px);
+}
+.chat-msg-copy svg {
+  display: block;
+  pointer-events: none;
+}
+/* Reveal on hover of the bubble, OR on keyboard focus of the button itself. */
+.chat-msg.assistant:not(.streaming) .chat-msg-body:hover .chat-msg-copy,
+.chat-msg-copy:focus-visible {
+  opacity: 1;
+}
+.chat-msg-copy:hover {
+  background: var(--ac-pink-1);
+  color: #fff;
+  border-color: var(--ac-pink-1);
+}
+.chat-msg-copy.copied {
+  opacity: 1;
+  background: #89d185;
+  color: #1a3315;
+  border-color: #89d185;
+}
+/* Pop the checkmark in so the success feels acknowledged rather than abrupt. */
+.chat-msg-copy.copied svg {
+  animation: chat-msg-copy-pop 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes chat-msg-copy-pop {
+  0%   { transform: scale(0.35); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+.chat-msg-copy.failed {
+  opacity: 1;
+  background: #d18585;
+  color: #fff;
+  border-color: #d18585;
+}
+/* Streaming bubbles render the button (DOM-wise) but hide it until the reply
+   is finalized so the user can't tap an incomplete copy. */
+.chat-msg.streaming .chat-msg-copy {
+  display: none;
 }

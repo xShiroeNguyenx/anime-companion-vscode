@@ -1,8 +1,30 @@
 import * as vscode from 'vscode';
 
-export type ProviderId = 'anthropic' | 'openai' | 'gemini' | 'copilot';
+export type ProviderId =
+  | 'anthropic'
+  | 'openai'
+  | 'gemini'
+  | 'copilot'
+  | 'xai'
+  | 'deepseek'
+  | 'openrouter'
+  | 'ollama';
 
 const KEY_PREFIX = 'animeCompanion.apiKey.';
+
+// Providers that don't take an API key — Copilot routes through vscode.lm,
+// Ollama talks to a local server configured via `animeCompanion.chat.ollamaEndpoint`.
+const NO_KEY_PROVIDERS = new Set<ProviderId>(['copilot', 'ollama']);
+
+// Providers that actually have a key in SecretStorage (subset of all - NO_KEY).
+const BYOK_PROVIDERS: ProviderId[] = [
+  'anthropic',
+  'openai',
+  'gemini',
+  'xai',
+  'deepseek',
+  'openrouter',
+];
 
 export class ChatSecrets {
   constructor(private readonly _secrets: vscode.SecretStorage) {}
@@ -20,16 +42,13 @@ export class ChatSecrets {
   }
 
   async hasAny(): Promise<boolean> {
-    const providers: ProviderId[] = ['anthropic', 'openai', 'gemini'];
-    for (const p of providers) {
+    for (const p of BYOK_PROVIDERS) {
       if (await this.get(p)) return true;
     }
     return false;
   }
 
-  // Copilot routes through vscode.lm — VS Code itself handles auth. There is
-  // no key for us to store, so calling this for 'copilot' is a no-op.
   needsKey(provider: ProviderId): boolean {
-    return provider !== 'copilot';
+    return !NO_KEY_PROVIDERS.has(provider);
   }
 }

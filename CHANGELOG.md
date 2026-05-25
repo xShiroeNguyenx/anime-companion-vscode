@@ -3,6 +3,49 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-05-25
+
+### Added — 4 new chat providers + tri-lingual docs
+
+- **xAI Grok (BYOK)** — OpenAI-compatible endpoint `https://api.x.ai/v1`. Default model `grok-2-latest`. Examples: `grok-2-latest`, `grok-2`, `grok-3`, `grok-beta`. Key prefix `xai-…` from console.x.ai.
+- **DeepSeek (BYOK)** — OpenAI-compatible endpoint `https://api.deepseek.com/v1`. Models `deepseek-chat`, `deepseek-reasoner`. Key prefix `sk-…` from platform.deepseek.com. Reasoner chain-of-thought (`reasoning_content`) is intentionally NOT rendered in the chat bubble — only the final answer streams to the user, matching the UX of Gemini 2.5 thinking models.
+- **OpenRouter (BYOK)** — gateway to 100+ models via `https://openrouter.ai/api/v1`. Default `openrouter/auto`. Examples include `anthropic/claude-3.5-sonnet`, `openai/gpt-4o`, `meta-llama/llama-3.3-70b-instruct`, `google/gemini-2.0-flash-exp:free` (no-cost free-tier suffix). Sends `HTTP-Referer` + `X-Title` headers for proper attribution on the OpenRouter dashboard. Key prefix `sk-or-v1-…` from openrouter.ai/keys.
+- **Ollama (local, no API key)** — talks to a local Ollama server. Streams via NDJSON (newline-delimited JSON) on `POST /api/chat`, not SSE. Reads endpoint live from the new `animeCompanion.chat.ollamaEndpoint` setting (default `http://localhost:11434`) so the user can change hosts without reloading the window. Maps `prompt_eval_count` + `eval_count` from the final chunk into our `StreamUsage`. Connection failure → friendly error pointing at the configured endpoint, `ollama serve`, and `ollama pull <model>`.
+- **`OpenAICompatibleProvider` abstraction** ([src/chat/providers/openai-compatible.ts](src/chat/providers/openai-compatible.ts)) — single class drives OpenAI + xAI + DeepSeek + OpenRouter from per-instance config (`baseUrl`, `defaultModel`, optional `extraHeaders` for OpenRouter attribution headers). Eliminates 3× duplication of fetch + SSE parsing.
+- **`animeCompanion.chat.ollamaEndpoint`** setting — string, default `http://localhost:11434`. Validated and normalized (trailing `/` stripped) when set via the `Configure Chat Provider` command.
+- **Tri-lingual documentation** — README now ships in 3 languages with a language switcher at the top of each file:
+  - [README.md](README.md) (root) — **English**, the source of truth for marketplace listing.
+  - [docs/README.vi.md](docs/README.vi.md) — **Tiếng Việt**.
+  - [docs/README.ja.md](docs/README.ja.md) — **日本語**.
+- **Screenshot manifest** ([docs/images/README.md](docs/images/README.md)) — listing 12 screenshots with capture specs (hero, chat panel streaming, provider picker showing all 8 entries, `#mention` autocomplete, desktop pet, cursor chibi, Pomodoro, achievements, ambient menu, right-click menu, settings UI). Marketplace listing includes inline image references; broken-image icons are acceptable until shots land.
+- **Copy-reply button on every assistant message** ([media/webview/chat.js](media/webview/chat.js), [media/webview/chat.css](media/webview/chat.css)) — small clipboard icon at the bottom-right of finalised assistant bubbles. Hidden during streaming so an in-flight reply can't be copied half-formed. On click the icon swaps to a checkmark with a `cubic-bezier(0.34, 1.56, 0.64, 1)` pop animation and the bubble flashes green; reverts after 1.4 s. Failure shows red. The button copies the raw markdown source (stored in `dataset.copySource`) rather than `innerText`, so code-block "Copy" labels don't leak into the clipboard.
+
+### Changed
+
+- **`Set Chat API Key (BYOK)` → `Configure Chat Provider (API Key / Endpoint)`** — command title renamed to reflect that it now also configures the Ollama endpoint. The command id `animeCompanion.chat.setApiKey` is unchanged, so any existing keybindings keep working.
+- **`runSetApiKeyCommand`** ([src/chat/chat-manager.ts](src/chat/chat-manager.ts)) — filter changed from `p.requiresApiKey` to `p.id !== 'copilot'` so Ollama appears in the QuickPick. When the user picks Ollama, the flow branches to an InputBox prompting for the endpoint URL (validated with `^https?://.+`) and saves to `chat.ollamaEndpoint` via `ConfigurationTarget.Global`.
+- **`ProviderId` type** ([src/chat/secrets.ts](src/chat/secrets.ts)) — extended from 4 to 8 ids. `needsKey()` refactored to a Set check (`NO_KEY_PROVIDERS = {copilot, ollama}`). `hasAny()` now iterates the explicit `BYOK_PROVIDERS` list so adding non-BYOK providers later is safe.
+- **`package.json`** — `chat.provider` enum + `enumDescriptions` extended to 8 ids; new `chat.ollamaEndpoint` setting; `files` array adds `"docs/images/**"` so screenshots ship in the VSIX (marketplace listing renders them reliably regardless of GitHub fetch behavior); command title renamed as above.
+
+### Fixed
+
+- **Live2D model now resizes live with the panel** ([media/webview/interaction.js](media/webview/interaction.js)). Two issues fixed:
+  - `fitModel()` was scaling to `getLocalBounds()`, which under-counts physics-driven parts (hair sway, skirt, breathing). With the panel made short, the actual rendered character overflowed and the feet got clipped. Switched to `internalModel.originalWidth/Height` (the Live2D-designed canvas — authoritative full extent) and added a small bottom padding (`max(6, h * 0.02)`) so animation sway no longer pokes past the panel edge.
+  - After the user dragged the companion, the container was pinned with `position: fixed` + explicit pixel `width`/`height`. The wrapper inside then had frozen dimensions, so the existing `ResizeObserver` on the wrapper never fired when the parent panel was resized — the model size froze. Added a window-level `resize` listener AND a body-level `ResizeObserver` that re-sync the pinned container's `width`/`height` to its parent and explicitly refit the model. Clamps `left`/`top` so the companion stays inside the viewport after shrink. No-op for the default flex layout (unpinned case still works via the wrapper observer).
+
+### Removed
+
+- `src/chat/providers/openai.ts` — replaced by an `OpenAICompatibleProvider` instance with `baseUrl: 'https://api.openai.com/v1'` registered directly in [src/chat/llm-provider.ts](src/chat/llm-provider.ts). No public-facing change.
+
+### Verified (no change needed)
+
+- `package.json` `description` was already English — no rewrite required.
+
+### Notes
+
+- **Deferred to v0.4.0** (see [docs/PLAN_v0.3.1.md](docs/PLAN_v0.3.1.md) §4): chat directly from the desktop-pet right-click menu via speech-bubble response, and the right-click menu functional-area reorganization (AI Chat / Appearance / Voice & Sound / Workflow / Git Shortcuts / Desktop Companion submenus).
+- **README sync convention**: English is the source of truth. The two non-EN files carry a `<!-- Source of truth: ../README.md -->` header comment; the JA file additionally carries a `<!-- TRANSLATION-REVIEW-NEEDED -->` marker since auto-translation may sound stiff in idiom-heavy sections (taglines, persona). Update all three when editing.
+
 ## [0.3.0] - 2026-05-13
 
 ### Added — AI Chat Companion (BYOK + Copilot)
