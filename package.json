@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -130,6 +130,21 @@
         "category": "Anime Companion"
       },
       {
+        "command": "animeCompanion.showQuests",
+        "title": "Show Quests",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.showProfile",
+        "title": "Show Profile",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.exportShareCard",
+        "title": "Export Share Card",
+        "category": "Anime Companion"
+      },
+      {
         "command": "animeCompanion.playMotion",
         "title": "Play Motion",
         "category": "Anime Companion"
@@ -197,6 +212,31 @@
       {
         "command": "animeCompanion.chat.clearHistory",
         "title": "Clear All Chat Conversations",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.agentProfile.showPanel",
+        "title": "Agent Accounts: Manage…",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.agentProfile.save",
+        "title": "Agent Accounts: Save Current As…",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.agentProfile.list",
+        "title": "Agent Accounts: List",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.agentProfile.use",
+        "title": "Agent Accounts: Quick Switch…",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.agentProfile.delete",
+        "title": "Agent Accounts: Delete…",
         "category": "Anime Companion"
       }
     ],

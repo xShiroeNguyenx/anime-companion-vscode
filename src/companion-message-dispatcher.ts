@@ -1,10 +1,14 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { getAmbientPreset } from './ambient-presets';
 import { pullWithFeedback, pushWithFeedback, commitWithFeedback } from './git-ops';
 import { log } from './log';
 import { getMessageBank } from './messages';
 import type { ChatManager } from './chat/chat-manager';
 import type { ProviderId } from './chat/secrets';
+import { AchievementDef, buildAchievementPanelData, StatsStore } from './stats';
+import type { AgentProfileManager } from './agent-profiles/profile-manager';
 
 export interface DispatcherContext {
   postMessage: (msg: any) => void;
@@ -17,6 +21,7 @@ export interface DispatcherContext {
   requestCommitMessage: (stagedCount: number) => Promise<string | undefined>;
   onInteraction?: () => void;
   getCustomAmbientTracks: () => any[];
+  stats: StatsStore;
   saveCompanionPosition?: (x: number, y: number) => void;
   applyModelSelection: (modelId: string) => Promise<void>;
   nudgeCursorChibi?: (dx: number, dy: number) => Promise<void>;
@@ -24,6 +29,8 @@ export interface DispatcherContext {
   resetCursorChibi?: () => Promise<void>;
   saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>;
   chatManager?: ChatManager;
+  applyShowcase?: () => void;
+  agentProfileManager?: AgentProfileManager;
 }
 
 const INTERACTION_COMMANDS = new Set([
@@ -45,6 +52,9 @@ const INTERACTION_COMMANDS = new Set([
   'cursorChibi:size',
   'cursorChibi:reset',
   'runtimeDebug',
+  'pet:chat:request',
+  'pet:chat:cancel',
+  'setShowcaseAchievement',
 ]);
 
 export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): void {
@@ -54,14 +64,18 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
 
   switch (message.command) {
     case 'poke':
+      void _recordInteraction(ctx, 'poke');
       break;
     case 'headpat':
+      void _recordInteraction(ctx, 'headpat');
       console.log('Head pat!');
       break;
     case 'spamClick':
+      void _recordInteraction(ctx, 'spamClick');
       console.log(`Spam click: ${message.count}`);
       break;
     case 'multiClick':
+      void _recordInteraction(ctx, 'multiClick');
       console.log(`Multi click: ${message.count}`);
       break;
     case 'live2dReady':
@@ -278,7 +292,207 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
     case 'chat:pickCopilotAccount':
       void ctx.chatManager?.pickCopilotAccount();
       break;
+    case 'pet:chat:request':
+      if (typeof message.prompt === 'string') {
+        const requestId = typeof message.requestId === 'string' ? message.requestId : '';
+        if (!ctx.chatManager) {
+          ctx.postMessage({
+            command: 'pet:chat:error',
+            requestId,
+            message: 'Chat manager not initialized. Try reloading the window.',
+            aborted: false,
+          });
+          break;
+        }
+        const maxTokens =
+          typeof message.maxTokens === 'number' && message.maxTokens > 0
+            ? Math.min(message.maxTokens, 1024)
+            : 200;
+        void ctx.chatManager.sendQuickChat(message.prompt, {
+          maxTokens,
+          onDelta: (chunk) => ctx.postMessage({ command: 'pet:chat:delta', requestId, delta: chunk }),
+          onEnd: (full) => ctx.postMessage({ command: 'pet:chat:end', requestId, text: full }),
+          onError: (errMsg, aborted) =>
+            ctx.postMessage({ command: 'pet:chat:error', requestId, message: errMsg, aborted }),
+        });
+      }
+      break;
+    case 'pet:chat:cancel':
+      ctx.chatManager?.cancelQuickChat();
+      break;
+    case 'shareCardRequestSave':
+      void _handleShareCardSave(message, ctx);
+      break;
+    case 'shareCardCopied':
+      vscode.window.showInformationMessage('Share card copied to clipboard.');
+      break;
+    case 'shareCardCopyFailed':
+      vscode.window.showWarningMessage(
+        `Couldn't copy share card: ${String(message.reason || 'clipboard unavailable')}`
+      );
+      break;
+    case 'setShowcaseAchievement': {
+      const rawId = typeof message.id === 'string' && message.id.length > 0 ? message.id : null;
+      void (async () => {
+        await ctx.stats.setShowcase(rawId);
+        ctx.applyShowcase?.();
+        ctx.postMessage({
+          command: 'setAchievementsData',
+          achievements: buildAchievementPanelData(ctx.stats.getStats()),
+        });
+      })();
+      break;
+    }
+    case 'agentProfile:list:request':
+      _handleAgentProfileListRequest(ctx);
+      break;
+    case 'agentProfile:use':
+      if (typeof message.id === 'string') _handleAgentProfileUse(message.id, ctx);
+      break;
+    case 'agentProfile:save':
+      if (typeof message.name === 'string') {
+        const toolId = typeof message.toolId === 'string' ? message.toolId : undefined;
+        _handleAgentProfileSave(message.name, toolId, ctx);
+      }
+      break;
+    case 'agentProfile:availableTools:request':
+      _handleAgentProfileAvailableToolsRequest(ctx);
+      break;
   }
+}
+
+function _handleAgentProfileListRequest(ctx: DispatcherContext): void {
+  if (!ctx.agentProfileManager) {
+    ctx.postMessage({ command: 'agentProfile:list:state', profiles: [] });
+    return;
+  }
+  void (async () => {
+    const views = await ctx.agentProfileManager!.getViews();
+    ctx.postMessage({
+      command: 'agentProfile:list:state',
+      profiles: views.map((v) => ({
+        id: v.id,
+        name: v.name,
+        tool: v.tool,
+        toolDisplayName: v.toolDisplayName,
+        toolIcon: v.toolIcon,
+        identityText: v.identity?.text ?? '',
+        active: v.active,
+      })),
+    });
+  })();
+}
+
+function _handleAgentProfileUse(id: string, ctx: DispatcherContext): void {
+  if (!ctx.agentProfileManager) return;
+  void (async () => {
+    try {
+      const p = await ctx.agentProfileManager!.useProfile(id);
+      vscode.window.showInformationMessage(
+        `Agent profile switched to "${p.name}". Restart any running CLI sessions to pick up the new credentials.`
+      );
+      _handleAgentProfileListRequest(ctx);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      vscode.window.showErrorMessage(`Agent profile switch failed: ${detail}`);
+    }
+  })();
+}
+
+function _handleAgentProfileSave(name: string, toolId: string | undefined, ctx: DispatcherContext): void {
+  if (!ctx.agentProfileManager) return;
+  void (async () => {
+    try {
+      const ok = await ctx.agentProfileManager!.warnIfNoLoggedInTool();
+      if (!ok) return;
+      const p = await ctx.agentProfileManager!.saveProfile(name, toolId ? { toolId } : undefined);
+      vscode.window.showInformationMessage(`Saved agent profile "${p.name}".`);
+      _handleAgentProfileListRequest(ctx);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      vscode.window.showErrorMessage(`Save agent profile failed: ${detail}`);
+    }
+  })();
+}
+
+function _handleAgentProfileAvailableToolsRequest(ctx: DispatcherContext): void {
+  if (!ctx.agentProfileManager) {
+    ctx.postMessage({ command: 'agentProfile:availableTools:state', tools: [] });
+    return;
+  }
+  void (async () => {
+    const backends = await ctx.agentProfileManager!.detectAvailableBackends();
+    ctx.postMessage({
+      command: 'agentProfile:availableTools:state',
+      tools: backends.map((b) => ({ id: b.id, displayName: b.displayName, icon: b.icon })),
+    });
+  })();
+}
+
+async function _handleShareCardSave(message: any, ctx: DispatcherContext): Promise<void> {
+  const requestId = typeof message.requestId === 'string' ? message.requestId : '';
+  if (typeof message.dataUrl !== 'string') {
+    ctx.postMessage({ command: 'shareCardSaveResult', requestId, ok: false, error: 'Missing image payload.' });
+    return;
+  }
+  const match = /^data:image\/png;base64,(.+)$/.exec(message.dataUrl);
+  if (!match) {
+    ctx.postMessage({ command: 'shareCardSaveResult', requestId, ok: false, error: 'Invalid PNG payload.' });
+    return;
+  }
+
+  const baseDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+    ?? process.env.USERPROFILE
+    ?? process.env.HOME
+    ?? process.cwd();
+  const targetUri = await vscode.window.showSaveDialog({
+    title: 'Save share card',
+    filters: { PNG: ['png'] },
+    defaultUri: vscode.Uri.file(path.join(baseDir, 'anime-companion-share-card.png')),
+  });
+  if (!targetUri) {
+    ctx.postMessage({ command: 'shareCardSaveResult', requestId, ok: false, cancelled: true });
+    return;
+  }
+
+  try {
+    await fs.promises.mkdir(path.dirname(targetUri.fsPath), { recursive: true });
+    await fs.promises.writeFile(targetUri.fsPath, Buffer.from(match[1], 'base64'));
+    vscode.window.showInformationMessage(`Share card exported to ${targetUri.fsPath}`);
+    ctx.postMessage({ command: 'shareCardSaveResult', requestId, ok: true, path: targetUri.fsPath });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    vscode.window.showErrorMessage(`Couldn't export share card: ${msg}`);
+    ctx.postMessage({ command: 'shareCardSaveResult', requestId, ok: false, error: msg });
+  }
+}
+
+async function _recordInteraction(
+  ctx: DispatcherContext,
+  kind: 'poke' | 'headpat' | 'multiClick' | 'spamClick'
+): Promise<void> {
+  await ctx.stats.recordInteraction(kind);
+
+  const unlocked: AchievementDef[] = [];
+  const nightOwl = await ctx.stats.tryUnlockNightOwl();
+  if (nightOwl) unlocked.push(nightOwl);
+  if (kind === 'spamClick') {
+    const petChaos = await ctx.stats.unlockById('pet_chaos');
+    if (petChaos) unlocked.push(petChaos);
+  }
+
+  if (unlocked.length > 0) {
+    for (const def of unlocked) {
+      const template = getMessageBank().pickAchievement(def.id) ?? `🏆 ${def.title}`;
+      ctx.sendBubble(template, { speak: true });
+      ctx.postMessage({ command: 'achievementUnlocked', achievement: { id: def.id, title: def.title, rarity: def.rarity, secret: def.secret } });
+    }
+  }
+
+  ctx.postMessage({
+    command: 'setAchievementsData',
+    achievements: buildAchievementPanelData(ctx.stats.getStats()),
+  });
 }
 
 function _handleRunCommand(message: any, ctx: DispatcherContext): void {

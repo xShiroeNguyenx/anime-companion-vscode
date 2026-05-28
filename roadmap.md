@@ -1,6 +1,6 @@
 # 🌸 Anime Companion VSCode — Roadmap
 
-> **Phiên bản hiện tại:** v0.3.3 — *cập nhật 2026-05-25*
+> **Phiên bản hiện tại:** v0.4.0 — *cập nhật 2026-05-28*
 >
 > Tài liệu này là single-source-of-truth cho **trạng thái feature**, việc **còn phải làm** và **hướng phát triển tương lai**. Chi tiết implementation ở [FEATURES.md](./FEATURES.md), lịch sử release ở [CHANGELOG.md](./CHANGELOG.md), kế hoạch chi tiết từng version ở [PLAN.md](./PLAN.md).
 
@@ -13,7 +13,7 @@ v0.1.x  ──→  v0.1.27   Live2D + Reactive Engine + Pomodoro + Ambient + Des
 v0.3.0  ────────────   AI Chat Companion (4 providers: Copilot / Claude / GPT / Gemini)
 v0.3.1  ────────────   +4 providers (Grok/DeepSeek/OpenRouter/Ollama) · Tri-lingual docs · Copy-reply · Live resize fix
 v0.3.3  ────────────   Right-click menu reorganization (6 functional submenus)
-v0.4.0  ────────────   Pet desktop quick chat                                            [NEXT]
+v0.4.0  ────────────   Pet Quick Chat + Agent Accounts (Claude/Codex credential swap)
 v0.5.x  ────────────   Slash commands · Diff-aware chat · Privacy redaction · Stats heatmap [PLANNED]
 v0.6.x  ────────────   Real-time TTS · OpenRouter model discovery · Conversation export   [PLANNED]
 v1.x    ────────────   Mac/Linux Desktop Companion · Multi-character · Motion editor      [VISION]
@@ -21,7 +21,7 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 
 ---
 
-## ✅ Đã ship (v0.3.3)
+## ✅ Đã ship (v0.4.0)
 
 <details>
 <summary>Expand — danh sách đầy đủ feature đã có</summary>
@@ -76,7 +76,7 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 - [x] Per-language reactive messages: `media/messages/{vi,en,ja}.json`
 
 ### 🏆 Gamification
-- [x] 7 achievements primitive: `save50/100`, `error_fix_10/50`, `coding_1h/3h`, `commit10`
+- [x] **23 achievements**: 6 chains (`save`, `error_fix`, `commit`, `coding`, `chat`, `pomodoro`) + 4 secrets (`night_owl`, `save_storm`, `pet_chaos`, `provider_polyglot`)
 - [x] Persistent stats store: saves / commits / errors fixed / coding time today + all-time
 - [x] `Anime Companion: Show Stats` command (webview panel)
 - [x] `Anime Companion: Show Achievements` command (webview panel)
@@ -115,7 +115,7 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 
 ---
 
-## 🚧 Chưa làm — v0.4.0 (Next release)
+## 🚧 Đã ship trong v0.4.0 (chi tiết)
 
 > Các item này đã được **thiết kế và defer rõ ràng** từ v0.3.1. Implementation plan có sẵn ở [docs/PLAN_v0.3.1.md §4](./docs/PLAN_v0.3.1.md).
 
@@ -130,13 +130,36 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 - [x] Top-level giữ lại `Poke` + `All Settings` làm quick action.
 - [x] Fix bug `animeCompanion.toggleDesktopClickThrough` declared trong package.json nhưng never registered → command palette giờ chạy được.
 
-### 4.2 Pet Desktop Quick Chat
-- [ ] Right-click trên desktop pet → "💬 Chat with me" → input overlay
-- [ ] Submit qua WebSocket bridge → response render trong speech bubble trên pet
-- [ ] Auto-dismiss sau N giây, click-to-pin
-- [ ] New WS events: `pet:chat:request`, `pet:chat:delta`, `pet:chat:response`
-- [ ] Reuse `chatManager.sendUserMessage` với flag `transient:true` (không persist history)
-- [ ] Cap `maxTokens: 200` (speech bubble không gian hạn chế)
+### 4.2 Pet Quick Chat — ✅ shipped in v0.4.0
+- [x] Right-click pet → 💬 Quick Chat → input overlay (textarea + Send/Cancel, Enter to send, Esc cancel)
+- [x] Submit qua bridge → reply stream vào speech bubble trên pet (deltas append realtime với pulse `✨`)
+- [x] Auto-dismiss sau 12s sau khi stream xong, **click-to-pin** giữ bubble lại đến lần right-click sau
+- [x] WS protocol: `pet:chat:request` (webview→host) / `pet:chat:delta` / `pet:chat:end` / `pet:chat:error` (host→webview); `pet:chat:cancel` để abort
+- [x] **Không** reuse `sendUserMessage`: tách thành `ChatManager.sendQuickChat()` riêng — bỏ qua `ConversationStore`, bỏ qua `chat:*` panel broadcast, in-flight guard riêng (`_quickAbort`/`_quickInFlight`) không xung đột với panel chat
+- [x] Default `maxTokens: 200`; server-side cap 1024 để stray client không đốt context window
+- [x] Reuse persona system prompt + sentiment reaction (mood/motion tracking reply tone) y như panel chat
+
+### 4.3 Achievement Expansion — ✅ shipped in v0.4.0
+- [x] Achievement engine nâng từ flat threshold kiểu cũ lên metadata-driven, unlock được nhiều tier cùng lúc, thêm metric cho `chat` / `pomodoro` / interaction secrets
+- [x] **Achievement chain / evolution tree** trong panel achievements: mỗi chain là một lane tiến hóa riêng, có progress theo tier
+- [x] **Secret achievements**: hiện hint/silhouette trước khi unlock, reveal thật sau khi đạt điều kiện
+- [x] Stats store migrate giữ progress cũ và mở rộng fields cho AI prompt, Pomodoro, interaction counters, provider history
+
+### 4.4 Agent Accounts — ✅ shipped in v0.4.0
+- [x] **Lưu nhiều tài khoản agent CLI, swap không cần đăng nhập lại** — snapshot `~/.claude/.credentials.json` / `~/.codex/auth.json` per profile rồi restore khi switch. Cross-platform (Node `fs` thuần, không shell-out)
+- [x] **Tool-agnostic backend registry** ([src/agent-profiles/backends/account-backend.ts](./src/agent-profiles/backends/account-backend.ts)) — thêm CLI tool mới = 1 file backend + 1 dòng `registerBackend(...)`. Tự xuất hiện trong tất cả surface (panel, popup, status bar, command palette)
+- [x] **Backends ban đầu**:
+  - 🤖 **Claude** — identity = `org` + `sub` + `exp` từ `.credentials.json`
+  - ⚡ **Codex** — identity = `account_id` + `email` + `chatgpt_plan_type` decode từ JWT id_token
+- [x] **Per-tool active detection** — đọc credential live của từng tool, match signature với snapshot → status bar đúng kể cả khi user swap bằng tool ngoài (PowerShell script)
+- [x] **In-webview popups tại pet** — right-click → Agent ›
+  - 🔁 **Đổi nhanh** → list profile group theo tool, click swap
+  - 💾 **Lưu hồ sơ hiện tại** → inline tool picker (auto khi 1, buttons khi ≥2) + name input
+  - 👀 **Quản lý hồ sơ…** → webview panel đầy đủ với Use/Rename/Delete
+- [x] **Status bar item** (Right, 99) hiển thị active profile, click quick-switch
+- [x] **5 commands palette**: Manage / Save / List / Use / Delete
+- [x] **Atomic per-file swap** + rolling 3-backup retention per tool trước mỗi restore
+- [x] Info toast nhắc restart CLI sau swap (không tự kill process)
 
 ---
 
@@ -163,6 +186,39 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
   - Ngưỡng default = 50% của `chat.maxTokens` setting
   - Show estimated input/output tokens trước khi click Send
   - Suggest trim active-file toggle hoặc giảm history depth
+
+### Gamification v2
+- [ ] **Daily / Weekly quests** — mở rộng từ stats/achievements hiện có thành gameplay loop local-first, không cần backend:
+  - Daily ví dụ: `save 20 files`, `write 100 lines`, `open terminal 5 lần`
+  - Weekly ví dụ: `commit 10 lần`, `code 5h`
+  - Quest tự rotate/reset theo local time, reuse stats store + reactive infrastructure nơi phù hợp
+  - Scope chỉ gồm local progress tracking, local reward unlock, UI hiển thị trong VS Code; không có account sync hay leaderboard public
+- [ ] **Reward economy nhẹ** — reward cho quest và milestone theo hướng offline-friendly:
+  - `gems`
+  - `tickets`
+  - `cosmetic`
+  - `voice pack`
+  - Currency/reward derive từ local stats + achievement progress, không phải store hay backend economy nặng
+- [ ] **Achievement rarity + unlock effects** — thêm rarity layer cho hệ achievement hiện tại, thiên về presentation/progression:
+  - `Common`
+  - `Rare`
+  - `Epic`
+  - `Legendary`
+  - `Mythic`
+  - Visual language ví dụ: `🌸 Common`, `🔥 Epic`, `👑 Legendary`, `💀 Mythic`
+  - Unlock effect phân tầng theo rarity: `glow`, `sound`, `animation`
+  - Đây là lớp gắn lên achievement hiện có, không phải hệ progression tách riêng hay full RPG
+- [ ] **Companion memory system** — achievement và milestone không chỉ unlock item mà còn tạo shared memory giữa user với companion:
+  - Ví dụ memory line: `"Remember when we fixed 100 bugs together?"`
+  - Ví dụ memory line: `"We've been coding together for 30 hours now..."`
+  - Memory được derive từ local stats, quest completion, achievement chains, secret unlocks, coding time và các milestone đáng nhớ
+  - Dùng lại trong reactive bubble, profile card, weekly recap, hoặc special anniversary lines để tăng emotional attachment lâu dài
+  - Scope vẫn local-only, offline-friendly; memory là narrative/state layer chứ không phải chat memory cloud hay profile backend
+- [ ] **Showcase profile / share card** — profile surface để user flex thành quả và share lên social:
+  - Ví dụ card: `Anime Companion Profile` · `Lv.12` · `Bug Hunter Rank S` · `Affinity ❤️ 84%` · `Top Achievement: Sleep Is Optional`
+  - Export `PNG` ngay trong VS Code để share Discord/Twitter, render local qua webview/canvas, không phụ thuộc external service
+  - Gộp luôn ý tưởng export badge vào profile/share card để tránh duplicate roadmap item
+  - Likely commands/UI: `Show Quests`, `Show Profile`, `Export Share Card`
 
 ### UI/UX Polish
 - [ ] **Screenshots marketplace** — chụp 12 ảnh theo [docs/images/README.md](./docs/images/README.md) manifest (hiện placeholder)
@@ -315,7 +371,6 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 - `OPTIONAL` **Weekly report bubble** — trigger sáng thứ 2 (9-10h local time): "Tuần trước em ghi nhận {N} commits, {M} bugs fixed, {H}h coding. Tuần này muốn đặt goal gì không?"
 - `OPTIONAL` **Goal setting** — `animeCompanion.goals.dailyCodingMinutes` setting. Companion nhắc khi gần đến, celebrate (motion + voice line) khi đạt
 - `OPTIONAL` **Pomodoro session history** — log mỗi session vào `globalState` với timestamp + duration + completion. Stats webview show "X focus sessions today, Y hours total"
-- `OPTIONAL` **Achievement badge export** — render unlocked achievement ra PNG (canvas → blob) để share lên social/repo README
 
 ### 🔧 Developer Experience
 - `OPTIONAL` **Companion config profile** — preset full settings (persona + voice + ambient + reactive toggles) theo ngữ cảnh:

@@ -94,6 +94,28 @@ Or download the `.vsix` from the [Open VSX page](https://open-vsx.org/extension/
 - `Anime Companion: Reset Captured Chibi` clears the captured PNG and falls back to the bundled icon.
 - The chibi only follows real editors (`file`, `untitled`, `vscode-userdata`) to avoid leaking into Output / Debug Console.
 
+### 🪪 Agent Accounts (Claude / Codex credential swap)
+
+- **Save multiple agent-CLI logins and swap between them without re-authenticating.** The companion snapshots the credential files of each logged-in CLI tool, then atomically restores them when you switch — same mechanic as a hand-rolled PowerShell account-swap script, ported to cross-platform Node `fs` and tied into the pet's right-click menu.
+- **Tool-agnostic backend registry** — adding a new CLI is a single backend file (`AccountBackend` interface) + one `registerBackend(...)` line. The whole UI (popups, panel, status bar, command palette) discovers tools through that registry.
+- **Backends shipped:**
+  - 🤖 **Claude Code** — snapshots `~/.claude/.credentials.json` + adjacent settings; identity shown as `sub=team · org=09eb97ad · exp=…` so you can tell two accounts apart at a glance.
+  - ⚡ **Codex** — snapshots `~/.codex/auth.json`; identity shown as `mode=chatgpt · user@example.com · plan=plus` (email + plan decoded from the OAuth `id_token` payload, never the token itself).
+- **Per-tool active detection** — instead of trusting the last in-extension switch, the extension reads the live credential of each backend and matches it against your saved snapshots. So an external swap (e.g. running your own PowerShell script) is reflected correctly in the status bar and panel. Several tools can be "active" simultaneously — Claude account A *and* Codex account B at the same time.
+- **In-webview popups at the pet** — right-click the pet → **Agent ›**:
+  - **🔁 Đổi nhanh / Quick Switch** — list profiles grouped by tool (`🤖 Claude (2)` / `⚡ Codex (1)`), click a row to swap.
+  - **💾 Save Current as…** — inline tool picker (auto-selected if only one CLI is logged in) + name input, all attached to the pet — no VS Code QuickPick interruption.
+  - **👀 Manage Profiles…** — standalone webview panel with Use / Rename / Delete + per-tool sections.
+- **Status bar item** — shows the active profile (or "N accounts" with a per-tool tooltip when multiple tools are active). Click → Quick Switch.
+- **Atomic, safe restore** — every restore writes each file via `<final>.tmp` + `fs.rename`. Rolling 3-backup retention per tool before each restore. Snapshot directory missing? Refuses to clobber your live credentials.
+- **Restart hint** — after every swap the extension reminds you to restart any running CLI session so it reloads the new token. It does not detect or kill CLI processes.
+
+**Quick start:**
+1. Log in to `claude` (or `codex`) in any terminal so the credential file exists.
+2. Right-click the pet → **Agent → 💾 Save Current as…** → name the profile (e.g. `work`).
+3. Log out, log in to the second account, repeat with a different name (e.g. `personal`).
+4. Right-click the pet → **Agent → 🔁 Quick Switch** → pick → the credential file is swapped instantly. Restart your CLI to use the new account.
+
 ### 🪟 Desktop Companion (Windows v1)
 
 ![Desktop pet](docs/images/06-desktop-pet-window.png)
@@ -154,11 +176,15 @@ Every channel can be toggled independently in settings.
 
 ![Achievements](docs/images/09-achievements-panel.png)
 
-- Auto-unlock when you hit milestones: `save50`, `save100`, `error_fix_10`, `error_fix_50`, `coding_1h`, `coding_3h`, `commit10`.
-- Built-in command to view locked/unlocked achievements.
+- Built-in **23-achievement set**: 6 progression chains for `save`, `bug fixes`, `commits`, `coding time`, `AI chat`, and `Pomodoro`, plus 4 secret achievements.
+- Achievements now render in an inline **evolution tree** view, with rarity (`Common` → `Mythic`), tiered progression lanes, rarity-based unlock toast effects, and a separate secret lane with hints until unlocked.
+- The same panel now includes **daily / weekly quests** and a lightweight **companion memory** feed that recalls unlocked achievements and cleared quests.
+- Local-first **reward economy** is now tied to that progression loop: achievements and quests grant `gems`, `tickets`, cosmetics, and voice packs that stay on this machine with no backend sync required.
+- Built-in command to view achievements in the tree UI, with a Quick Pick fallback when the panel is unavailable.
 
 ### 📊 Stats
-- Tracks `save` count, `commit` count, errors fixed, today's coding time, and all-time coding time.
+- Tracks `save` count, `commit` count, errors fixed, today's coding time, all-time coding time, AI prompt usage, Pomodoro totals, quest progress, and recent shared memories.
+- Includes a compact **profile surface** with level, affinity, inventory, top achievement, and local unlock collections, plus **PNG share-card export**.
 - Built-in command for a quick stats view.
 
 ### 🍅 Pomodoro
@@ -170,26 +196,20 @@ Every channel can be toggled independently in settings.
 - Visual ring overlay on the character.
 - Click the status bar to stop quickly.
 
-### 🖱️ Custom Right-click Menu (15 items)
+### 🖱️ Custom Right-click Menu
 
 ![Right-click menu](docs/images/11-rightclick-menu.png)
 
 Right-click on the companion to open an inline menu — no Command Palette needed:
 
 - 🚀 **Run** — restart-or-start debug session
-- 📦 **Commit** — guarded against protected branches (`main`/`master`/`production`), asks to stage-all if needed, message input inline
-- ⬇️ **Pull** / ⬆️ **Push** — real feedback ("succeeded / nothing to do / failed")
-- 🌸 **Model** — inline picker right on the character
-- 🗣️ **Voice** — inline picker `ja` / `vi` / `en`
-- 💬 **Messages** — switch bubble language `vi` / `en` / `ja`
-- 🎧 **Ambient** — pick `off` / `lofi` / `rain` / `cafe` + custom tracks
-- 🔇 **Mute** — toggles audio (label flips `Mute` ↔ `Unmute`)
-- 👉 **Poke** — touch the model
-- 🎬 **Motion** — quick play `TapBody` / `TapHead` / `Idle`
-- 🍅 **Pomodoro** — start
-- 🏆 **Achievements** — open achievement list
-- 📊 **Stats** — open the stats view
-- ⚙️ **Settings** — open Settings UI pre-filtered
+- 🔧 **Git** — `Commit`, `Pull`, `Push`
+- 💬 **AI Chat** — `Quick Chat`; in panel mode also `Open Chat`, `New Conversation`, `Ask About Selection`, `Configure Provider`, `Clear All`
+- 🌸 **Appearance** — `Model`, `Capture Chibi`, `Toggle Cursor Chibi`, `Tune Cursor Chibi`, `Reset Position`, `Motion`, `Poke`
+- 🔊 **Voice & Sound** — `Voice`, `Messages`, `Ambient`, `Mute` / `Unmute`
+- 🍅 **Workflow** — `Start Pomodoro`, `Stop Pomodoro`, `Stats`, `Achievements`, `Quests`, `Profile`, `Share Card`
+- 🖥️ **Desktop Companion** — `Switch to Desktop` / `Switch to Panel`, desktop-only `Toggle Click-Through`, `Reset Workspace Model`
+- ⚙️ **All Settings** — open Settings UI pre-filtered
 
 ### 🌙 Quiet Hours
 
@@ -345,6 +365,9 @@ Open the Command Palette (`Ctrl+Shift+P`) and type `Anime Companion`:
 | `Anime Companion: Start Pomodoro` / `Stop Pomodoro` | Start / stop the Pomodoro timer |
 | `Anime Companion: Show Stats` | Open a quick stats view |
 | `Anime Companion: Show Achievements` | Show the achievements list |
+| `Anime Companion: Show Quests` | Show daily and weekly quests |
+| `Anime Companion: Show Profile` | Show the local profile summary |
+| `Anime Companion: Export Share Card` | Export a PNG share card |
 | `Anime Companion: Play Motion` | Quick play `TapBody` / `TapHead` / `Idle` |
 | `Anime Companion: Reset Companion Position` | Reset companion position in panel mode |
 | `Anime Companion: Open Settings` | Open Settings (pre-filtered) |
@@ -353,6 +376,11 @@ Open the Command Palette (`Ctrl+Shift+P`) and type `Anime Companion`:
 | `Anime Companion: New Chat Conversation` | Create a new conversation (reuses empty active if present) |
 | `Anime Companion: Clear All Chat Conversations` | Delete all chat history (confirm modal) |
 | `Anime Companion: Ask Companion About Selection` | Stage the editor selection and open chat (also on the editor right-click menu) |
+| `Anime Companion: Agent Accounts — Manage…` | Open the full Agent Accounts webview panel (Use / Rename / Delete) |
+| `Anime Companion: Agent Accounts — Save Current As…` | Snapshot the currently logged-in CLI's credentials as a named profile |
+| `Anime Companion: Agent Accounts — List` | Read-only QuickPick listing of all saved profiles per tool |
+| `Anime Companion: Agent Accounts — Quick Switch…` | Pick a profile to activate; same target as the status bar item |
+| `Anime Companion: Agent Accounts — Delete…` | Remove a profile (snapshot only — the live CLI credentials are untouched) |
 
 ---
 

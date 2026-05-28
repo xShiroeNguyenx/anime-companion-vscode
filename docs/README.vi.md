@@ -96,6 +96,28 @@ Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroen
 - Có command `Anime Companion: Reset Captured Chibi` để xoá PNG đã capture và fallback về icon bundled.
 - Chibi chỉ bám theo editor thật (`file`, `untitled`, `vscode-userdata`) để tránh leak sang Output / Debug Console.
 
+### 🪪 Agent Accounts (swap tài khoản Claude / Codex)
+
+- **Lưu nhiều tài khoản agent-CLI rồi đổi qua lại mà không cần đăng nhập lại.** Companion snapshot file credential của từng CLI rồi restore atomically khi switch — y tinh thần PowerShell script tự viết để đổi tài khoản, nhưng được port sang Node `fs` cross-platform và gắn thẳng vào right-click menu của pet.
+- **Backend registry tool-agnostic** — thêm CLI mới chỉ cần 1 file backend (interface `AccountBackend`) + 1 dòng `registerBackend(...)`. Toàn bộ UI (popup, panel, status bar, command palette) tự discover qua registry.
+- **Backend đã ship:**
+  - 🤖 **Claude Code** — snapshot `~/.claude/.credentials.json` + settings; identity hiển thị dạng `sub=team · org=09eb97ad · exp=…` để dễ phân biệt tài khoản.
+  - ⚡ **Codex** — snapshot `~/.codex/auth.json`; identity hiển thị `mode=chatgpt · email · plan=plus` (decode từ payload JWT id_token, không in token).
+- **Per-tool active detection** — không tin vào lần switch cuối, extension đọc credential live của từng backend rồi match signature với snapshot. Vậy nên swap bằng tool ngoài (PowerShell script) cũng được phản ánh đúng. Nhiều tool có thể "active" đồng thời — Claude tài khoản A *cùng lúc* Codex tài khoản B.
+- **Popup ngay tại pet** — right-click pet → **Agent ›**:
+  - **🔁 Đổi nhanh** — list profile group theo tool, click row để swap.
+  - **💾 Lưu hồ sơ hiện tại** — inline tool picker (auto chọn khi 1, buttons khi ≥2) + input tên — tất cả bám theo pet, không nhảy lên VS Code QuickPick.
+  - **👀 Quản lý hồ sơ…** — webview panel đầy đủ với Use / Rename / Delete + section theo tool.
+- **Status bar item** — hiển thị profile đang active (hoặc "N accounts" + tooltip khi nhiều tool). Click → Quick Switch.
+- **Restore an toàn** — mỗi file ghi qua `<final>.tmp` rồi `fs.rename`. Rolling 3 backup per tool trước mỗi restore. Snapshot rỗng/thiếu → từ chối, không clobber credential live.
+- **Nhắc restart CLI** — sau mỗi swap, info toast nhắc restart `claude` / `codex` để load token mới. Extension không tự kill process.
+
+**Quick start:**
+1. Đăng nhập `claude` (hoặc `codex`) trong terminal để có file credential.
+2. Right-click pet → **Agent → 💾 Lưu tài khoản hiện tại…** → đặt tên (vd `work`).
+3. Logout, login tài khoản thứ 2, lặp lại với tên khác (vd `personal`).
+4. Right-click pet → **Agent → 🔁 Đổi nhanh** → chọn → credential được swap. Restart CLI để dùng tài khoản mới.
+
 ### 🪟 Desktop Companion (Windows v1)
 
 ![Desktop pet](images/06-desktop-pet-window.png)
@@ -156,11 +178,15 @@ Mỗi kênh đều có thể bật/tắt độc lập qua settings.
 
 ![Achievements](images/09-achievements-panel.png)
 
-- Tự unlock khi đạt mốc: `save50`, `save100`, `error_fix_10`, `error_fix_50`, `coding_1h`, `coding_3h`, `commit10`.
-- Có command xem danh sách achievements đã mở / chưa mở ngay trong VS Code.
+- Có sẵn **23 thành tựu**: 6 chain tiến hóa cho `save`, `fix bug`, `commit`, `thời gian code`, `AI chat`, `Pomodoro`, cộng thêm 4 secret achievements.
+- Panel achievements giờ hiển thị dạng **evolution tree** ngay trên companion, có rarity (`Common` → `Mythic`), hiệu ứng unlock theo độ hiếm, lane riêng cho từng chain và lane bí mật chỉ hé hint trước khi unlock.
+- Cùng panel đó giờ có thêm **daily / weekly quest** và khu **companion memory** để nhắc lại các thành tựu, quest và cột mốc mà hai bên đã mở cùng nhau.
+- Phần thưởng local-first cũng đã có thật: quest và achievement giờ cấp `gems`, `tickets`, cosmetic và voice pack, hoàn toàn offline-friendly và không cần backend.
+- Có command xem achievements ngay trong VS Code, kèm fallback Quick Pick nếu panel không mở.
 
 ### 📊 Stats
-- Theo dõi số lần `save`, `commit`, số lỗi đã fix, thời gian code hôm nay và tổng thời gian code all-time.
+- Theo dõi số lần `save`, `commit`, số lỗi đã fix, thời gian code hôm nay, tổng thời gian code all-time, số lần hỏi AI, tiến độ Pomodoro, quest đang chạy và các memory gần đây.
+- Có thêm **profile local** gồm level, affinity, top achievement, inventory unlock và export **share card PNG**.
 - Có command mở quick view stats ngay trong VS Code.
 
 ### 🍅 Pomodoro tích hợp
@@ -172,26 +198,20 @@ Mỗi kênh đều có thể bật/tắt độc lập qua settings.
 - Có overlay ring ngay trên companion.
 - Click status bar để stop nhanh.
 
-### 🖱️ Custom Right-click Menu (15 mục)
+### 🖱️ Custom Right-click Menu
 
 ![Right-click menu](images/11-rightclick-menu.png)
 
 Click chuột phải lên companion để mở menu inline — không phải mở Command Palette:
 
-- 🚀 **Run** — restart-or-start debug session
-- 📦 **Commit** — commit với guard cho protected branch (`main`/`master`/`production`), hỏi stage-all nếu cần, nhập message ngay trong webview
-- ⬇️ **Pull** / ⬆️ **Push** — có feedback thật ("succeeded / nothing to do / failed")
-- 🌸 **Model** — inline picker panel chọn model ngay trên character
-- 🗣️ **Voice** — inline picker `ja` / `vi` / `en`
-- 💬 **Messages** — đổi ngôn ngữ bubble `vi` / `en` / `ja`
-- 🎧 **Ambient** — mở panel chọn `off` / `lofi` / `rain` / `cafe` và các track custom
-- 🔇 **Mute** — toggle audio (label tự đổi `Mute` ↔ `Unmute`)
-- 👉 **Poke** — chạm model
-- 🎬 **Motion** — play nhanh `TapBody` / `TapHead` / `Idle`
-- 🍅 **Pomodoro** — start
-- 🏆 **Achievements** — mở danh sách achievement
-- 📊 **Stats** — mở thống kê
-- ⚙️ **Settings** — mở Settings UI đã filter sẵn
+- 🚀 **Run** — restart hoặc start debug session
+- 🔧 **Git** — `Commit`, `Pull`, `Push`
+- 💬 **Chat AI** — `Quick Chat`; ở panel mode có thêm `Open Chat`, `New Conversation`, `Ask About Selection`, `Configure Provider`, `Clear All`
+- 🌸 **Diện mạo** — `Model`, `Capture Chibi`, `Toggle Cursor Chibi`, `Tune Cursor Chibi`, `Reset Position`, `Motion`, `Poke`
+- 🔊 **Âm thanh** — `Voice`, `Messages`, `Ambient`, `Mute` / `Unmute`
+- 🍅 **Quy trình** — `Start Pomodoro`, `Stop Pomodoro`, `Stats`, `Achievements`, `Quests`, `Profile`, `Share Card`
+- 🖥️ **Desktop Companion** — `Switch to Desktop` / `Switch to Panel`, thêm `Toggle Click-Through` khi đang ở desktop mode, và `Reset Workspace Model`
+- ⚙️ **All Settings** — mở Settings UI đã filter sẵn
 
 ### 🌙 Quiet Hours
 Đặt khung giờ tắt mọi bubble, ví dụ trong giờ họp:
@@ -343,6 +363,9 @@ Mở Command Palette (`Ctrl+Shift+P`) và gõ `Anime Companion`:
 | `Anime Companion: Start Pomodoro` / `Stop Pomodoro` | Bắt đầu / dừng Pomodoro |
 | `Anime Companion: Show Stats` | Mở quick stats |
 | `Anime Companion: Show Achievements` | Mở danh sách achievements |
+| `Anime Companion: Show Quests` | Mở danh sách quest ngày / tuần |
+| `Anime Companion: Show Profile` | Mở hồ sơ local của companion |
+| `Anime Companion: Export Share Card` | Xuất thẻ chia sẻ PNG |
 | `Anime Companion: Play Motion` | Chạy nhanh `TapBody` / `TapHead` / `Idle` |
 | `Anime Companion: Reset Companion Position` | Reset vị trí companion trong panel mode |
 | `Anime Companion: Open Settings` | Mở Settings đã filter |

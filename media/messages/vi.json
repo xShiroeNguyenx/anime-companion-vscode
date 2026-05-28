@@ -173,11 +173,27 @@
   "achievements": {
     "save50": "🏆 Thành tựu mở khóa: Save 50 lần~ Onii-chan chăm chỉ ghê luôn!",
     "save100": "🏆 Thành tựu mở khóa: Save 100 lần~ đúng là Ctrl+S master Onii-chan!",
+    "save250": "🏆 Thành tựu mở khóa: Save 250 lần~ đầu ngón tay Onii-chan mạnh quá trời luôn!",
     "error_fix_10": "🏆 Thành tựu mở khóa: Fix 10 lỗi~ Onii-chan đúng là thợ săn bug xịn quá!",
     "error_fix_50": "🏆 Thành tựu mở khóa: Fix 50 lỗi~ bug cũng phải sợ Onii-chan rồi!",
+    "error_fix_100": "🏆 Thành tựu mở khóa: Fix 100 lỗi~ Onii-chan thanh tẩy cả một đội quân bug luôn rồi!",
     "coding_1h": "🏆 Thành tựu mở khóa: Code 1 giờ liên tục~ Onii-chan siêu chăm luôn!",
     "coding_3h": "🏆 Thành tựu mở khóa: Code 3 giờ~ stamina của Onii-chan đỉnh ghê á!",
-    "commit10": "🏆 Thành tựu mở khóa: 10 commits~ Git cũng mỉm cười với Onii-chan luôn rồi!"
+    "coding_6h": "🏆 Thành tựu mở khóa: Code 6 giờ~ aura tập trung của Onii-chan sáng rực luôn!",
+    "coding_12h": "🏆 Thành tựu mở khóa: Code 12 giờ~ Onii-chan đúng là vua sức bền luôn đó!",
+    "commit10": "🏆 Thành tựu mở khóa: 10 commits~ Git cũng mỉm cười với Onii-chan luôn rồi!",
+    "commit25": "🏆 Thành tựu mở khóa: 25 commits~ repo tin tưởng Onii-chan tuyệt đối luôn!",
+    "commit50": "🏆 Thành tựu mở khóa: 50 commits~ Onii-chan push đẳng cấp vũ trụ luôn á!",
+    "chat_10": "🏆 Thành tựu mở khóa: Hỏi AI 10 lần~ companion chính thức thành hotline của Onii-chan rồi!",
+    "chat_25": "🏆 Thành tựu mở khóa: Hỏi AI 25 lần~ Onii-chan dệt context đỉnh quá trời!",
+    "chat_100": "🏆 Thành tựu mở khóa: Hỏi AI 100 lần~ tiên tri AI cũng nhớ tên Onii-chan luôn rồi!",
+    "pomodoro_1": "🏆 Thành tựu mở khóa: Hoàn thành Pomodoro đầu tiên~ mầm focus đã nảy rồi nha!",
+    "pomodoro_5": "🏆 Thành tựu mở khóa: 5 Pomodoro~ nhịp tập trung của Onii-chan đang lên luôn!",
+    "pomodoro_25": "🏆 Thành tựu mở khóa: 25 Pomodoro~ pháo đài tập trung hoàn chỉnh rồi đó!",
+    "night_owl": "🏆 Bí mật mở khóa: Night Owl~ 3 giờ sáng mà mình vẫn còn bên nhau nè...",
+    "save_storm": "🏆 Bí mật mở khóa: Save Storm~ combo Ctrl+S của Onii-chan như sấm luôn á!",
+    "pet_chaos": "🏆 Bí mật mở khóa: Pet Chaos~ chọc vậy là em choáng thật đó nha!",
+    "provider_polyglot": "🏆 Bí mật mở khóa: Provider Polyglot~ Onii-chan đã đi qua ba thế giới AI rồi đó!"
   },
   "webview": {
     "dblClickMessages": [
@@ -201,7 +217,9 @@
       "muteOn": "Em sẽ im lặng một chút nha~ 🤫",
       "muteOff": "Em ríu rít lại rồi nè~ 🎀",
       "settings": "Mở Settings ra cho Onii-chan liền nha~ ⚙️",
-      "motion": "Chọn motion cho em diễn nha~ 🎬"
+      "motion": "Chọn motion cho em diễn nha~ 🎬",
+      "quickChatThinking": "Em đang suy nghĩ chút nha~ 💭",
+      "stopPomodoro": "Dừng Pomodoro nha~ nghỉ tay một chút đi! ☕"
     },
     "menu": {
       "run": "Run",
@@ -218,11 +236,15 @@
       "motion": "Motion",
       "pomodoro": "Pomodoro",
       "achievements": "Thành tựu",
+      "quests": "Nhiệm vụ",
       "stats": "Thống kê",
+      "profile": "Hồ sơ",
+      "shareCard": "Thẻ chia sẻ",
       "settings": "Cài đặt",
       "all": "Tất cả",
       "allSettings": "Cài đặt",
       "chatCategory": "Chat AI",
+      "chatQuick": "Hỏi nhanh",
       "chatOpen": "Mở Chat",
       "chatNew": "Cuộc trò chuyện mới",
       "chatAskSelection": "Hỏi về đoạn đã chọn",
@@ -242,7 +264,11 @@
       "switchToDesktop": "Chuyển sang Desktop",
       "switchToPanel": "Chuyển về Panel",
       "clickThrough": "Bật/Tắt Click-Through",
-      "resetWorkspaceModel": "Reset Model Workspace"
+      "resetWorkspaceModel": "Reset Model Workspace",
+      "agentCategory": "Agent",
+      "agentList": "Quản lý tài khoản…",
+      "agentSwitch": "Đổi nhanh…",
+      "agentSave": "Lưu tài khoản hiện tại…"
     },
     "panels": {
       "voiceTitle": "Voice",
@@ -262,10 +288,45 @@
       "ambientTitle": "Ambient",
       "ambientFootnote": "Volume: <code>animeCompanion.ambientVolume</code> | custom files: <code>animeCompanion.customAmbientTracks</code>",
       "modelTitle": "Model",
+      "achievementsTitle": "Thành tựu",
+      "achievementsSecretTitle": "Thành tựu bí mật",
+      "achievementsEmpty": "Chưa có thành tựu nào.",
+      "questsTitle": "Nhiệm vụ",
+      "questsDaily": "Ngày",
+      "questsWeekly": "Tuần",
+      "memoriesTitle": "Ký ức",
+      "memoriesEmpty": "Chưa có ký ức nào.",
+      "showcaseBtn": "☆ Khoe",
+      "showcaseActive": "★ Đang khoe",
+      "showcaseHint": "Khoe thành tựu này lên đầu panel",
+      "showcaseActiveHint": "Bấm để thôi khoe",
       "motionTitle": "Motion",
       "motionTapBodyDesc": "Body tap",
       "motionTapHeadDesc": "Head pat",
-      "motionIdleDesc": "Default idle"
+      "motionIdleDesc": "Default idle",
+      "agentSwitchTitle": "🔁 Đổi tài khoản",
+      "agentSaveTitle": "💾 Lưu tài khoản hiện tại",
+      "agentNamePlaceholder": "Tên hồ sơ (ví dụ: tk1, work, personal)",
+      "agentCancel": "Hủy",
+      "agentSaveBtn": "Lưu",
+      "agentLoading": "Đang tải…",
+      "agentEmpty": "Chưa có hồ sơ. Lưu tài khoản hiện tại trước nha.",
+      "agentPickTool": "Chọn tool",
+      "agentNoTool": "Chưa thấy CLI nào đang đăng nhập."
+    },
+    "shareCard": {
+      "title": "Xem trước thẻ chia sẻ",
+      "featuredLabel": "Thành tựu hiển thị",
+      "noneUnlocked": "Chưa mở khoá thành tựu nào",
+      "copy": "📋 Copy ảnh",
+      "save": "💾 Lưu PNG…",
+      "close": "Đóng",
+      "copying": "Đang copy…",
+      "copied": "✓ Đã copy vào clipboard",
+      "copyFailed": "Copy thất bại: ",
+      "saving": "Đang mở hộp thoại lưu…",
+      "saved": "✓ Đã lưu",
+      "saveFailed": "Lưu thất bại: "
     }
   }
 }

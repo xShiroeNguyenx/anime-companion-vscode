@@ -17,9 +17,9 @@ Until you fill these in, the marketplace listing will show broken image icons (w
 | 06 | `06-desktop-pet-window.png` | Floating Desktop Companion window placed over another app (e.g., a browser or the desktop wallpaper) so the transparent background is obvious. Always-on-top behavior should be visible. |
 | 07 | `07-cursor-chibi.png` | Editor zoomed in. Chibi sprite hovering near the cursor on a code line. Enable via `Anime Companion: Toggle Cursor Chibi`. Crop tight around the cursor area. |
 | 08 | `08-pomodoro-running.png` | Status bar showing `🔥 23:42` (work) or `☕ 04:12` (break) + the visual ring overlay on the character. Optionally include a bubble like "Focus time!". |
-| 09 | `09-achievements-panel.png` | Achievements webview opened via `Anime Companion: Show Achievements`. Show a mix of unlocked (✓) and locked items. |
+| 09 | `09-achievements-panel.png` | Achievements panel opened via `Anime Companion: Show Achievements`. Show the chain-based tree lanes, the secret-achievement lane, the quest block, and the memory block with a mix of unlocked and hinted entries. |
 | 10 | `10-ambient-menu.png` | Right-click → Ambient submenu (or QuickPick) showing the `lofi / rain / cafe` presets plus a custom track entry. |
-| 11 | `11-rightclick-menu.png` | Right-click context menu opened on the companion (panel mode or desktop pet). All 15 items should be visible (Run, Commit, Pull, Push, Pomodoro, Achievements, Settings ➤…). |
+| 11 | `11-rightclick-menu.png` | Right-click context menu opened on the companion (panel mode or desktop pet). Show the reorganized top-level menu: `Run`, the six category rows (`Git`, `AI Chat`, `Appearance`, `Voice & Sound`, `Workflow`, `Desktop Companion`), and `All Settings`. In the `Workflow` submenu, make sure the newer `Quests`, `Profile`, and `Share Card` entries are visible if possible. |
 | 12 | `12-settings-ui.png` | VS Code Settings UI filtered by `animeCompanion`. Scroll so the new `chat.ollamaEndpoint` and the extended `chat.provider` enum dropdown (8 options) are visible. |
 
 ## Conventions

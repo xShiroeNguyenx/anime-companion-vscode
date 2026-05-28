@@ -22,6 +22,7 @@ export const state = {
   model: null,         // Live2DModel instance
   isLive2DReady: false,
   currentMood: 'idle',
+  quickChatOverlayVisible: false,
 };
 
 export function debugLog(msg) {

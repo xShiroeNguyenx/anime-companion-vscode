@@ -1,7 +1,13 @@
 ﻿import { state, vscode, debugLog } from './core.js';
 import { setExpression, updateExpressionTick } from './expression.js';
 import { playAudio, setAmbientPreset, setGlobalAudioMuted } from './audio.js';
-import { showBubble, createSparkle } from './ui.js';
+import {
+  showBubble,
+  createSparkle,
+  showQuickChatPanel,
+  startBubbleStream,
+  startQuickChatHistoryTurn,
+} from './ui.js';
 
 const HEART_CURSOR_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 48 48">
@@ -56,6 +62,16 @@ function t(path, fallback) {
 function tList(path, fallback) {
   const value = getWebviewValue(path, fallback);
   return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : fallback;
+}
+
+function hideCompanionPanels() {
+  document.querySelector('.companion-voice-panel')?.classList.remove('show');
+  document.querySelector('.companion-message-panel')?.classList.remove('show');
+  document.querySelector('.companion-ambient-panel')?.classList.remove('show');
+  document.querySelector('.companion-model-panel')?.classList.remove('show');
+  document.querySelector('.companion-achievements-panel')?.classList.remove('show');
+  document.querySelector('.companion-motion-panel')?.classList.remove('show');
+  document.querySelector('.companion-agent-panel')?.classList.remove('show');
 }
 
 const DBLCLICK_MESSAGES = tList('dblClickMessages', [
@@ -354,6 +370,7 @@ export function setupModel() {
     fitModel();
   };
   window.addEventListener('resize', handleViewportChange);
+  window.addEventListener('anime-companion:layoutchange', handleViewportChange);
   if (typeof ResizeObserver === 'function') {
     const bodyObserver = new ResizeObserver(handleViewportChange);
     bodyObserver.observe(document.body);
@@ -367,7 +384,9 @@ export function setupModel() {
   setupMessagePanel();
   setupAmbientPanel();
   setupModelPanel();
+  setupAchievementsPanel();
   setupMotionPanel();
+  setupAgentPanel();
 }
 
 // Reads window.__COMPANION_POSITION__ (set by extension when persisted) and
@@ -462,12 +481,13 @@ export function fitModel() {
   const bottomPadding = Math.max(6, h * 0.02);
   const availableWidth = Math.max(1, w - horizontalPadding * 2);
   const availableHeight = Math.max(1, h - topPadding - bottomPadding);
+  const overlayScaleMultiplier = state.quickChatOverlayVisible ? 0.5 : 1;
 
   const previousX = state.model.x;
   const previousY = state.model.y;
   const previousScale = state.model.scale.x || 1;
 
-  const scale = Math.min(availableWidth / modelWidth, availableHeight / modelHeight);
+  const scale = Math.min(availableWidth / modelWidth, availableHeight / modelHeight) * overlayScaleMultiplier;
   const scaledWidth = modelWidth * scale;
   const scaledHeight = modelHeight * scale;
 
@@ -476,6 +496,10 @@ export function fitModel() {
   // canvas bottom edge inside `bottomPadding` so the feet never get clipped.
   state.model.x = (w - scaledWidth) / 2;
   state.model.y = h - bottomPadding - scaledHeight;
+  wrapper.style.setProperty(
+    '--quickchat-anchor-bottom',
+    `${Math.max(bottomPadding + 12, h - state.model.y + 12)}px`
+  );
 
   if (!Number.isFinite(state.model.x) || !Number.isFinite(state.model.y)) {
     state.model.scale.set(previousScale);
@@ -487,6 +511,7 @@ export function fitModel() {
   debugLog(
     'Fit: scale=' + scale.toFixed(4) +
     ', model=' + modelWidth + 'x' + modelHeight +
+    ', overlayScale=' + overlayScaleMultiplier.toFixed(2) +
     ', pos=(' + state.model.x.toFixed(2) + ',' + state.model.y.toFixed(2) + ')'
   );
 }
@@ -547,8 +572,17 @@ function setupContextMenu() {
     <div class="companion-menu-item" data-action="achievements">
       <span style="font-size: 11px;">🏆</span> ${t('menu.achievements', 'Achievements')}
     </div>
+    <div class="companion-menu-item" data-action="quests">
+      <span style="font-size: 11px;">🗂️</span> ${t('menu.quests', 'Quests')}
+    </div>
     <div class="companion-menu-item" data-action="stats">
       <span style="font-size: 11px;">📊</span> ${t('menu.stats', 'Stats')}
+    </div>
+    <div class="companion-menu-item" data-action="profile">
+      <span style="font-size: 11px;">🪪</span> ${t('menu.profile', 'Profile')}
+    </div>
+    <div class="companion-menu-item" data-action="export-share-card">
+      <span style="font-size: 11px;">🖼️</span> ${t('menu.shareCard', 'Share Card')}
     </div>
     <div class="companion-menu-separator"></div>
     <div class="companion-menu-item" data-action="settings">
@@ -660,8 +694,14 @@ function setupContextMenu() {
       showMotionPanel();
     } else if (action === 'achievements') {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showAchievements' });
+    } else if (action === 'quests') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showQuests' });
     } else if (action === 'stats') {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showStats' });
+    } else if (action === 'profile') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showProfile' });
+    } else if (action === 'export-share-card') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.exportShareCard' });
     }
   });
 }
@@ -686,13 +726,18 @@ function setupCompactContextMenu() {
       id: 'chat',
       icon: '💬',
       label: t('menu.chatCategory', 'AI Chat'),
-      items: [
-        { icon: '💬', label: t('menu.chatOpen', 'Open Chat'),                 action: 'chat-open' },
-        { icon: '🆕', label: t('menu.chatNew', 'New Conversation'),           action: 'chat-new' },
-        { icon: '📌', label: t('menu.chatAskSelection', 'Ask About Selection'), action: 'chat-ask-selection' },
-        { icon: '🔑', label: t('menu.chatConfigure', 'Configure Provider'),   action: 'chat-configure' },
-        { icon: '🗑️', label: t('menu.chatClear', 'Clear All'),                action: 'chat-clear' },
-      ],
+      items: isDesktop
+        ? [
+          { icon: '⚡', label: t('menu.chatQuick', 'Quick Chat'), action: 'chat-quick' },
+        ]
+        : [
+          { icon: '⚡', label: t('menu.chatQuick', 'Quick Chat'),                 action: 'chat-quick' },
+          { icon: '💬', label: t('menu.chatOpen', 'Open Chat'),                   action: 'chat-open' },
+          { icon: '🆕', label: t('menu.chatNew', 'New Conversation'),             action: 'chat-new' },
+          { icon: '📌', label: t('menu.chatAskSelection', 'Ask About Selection'), action: 'chat-ask-selection' },
+          { icon: '🔑', label: t('menu.chatConfigure', 'Configure Provider'),     action: 'chat-configure' },
+          { icon: '🗑️', label: t('menu.chatClear', 'Clear All'),                  action: 'chat-clear' },
+        ],
     },
     {
       id: 'appearance',
@@ -728,6 +773,19 @@ function setupCompactContextMenu() {
         { icon: '⏹️', label: t('menu.stopPomodoro', 'Stop Pomodoro'),    action: 'stop-pomodoro' },
         { icon: '📊', label: t('menu.stats', 'Stats'),                    action: 'stats' },
         { icon: '🏆', label: t('menu.achievements', 'Achievements'),      action: 'achievements' },
+        { icon: '🗂️', label: t('menu.quests', 'Quests'),                  action: 'quests' },
+        { icon: '🪪', label: t('menu.profile', 'Profile'),                 action: 'profile' },
+        { icon: '🖼️', label: t('menu.shareCard', 'Share Card'),            action: 'export-share-card' },
+      ],
+    },
+    {
+      id: 'agent',
+      icon: '🪪',
+      label: t('menu.agentCategory', 'Agent Profile'),
+      items: [
+        { icon: '👀', label: t('menu.agentList',   'Manage Profiles…'), action: 'agent-profile-panel' },
+        { icon: '🔁', label: t('menu.agentSwitch', 'Quick Switch…'),    action: 'agent-profile-switch' },
+        { icon: '💾', label: t('menu.agentSave',   'Save Current as…'), action: 'agent-profile-save' },
       ],
     },
     {
@@ -909,8 +967,16 @@ function setupCompactContextMenu() {
       showMotionPanel();
     } else if (action === 'achievements') {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showAchievements' });
+    } else if (action === 'quests') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showQuests' });
     } else if (action === 'stats') {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showStats' });
+    } else if (action === 'profile') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.showProfile' });
+    } else if (action === 'export-share-card') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.exportShareCard' });
+    } else if (action === 'chat-quick') {
+      openQuickChatOverlay();
     } else if (action === 'chat-open') {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.chat.open' });
     } else if (action === 'chat-new') {
@@ -931,6 +997,12 @@ function setupCompactContextMenu() {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.resetPosition' });
     } else if (action === 'reset-workspace-model') {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.resetWorkspaceModel' });
+    } else if (action === 'agent-profile-panel') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.agentProfile.showPanel' });
+    } else if (action === 'agent-profile-switch') {
+      showAgentSwitchPanel();
+    } else if (action === 'agent-profile-save') {
+      showAgentSavePanel();
     }
   };
 
@@ -997,6 +1069,27 @@ function syncMuteMenuLabel(menu) {
     : t('menu.mute', 'Mute');
 }
 
+function openQuickChatOverlay() {
+  vscode.postMessage({ command: 'chat:snapshot' });
+  showQuickChatPanel({
+    onSubmit: (prompt) => {
+      const requestId = 'qc-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+      startQuickChatHistoryTurn(requestId, prompt);
+      startBubbleStream(t('bubbles.quickChatThinking', 'Em đang suy nghĩ chút nha~ 💭'));
+      vscode.postMessage({
+        command: 'pet:chat:request',
+        requestId,
+        prompt,
+        maxTokens: 200,
+      });
+    },
+    onCancel: () => {
+      // No-op — if the user already submitted, cancel happens via the bubble
+      // timer. Pre-submit cancel just hides the overlay (ui.js handles that).
+    },
+  });
+}
+
 function setupVoicePanel() {
   const wrapper = document.getElementById('characterWrapper');
   if (!wrapper) return;
@@ -1040,10 +1133,7 @@ function setupVoicePanel() {
 function showVoicePanel() {
   const panel = document.querySelector('.companion-voice-panel');
   if (!panel) return;
-  document.querySelector('.companion-model-panel')?.classList.remove('show');
-  document.querySelector('.companion-message-panel')?.classList.remove('show');
-  document.querySelector('.companion-ambient-panel')?.classList.remove('show');
-  document.querySelector('.companion-motion-panel')?.classList.remove('show');
+  hideCompanionPanels();
 
   const current = window.__VOICE_LANGUAGE__ || 'ja';
   panel.querySelectorAll('.companion-voice-option').forEach((option) => {
@@ -1097,10 +1187,7 @@ function setupMessagePanel() {
 function showMessagePanel() {
   const panel = document.querySelector('.companion-message-panel');
   if (!panel) return;
-  document.querySelector('.companion-voice-panel')?.classList.remove('show');
-  document.querySelector('.companion-model-panel')?.classList.remove('show');
-  document.querySelector('.companion-ambient-panel')?.classList.remove('show');
-  document.querySelector('.companion-motion-panel')?.classList.remove('show');
+  hideCompanionPanels();
 
   const current = window.__MESSAGE_LANGUAGE__ || 'vi';
   panel.querySelectorAll('.companion-message-option').forEach((option) => {
@@ -1149,10 +1236,7 @@ function setupAmbientPanel() {
 function showAmbientPanel() {
   const panel = document.querySelector('.companion-ambient-panel');
   if (!panel) return;
-  document.querySelector('.companion-voice-panel')?.classList.remove('show');
-  document.querySelector('.companion-message-panel')?.classList.remove('show');
-  document.querySelector('.companion-model-panel')?.classList.remove('show');
-  document.querySelector('.companion-motion-panel')?.classList.remove('show');
+  hideCompanionPanels();
 
   const current = window.__AMBIENT_PRESET__ || 'off';
   panel.querySelectorAll('.companion-ambient-option').forEach((option) => {
@@ -1205,16 +1289,851 @@ function setupModelPanel() {
 function showModelPanel() {
   const panel = document.querySelector('.companion-model-panel');
   if (!panel) return;
-  document.querySelector('.companion-voice-panel')?.classList.remove('show');
-  document.querySelector('.companion-message-panel')?.classList.remove('show');
-  document.querySelector('.companion-ambient-panel')?.classList.remove('show');
-  document.querySelector('.companion-motion-panel')?.classList.remove('show');
+  hideCompanionPanels();
 
   const current = window.__MODEL_ID__ || 'hiyori';
   panel.querySelectorAll('.companion-model-option').forEach((option) => {
     option.classList.toggle('active', option.getAttribute('data-model') === current);
   });
   panel.classList.add('show');
+}
+
+// ─── Agent profile popup (Switch + Save) ─────────────────────────────────
+function setupAgentPanel() {
+  const wrapper = document.getElementById('characterWrapper');
+  if (!wrapper) return;
+
+  const panel = document.createElement('div');
+  panel.className = 'companion-agent-panel';
+  wrapper.appendChild(panel);
+
+  // Outside-click dismiss. The action handler (Save click) clears the panel
+  // itself so we don't double-dispatch from the click bubbling up.
+  window.addEventListener('click', (e) => {
+    if (!panel.contains(e.target)) {
+      panel.classList.remove('show');
+    }
+  }, true);
+}
+
+function renderAgentSwitchHtml(profiles) {
+  if (!Array.isArray(profiles) || profiles.length === 0) {
+    return `
+      <div class="companion-agent-title">${t('panels.agentSwitchTitle', '🔁 Switch Account')}</div>
+      <div class="companion-agent-empty">${t('panels.agentEmpty', 'No saved profiles yet. Save the current account first.')}</div>
+    `;
+  }
+
+  // Group by tool, preserve insertion order.
+  const groups = new Map();
+  for (const p of profiles) {
+    if (!groups.has(p.tool)) {
+      groups.set(p.tool, { tool: p.tool, name: p.toolDisplayName, icon: p.toolIcon, items: [] });
+    }
+    groups.get(p.tool).items.push(p);
+  }
+  const sections = Array.from(groups.values()).map((g) => {
+    const rows = g.items.map((p) => `
+      <button class="companion-agent-option" data-id="${escapeHtml(p.id)}">
+        <span class="companion-agent-mark">${p.active ? '✓' : ''}</span>
+        <span class="companion-agent-row-main">
+          <span class="companion-agent-name">${escapeHtml(p.name)}</span>
+          <span class="companion-agent-meta">${escapeHtml(p.identityText || '')}</span>
+        </span>
+      </button>
+    `).join('');
+    return `
+      <div class="companion-agent-section-header">${escapeHtml(g.icon)} ${escapeHtml(g.name)}</div>
+      ${rows}
+    `;
+  }).join('');
+
+  return `
+    <div class="companion-agent-title">${t('panels.agentSwitchTitle', '🔁 Switch Account')}</div>
+    ${sections}
+  `;
+}
+
+function renderAgentSaveHtml(tools, selectedToolId) {
+  const safeTools = Array.isArray(tools) ? tools : [];
+  let toolSection = '';
+  if (safeTools.length === 0) {
+    toolSection = `<div class="companion-agent-empty">${t('panels.agentNoTool', 'No logged-in CLI detected.')}</div>`;
+  } else if (safeTools.length === 1) {
+    const tool = safeTools[0];
+    toolSection = `
+      <div class="companion-agent-tool-pill">
+        ${escapeHtml(tool.icon || '🪪')} ${escapeHtml(tool.displayName)}
+      </div>
+    `;
+  } else {
+    toolSection = `
+      <div class="companion-agent-section-header">${t('panels.agentPickTool', 'Pick a tool')}</div>
+      <div class="companion-agent-tool-row">
+        ${safeTools.map((tool) => `
+          <button class="companion-agent-tool-btn ${tool.id === selectedToolId ? 'active' : ''}" data-tool="${escapeHtml(tool.id)}">
+            ${escapeHtml(tool.icon || '🪪')} ${escapeHtml(tool.displayName)}
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="companion-agent-title">${t('panels.agentSaveTitle', '💾 Save Current Account')}</div>
+    ${toolSection}
+    <input type="text" class="companion-agent-name-input" maxlength="60"
+      placeholder="${t('panels.agentNamePlaceholder', 'Profile name (e.g. tk1, work, personal)')}" />
+    <div class="companion-agent-actions">
+      <button class="companion-agent-btn secondary" data-act="cancel">${t('panels.agentCancel', 'Cancel')}</button>
+      <button class="companion-agent-btn primary" data-act="save">${t('panels.agentSaveBtn', 'Save')}</button>
+    </div>
+  `;
+}
+
+function showAgentSwitchPanel() {
+  const panel = document.querySelector('.companion-agent-panel');
+  if (!panel) return;
+  hideCompanionPanels();
+  panel.innerHTML = `
+    <div class="companion-agent-title">${t('panels.agentSwitchTitle', '🔁 Switch Account')}</div>
+    <div class="companion-agent-loading">${t('panels.agentLoading', 'Loading…')}</div>
+  `;
+  panel.classList.add('show');
+
+  // Switch panel actions — re-attach on each open since innerHTML is rebuilt.
+  panel.onclick = (e) => {
+    const btn = e.target.closest('.companion-agent-option');
+    if (!btn) return;
+    const id = btn.getAttribute('data-id');
+    if (!id) return;
+    panel.classList.remove('show');
+    vscode.postMessage({ command: 'agentProfile:use', id });
+  };
+
+  vscode.postMessage({ command: 'agentProfile:list:request' });
+}
+
+// Holds the most recently fetched available-tools list so the renderer can
+// re-paint the save panel without round-tripping again.
+let agentSaveTools = [];
+let agentSaveSelectedToolId = null;
+
+function bindAgentSavePanelHandlers(panel) {
+  const input = panel.querySelector('.companion-agent-name-input');
+  setTimeout(() => input?.focus(), 30);
+
+  const submit = () => {
+    const value = (input?.value || '').trim();
+    if (!value) return;
+    if (agentSaveTools.length > 1 && !agentSaveSelectedToolId) return; // require tool pick
+    panel.classList.remove('show');
+    vscode.postMessage({
+      command: 'agentProfile:save',
+      name: value,
+      toolId: agentSaveSelectedToolId || (agentSaveTools[0] && agentSaveTools[0].id) || undefined,
+    });
+  };
+  const cancel = () => { panel.classList.remove('show'); };
+
+  panel.onclick = (e) => {
+    const toolBtn = e.target.closest('.companion-agent-tool-btn');
+    if (toolBtn) {
+      agentSaveSelectedToolId = toolBtn.getAttribute('data-tool');
+      panel.querySelectorAll('.companion-agent-tool-btn').forEach((b) => {
+        b.classList.toggle('active', b.getAttribute('data-tool') === agentSaveSelectedToolId);
+      });
+      return;
+    }
+    const btn = e.target.closest('.companion-agent-btn');
+    if (!btn) return;
+    if (btn.getAttribute('data-act') === 'save') submit();
+    else cancel();
+  };
+  input?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+}
+
+function showAgentSavePanel() {
+  const panel = document.querySelector('.companion-agent-panel');
+  if (!panel) return;
+  hideCompanionPanels();
+  agentSaveTools = [];
+  agentSaveSelectedToolId = null;
+  panel.innerHTML = `
+    <div class="companion-agent-title">${t('panels.agentSaveTitle', '💾 Save Current Account')}</div>
+    <div class="companion-agent-loading">${t('panels.agentLoading', 'Loading…')}</div>
+  `;
+  panel.classList.add('show');
+  vscode.postMessage({ command: 'agentProfile:availableTools:request' });
+}
+
+// Called by main.js when host pushes available CLI tools. Repaints the open
+// save panel with inline tool buttons (or auto-picks if only one).
+export function renderAgentAvailableTools(tools) {
+  const panel = document.querySelector('.companion-agent-panel');
+  if (!panel || !panel.classList.contains('show')) return;
+  agentSaveTools = Array.isArray(tools) ? tools : [];
+  agentSaveSelectedToolId = agentSaveTools.length === 1 ? agentSaveTools[0].id : null;
+  panel.innerHTML = renderAgentSaveHtml(agentSaveTools, agentSaveSelectedToolId);
+  bindAgentSavePanelHandlers(panel);
+}
+
+// Called by main.js when the host pushes the profile list after a
+// `agentProfile:list:request`. The switch popup must already be visible.
+export function renderAgentProfileList(profiles) {
+  const panel = document.querySelector('.companion-agent-panel');
+  if (!panel || !panel.classList.contains('show')) return;
+  panel.innerHTML = renderAgentSwitchHtml(profiles);
+}
+
+const SHOWCASE_RARITY_ICON = {
+  common: '✨',
+  rare: '💎',
+  epic: '🌟',
+  legendary: '👑',
+  mythic: '🔥',
+};
+
+function renderShowcaseButton(item) {
+  if (!item || !item.unlocked) return '';
+  const active = item.isShowcased ? 'active' : '';
+  const label = item.isShowcased
+    ? t('panels.showcaseActive', '★ Showcasing')
+    : t('panels.showcaseBtn', '☆ Showcase');
+  const titleAttr = item.isShowcased
+    ? t('panels.showcaseActiveHint', 'Click to stop showcasing')
+    : t('panels.showcaseHint', 'Showcase this achievement in the panel header');
+  return `<button type="button"
+    class="companion-achievement-showcase-btn ${active}"
+    data-achievement-id="${escapeHtml(item.id || '')}"
+    data-active="${item.isShowcased ? '1' : '0'}"
+    title="${escapeHtml(titleAttr)}">${escapeHtml(label)}</button>`;
+}
+
+export function applyShowcaseBanner(showcase) {
+  window.__SHOWCASE__ = showcase || null;
+  const banner = document.getElementById('companion-showcase-banner');
+  if (!banner) return;
+  if (!showcase || typeof showcase !== 'object') {
+    banner.className = 'companion-showcase hidden';
+    banner.innerHTML = '';
+    return;
+  }
+  const rarity = String(showcase.rarity || 'common').toLowerCase();
+  const icon = SHOWCASE_RARITY_ICON[rarity] || '✨';
+  banner.className = `companion-showcase rarity-${rarity}`;
+  banner.innerHTML = `
+    <span class="companion-showcase-icon">${icon}</span>
+    <span class="companion-showcase-title">${escapeHtml(showcase.title || '')}</span>
+    <span class="companion-showcase-rarity">${escapeHtml(String(showcase.rarityLabel || rarity).toUpperCase())}</span>
+    ${rarity === 'mythic' ? '<span class="companion-showcase-particles" aria-hidden="true"></span>' : ''}
+  `;
+}
+
+function attachShowcaseHandlers(panel) {
+  panel.querySelectorAll('.companion-achievement-showcase-btn').forEach((btn) => {
+    if (btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const id = btn.getAttribute('data-achievement-id') || '';
+      const active = btn.getAttribute('data-active') === '1';
+      const next = active ? null : id;
+      vscode.postMessage({ command: 'setShowcaseAchievement', id: next });
+    });
+  });
+}
+
+function renderAchievementsPanel(panel) {
+  const data = window.__ACHIEVEMENTS__ && typeof window.__ACHIEVEMENTS__ === 'object'
+    ? window.__ACHIEVEMENTS__
+    : { summary: { unlocked: 0, total: 0, secretUnlocked: 0, secretTotal: 0, dailyCompleted: 0, dailyTotal: 0, weeklyCompleted: 0, weeklyTotal: 0 }, chains: [], secrets: [], quests: { daily: [], weekly: [] }, memories: [] };
+  const summary = data.summary || { unlocked: 0, total: 0, secretUnlocked: 0, secretTotal: 0, dailyCompleted: 0, dailyTotal: 0, weeklyCompleted: 0, weeklyTotal: 0 };
+  const chains = Array.isArray(data.chains) ? data.chains : [];
+  const secrets = Array.isArray(data.secrets) ? data.secrets : [];
+  const quests = data.quests && typeof data.quests === 'object' ? data.quests : { daily: [], weekly: [] };
+  const memories = Array.isArray(data.memories) ? data.memories : [];
+
+  const chainHtml = chains.map((chain) => {
+    const nodes = Array.isArray(chain.nodes) ? chain.nodes : [];
+    const nodesHtml = nodes.map((item) => {
+      const stateClass = item.unlocked ? 'unlocked' : 'locked';
+      const rarityClass = `rarity-${String(item.rarity || 'common').toLowerCase()}`;
+      const showcaseClass = item.isShowcased ? 'showcased' : '';
+      return `
+        <div class="companion-achievement-node ${stateClass} ${rarityClass} ${showcaseClass}">
+          <span class="companion-achievement-tier">Tier ${escapeHtml(item.tier || 0)}</span>
+          <span class="companion-achievement-rarity">${escapeHtml(item.rarityLabel || '')}</span>
+          <span class="companion-achievement-label">${escapeHtml(item.title || '')}</span>
+          <span class="companion-achievement-desc">${escapeHtml(item.description || '')}</span>
+          <span class="companion-achievement-status">${escapeHtml(item.statusText || '')}</span>
+          ${renderShowcaseButton(item)}
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <section class="companion-achievement-chain">
+        <div class="companion-achievement-chain-header">
+          <span class="companion-achievement-chain-title">${escapeHtml(chain.title || '')}</span>
+          <span class="companion-achievement-chain-progress">${escapeHtml(chain.unlockedCount || 0)}/${escapeHtml(chain.totalCount || 0)}</span>
+        </div>
+        <div class="companion-achievement-lane">${nodesHtml}</div>
+      </section>
+    `;
+  }).join('');
+
+  const secretHtml = secrets.map((item) => {
+    const stateClass = item.unlocked ? 'unlocked' : 'locked secret';
+    const rarityClass = `rarity-${String(item.rarity || 'mythic').toLowerCase()}`;
+    const showcaseClass = item.isShowcased ? 'showcased' : '';
+    return `
+      <div class="companion-achievement-option ${stateClass} ${rarityClass} ${showcaseClass}">
+        <span class="companion-achievement-rarity">${escapeHtml(item.rarityLabel || '')}</span>
+        <span class="companion-achievement-label">${escapeHtml(item.title || '')}</span>
+        <span class="companion-achievement-desc">${escapeHtml(item.description || '')}</span>
+        <span class="companion-achievement-status">${escapeHtml(item.statusText || '')}</span>
+        ${renderShowcaseButton(item)}
+      </div>
+    `;
+  }).join('');
+
+  const renderQuestList = (items, periodLabel) => items.map((item) => `
+    <div class="companion-quest-card ${item.completed ? 'completed' : 'active'}">
+      <span class="companion-quest-period">${escapeHtml(periodLabel)}</span>
+      <span class="companion-achievement-label">${escapeHtml(item.title || '')}</span>
+      <span class="companion-achievement-desc">${escapeHtml(item.description || '')}</span>
+      <span class="companion-achievement-status">${escapeHtml(item.statusText || '')}</span>
+    </div>
+  `).join('');
+
+  const dailyHtml = renderQuestList(Array.isArray(quests.daily) ? quests.daily : [], t('panels.questsDaily', 'Daily'));
+  const weeklyHtml = renderQuestList(Array.isArray(quests.weekly) ? quests.weekly : [], t('panels.questsWeekly', 'Weekly'));
+  const memoryHtml = memories.map((memory) => `
+    <div class="companion-memory-card">
+      <span class="companion-achievement-desc">${escapeHtml(memory.text || '')}</span>
+    </div>
+  `).join('');
+
+  panel.innerHTML = `
+    <div class="companion-achievements-title">
+      ${t('panels.achievementsTitle', 'Achievements')} (${summary.unlocked || 0}/${summary.total || 0})
+    </div>
+    <section class="companion-achievement-chain">
+      <div class="companion-achievement-chain-header">
+        <span class="companion-achievement-chain-title">${t('panels.questsTitle', 'Quests')}</span>
+        <span class="companion-achievement-chain-progress">${summary.dailyCompleted || 0}/${summary.dailyTotal || 0} · ${summary.weeklyCompleted || 0}/${summary.weeklyTotal || 0}</span>
+      </div>
+      <div class="companion-quest-list">
+        ${dailyHtml}
+        ${weeklyHtml}
+      </div>
+    </section>
+    ${chainHtml || `<div class="companion-achievement-empty">${t('panels.achievementsEmpty', 'No achievements yet.')}</div>`}
+    <section class="companion-achievement-chain companion-achievement-secret-lane">
+      <div class="companion-achievement-chain-header">
+        <span class="companion-achievement-chain-title">${t('panels.achievementsSecretTitle', 'Secret Achievements')}</span>
+        <span class="companion-achievement-chain-progress">${summary.secretUnlocked || 0}/${summary.secretTotal || 0}</span>
+      </div>
+      <div class="companion-achievement-secret-list">
+        ${secretHtml || `<div class="companion-achievement-empty">${t('panels.achievementsEmpty', 'No achievements yet.')}</div>`}
+      </div>
+    </section>
+    <section class="companion-achievement-chain companion-achievement-memory-lane">
+      <div class="companion-achievement-chain-header">
+        <span class="companion-achievement-chain-title">${t('panels.memoriesTitle', 'Memories')}</span>
+        <span class="companion-achievement-chain-progress">${memories.length || 0}</span>
+      </div>
+      <div class="companion-memory-list">
+        ${memoryHtml || `<div class="companion-achievement-empty">${t('panels.memoriesEmpty', 'No memories yet.')}</div>`}
+      </div>
+    </section>
+  `;
+
+  attachShowcaseHandlers(panel);
+}
+
+function setupAchievementsPanel() {
+  const wrapper = document.getElementById('characterWrapper');
+  if (!wrapper) return;
+
+  const panel = document.createElement('div');
+  panel.className = 'companion-achievements-panel';
+  renderAchievementsPanel(panel);
+  wrapper.appendChild(panel);
+  applyShowcaseBanner(window.__SHOWCASE__ || null);
+
+  window.addEventListener('click', (e) => {
+    if (!panel.contains(e.target)) {
+      panel.classList.remove('show');
+    }
+  }, true);
+}
+
+export function updateAchievementsPanelData(achievements) {
+  window.__ACHIEVEMENTS__ = achievements && typeof achievements === 'object'
+    ? achievements
+    : { summary: { unlocked: 0, total: 0, secretUnlocked: 0, secretTotal: 0, dailyCompleted: 0, dailyTotal: 0, weeklyCompleted: 0, weeklyTotal: 0 }, chains: [], secrets: [], quests: { daily: [], weekly: [] }, memories: [] };
+  if (achievements && typeof achievements === 'object' && 'showcase' in achievements) {
+    applyShowcaseBanner(achievements.showcase || null);
+  }
+  const panel = document.querySelector('.companion-achievements-panel');
+  if (!panel) return;
+  renderAchievementsPanel(panel);
+}
+
+export function showAchievementsPanel() {
+  const panel = document.querySelector('.companion-achievements-panel');
+  if (!panel) return;
+  renderAchievementsPanel(panel);
+  hideCompanionPanels();
+  panel.classList.add('show');
+}
+
+let achievementToast = null;
+let achievementToastTimer = null;
+
+export function showAchievementUnlockEffect(payload) {
+  const wrapper = document.getElementById('characterWrapper');
+  if (!wrapper) return;
+  if (!achievementToast) {
+    achievementToast = document.createElement('div');
+    achievementToast.className = 'companion-achievement-toast';
+    wrapper.appendChild(achievementToast);
+  }
+
+  const rarity = String(payload?.achievement?.rarity || payload?.quest?.rarity || 'rare').toLowerCase();
+  const title = payload?.achievement?.title || payload?.quest?.title || 'Unlocked';
+  const kicker = payload?.achievement
+    ? `${payload.achievement.secret ? 'Secret' : 'Achievement'} • ${payload.achievement.rarity || ''}`
+    : `${payload?.quest?.period === 'weekly' ? 'Weekly' : 'Daily'} Quest`;
+
+  achievementToast.className = `companion-achievement-toast show rarity-${rarity}`;
+  achievementToast.innerHTML = `
+    <span class="companion-achievement-toast-kicker">${escapeHtml(kicker)}</span>
+    <span class="companion-achievement-toast-title">${escapeHtml(title)}</span>
+  `;
+
+  const sparkleCount = ({
+    common: 2,
+    rare: 3,
+    epic: 4,
+    legendary: 5,
+    mythic: 6
+  })[rarity] || 3;
+  for (let i = 0; i < sparkleCount; i += 1) {
+    createSparkle();
+  }
+
+  if (achievementToastTimer) clearTimeout(achievementToastTimer);
+  achievementToastTimer = setTimeout(() => {
+    achievementToast?.classList.remove('show');
+  }, 2600);
+}
+
+function roundRectPath(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+}
+
+function fillRoundedRect(ctx, x, y, width, height, radius, fillStyle) {
+  ctx.save();
+  ctx.fillStyle = fillStyle;
+  roundRectPath(ctx, x, y, width, height, radius);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = '';
+  for (const word of words) {
+    const probe = current ? `${current} ${word}` : word;
+    if (ctx.measureText(probe).width <= maxWidth) {
+      current = probe;
+      continue;
+    }
+    if (current) lines.push(current);
+    current = word;
+  }
+  if (current) lines.push(current);
+  const visibleLines = typeof maxLines === 'number' ? lines.slice(0, maxLines) : lines;
+  visibleLines.forEach((line, index) => {
+    const isLastTrimmed = typeof maxLines === 'number' && index === visibleLines.length - 1 && lines.length > visibleLines.length;
+    const rendered = isLastTrimmed ? `${line}…` : line;
+    ctx.fillText(rendered, x, y + (index * lineHeight));
+  });
+}
+
+function drawStatPill(ctx, label, value, x, y, width) {
+  fillRoundedRect(ctx, x, y, width, 54, 18, 'rgba(255,255,255,0.16)');
+  ctx.fillStyle = '#ffe8f2';
+  ctx.font = '600 18px Segoe UI';
+  ctx.fillText(label, x + 16, y + 20);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '800 26px Segoe UI';
+  ctx.fillText(String(value), x + 16, y + 42);
+}
+
+const RARITY_PALETTE = {
+  common:    { fill: '#cfd8e8', glow: 'rgba(207,216,232,0.55)' },
+  rare:      { fill: '#7ad7ff', glow: 'rgba(122,215,255,0.65)' },
+  epic:      { fill: '#c08cff', glow: 'rgba(192,140,255,0.7)' },
+  legendary: { fill: '#ffd166', glow: 'rgba(255,209,102,0.75)' },
+  mythic:    { fill: '#ff6fa5', glow: 'rgba(255,111,165,0.85)' },
+};
+
+function drawTitleFx(ctx, text, x, y) {
+  ctx.save();
+  ctx.font = '900 64px Segoe UI';
+  ctx.textBaseline = 'alphabetic';
+  const metrics = ctx.measureText(text);
+  const width = metrics.width;
+
+  // Holographic shimmer offsets
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = '#3df4ff';
+  ctx.fillText(text, x - 3, y);
+  ctx.fillStyle = '#ff4dd1';
+  ctx.fillText(text, x + 3, y);
+
+  // Outer glow
+  ctx.globalAlpha = 1;
+  ctx.shadowColor = 'rgba(255,128,210,0.85)';
+  ctx.shadowBlur = 28;
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.strokeText(text, x, y);
+
+  // Gradient fill
+  ctx.shadowBlur = 0;
+  const grad = ctx.createLinearGradient(x, y - 56, x + width, y);
+  grad.addColorStop(0, '#fff6c8');
+  grad.addColorStop(0.5, '#ff9ad6');
+  grad.addColorStop(1, '#7dd5ff');
+  ctx.fillStyle = grad;
+  ctx.fillText(text, x, y);
+
+  // Sparkles around the title
+  const sparkleCount = 8;
+  for (let i = 0; i < sparkleCount; i++) {
+    const sx = x + (width + 40) * Math.random() - 20;
+    const sy = y - 70 + Math.random() * 80;
+    const r = 1.5 + Math.random() * 3.5;
+    ctx.globalAlpha = 0.6 + Math.random() * 0.4;
+    ctx.fillStyle = i % 2 ? '#fff7c2' : '#bdf3ff';
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawFeaturedAchievement(ctx, featured, x, y, width, height) {
+  fillRoundedRect(ctx, x, y, width, height, 28, 'rgba(255,255,255,0.13)');
+  if (!featured) {
+    ctx.fillStyle = '#ffd7e7';
+    ctx.font = '700 20px Segoe UI';
+    ctx.fillText('Top achievement', x + 24, y + 36);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 32px Segoe UI';
+    drawWrappedText(ctx, 'No major title yet', x + 24, y + 78, width - 48, 36, 2);
+    return;
+  }
+  const palette = RARITY_PALETTE[featured.rarity] || RARITY_PALETTE.common;
+
+  fillRoundedRect(ctx, x + 16, y + 16, 96, 28, 14, palette.glow);
+  ctx.fillStyle = '#15182a';
+  ctx.font = '800 16px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText(String(featured.rarity || 'common').toUpperCase(), x + 64, y + 35);
+  ctx.textAlign = 'start';
+
+  ctx.fillStyle = '#ffd7e7';
+  ctx.font = '700 18px Segoe UI';
+  ctx.fillText('Featured achievement', x + 128, y + 36);
+
+  ctx.save();
+  ctx.shadowColor = palette.glow;
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = palette.fill;
+  ctx.font = '900 30px Segoe UI';
+  drawWrappedText(ctx, featured.title || 'Untitled', x + 24, y + 86, width - 48, 34, 2);
+  ctx.restore();
+
+  if (featured.description) {
+    ctx.fillStyle = '#ffeef6';
+    ctx.font = '500 18px Segoe UI';
+    drawWrappedText(ctx, featured.description, x + 24, y + 156, width - 48, 24, 2);
+  }
+}
+
+function renderShareCardCanvas(profile, featured) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 630;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context is unavailable.');
+
+  const gradient = ctx.createLinearGradient(0, 0, 1200, 630);
+  gradient.addColorStop(0, '#1f2747');
+  gradient.addColorStop(0.55, '#633a63');
+  gradient.addColorStop(1, '#f17cab');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 1200, 630);
+
+  fillRoundedRect(ctx, 42, 42, 1116, 546, 34, 'rgba(16, 22, 46, 0.26)');
+  fillRoundedRect(ctx, 62, 62, 1076, 506, 30, 'rgba(255,255,255,0.08)');
+
+  ctx.fillStyle = '#ffd9e8';
+  ctx.font = '700 22px Segoe UI';
+  ctx.fillText((profile.companionName || 'Companion') + '  •  Profile', 92, 110);
+
+  drawTitleFx(ctx, 'Anime Companion', 92, 170);
+
+  ctx.fillStyle = '#ffeef6';
+  ctx.font = '700 26px Segoe UI';
+  ctx.fillText(profile.title || 'Fresh Pair', 92, 210);
+
+  fillRoundedRect(ctx, 92, 240, 268, 92, 24, 'rgba(255,255,255,0.15)');
+  ctx.fillStyle = '#ffd7e7';
+  ctx.font = '700 20px Segoe UI';
+  ctx.fillText('Affinity', 116, 274);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 42px Segoe UI';
+  ctx.fillText(`${profile.affinityPercent || 0}%`, 116, 316);
+
+  fillRoundedRect(ctx, 380, 240, 240, 92, 24, 'rgba(255,255,255,0.15)');
+  ctx.fillStyle = '#ffd7e7';
+  ctx.font = '700 20px Segoe UI';
+  ctx.fillText('Level', 404, 274);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 42px Segoe UI';
+  ctx.fillText(`Lv.${profile.level || 1}`, 404, 316);
+
+  drawFeaturedAchievement(ctx, featured, 92, 362, 528, 182);
+
+  drawStatPill(ctx, 'Achievements', `${profile.achievementUnlocked || 0}/${profile.achievementTotal || 0}`, 660, 110, 196);
+  drawStatPill(ctx, 'Daily quests', profile.dailyQuestCompleted || 0, 880, 110, 196);
+  drawStatPill(ctx, 'Weekly quests', profile.weeklyQuestCompleted || 0, 660, 182, 196);
+  drawStatPill(ctx, 'Memories', profile.summary?.memories || 0, 880, 182, 196);
+  drawStatPill(ctx, 'Gems', profile.inventory?.gems || 0, 660, 254, 196);
+  drawStatPill(ctx, 'Tickets', profile.inventory?.tickets || 0, 880, 254, 196);
+
+  fillRoundedRect(ctx, 660, 326, 438, 218, 28, 'rgba(255,255,255,0.13)');
+  ctx.fillStyle = '#ffd7e7';
+  ctx.font = '700 20px Segoe UI';
+  ctx.fillText('Unlocks', 684, 362);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 18px Segoe UI';
+  const cosmetics = Array.isArray(profile.inventory?.cosmetics) && profile.inventory.cosmetics.length
+    ? profile.inventory.cosmetics.join(', ')
+    : 'No cosmetics unlocked yet';
+  const voicePacks = Array.isArray(profile.inventory?.voicePacks) && profile.inventory.voicePacks.length
+    ? profile.inventory.voicePacks.join(', ')
+    : 'No voice packs unlocked yet';
+  drawWrappedText(ctx, `Cosmetics: ${cosmetics}`, 684, 398, 390, 26, 3);
+  drawWrappedText(ctx, `Voice packs: ${voicePacks}`, 684, 482, 390, 26, 2);
+
+  ctx.fillStyle = '#ffeef6';
+  ctx.font = '700 18px Segoe UI';
+  ctx.fillText(`Exported ${new Date(profile.exportedAt || Date.now()).toLocaleDateString()}`, 92, 580);
+
+  return canvas;
+}
+
+let _shareCardState = null;
+
+function _canvasToBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('Canvas.toBlob returned null.'));
+    }, 'image/png');
+  });
+}
+
+function _pickInitialFeatured(profile) {
+  const list = Array.isArray(profile.unlockedAchievements) ? profile.unlockedAchievements : [];
+  if (!list.length) return null;
+  if (profile.topAchievementId) {
+    const match = list.find((item) => item.id === profile.topAchievementId);
+    if (match) return match;
+  }
+  return list[0];
+}
+
+function _refreshShareCardPreview() {
+  if (!_shareCardState) return;
+  const { profile, featuredId, previewImg, canvasHolder } = _shareCardState;
+  const list = Array.isArray(profile.unlockedAchievements) ? profile.unlockedAchievements : [];
+  const featured = list.find((item) => item.id === featuredId) || null;
+  const canvas = renderShareCardCanvas(profile, featured);
+  _shareCardState.canvas = canvas;
+  if (previewImg) {
+    previewImg.src = canvas.toDataURL('image/png');
+  }
+  if (canvasHolder && !previewImg) {
+    canvasHolder.innerHTML = '';
+    canvasHolder.appendChild(canvas);
+  }
+}
+
+function _closeShareCardModal() {
+  if (!_shareCardState) return;
+  const { backdrop, keyHandler } = _shareCardState;
+  document.removeEventListener('keydown', keyHandler, true);
+  backdrop?.remove();
+  _shareCardState = null;
+}
+
+function _setShareCardStatus(text, kind) {
+  if (!_shareCardState?.statusEl) return;
+  _shareCardState.statusEl.textContent = text || '';
+  _shareCardState.statusEl.dataset.kind = kind || '';
+}
+
+export function openShareCardPreview(profile) {
+  _closeShareCardModal();
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'share-card-backdrop';
+  backdrop.innerHTML = `
+    <div class="share-card-modal" role="dialog" aria-modal="true" aria-label="${t('shareCard.title', 'Share card preview')}">
+      <div class="share-card-header">
+        <span class="share-card-title">${t('shareCard.title', 'Share card preview')}</span>
+        <button type="button" class="share-card-close" aria-label="${t('shareCard.close', 'Close')}">×</button>
+      </div>
+      <div class="share-card-body">
+        <div class="share-card-preview"><img class="share-card-preview-img" alt="share card preview" /></div>
+        <div class="share-card-controls">
+          <label class="share-card-label">${t('shareCard.featuredLabel', 'Featured achievement')}</label>
+          <select class="share-card-picker"></select>
+          <div class="share-card-actions">
+            <button type="button" class="share-card-btn share-card-btn-copy">${t('shareCard.copy', '📋 Copy image')}</button>
+            <button type="button" class="share-card-btn share-card-btn-save">${t('shareCard.save', '💾 Save as PNG…')}</button>
+            <button type="button" class="share-card-btn share-card-btn-cancel">${t('shareCard.close', 'Close')}</button>
+          </div>
+          <div class="share-card-status" role="status"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+
+  const picker = backdrop.querySelector('.share-card-picker');
+  const previewImg = backdrop.querySelector('.share-card-preview-img');
+  const statusEl = backdrop.querySelector('.share-card-status');
+
+  const unlocked = Array.isArray(profile.unlockedAchievements) ? profile.unlockedAchievements : [];
+  if (!unlocked.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = t('shareCard.noneUnlocked', 'No achievement unlocked yet');
+    picker.appendChild(opt);
+    picker.disabled = true;
+  } else {
+    for (const ach of unlocked) {
+      const opt = document.createElement('option');
+      opt.value = ach.id;
+      opt.textContent = `${String(ach.rarity || 'common').toUpperCase()} · ${ach.title}`;
+      picker.appendChild(opt);
+    }
+  }
+
+  const initialFeatured = _pickInitialFeatured(profile);
+  const initialFeaturedId = initialFeatured ? initialFeatured.id : '';
+  if (initialFeaturedId) picker.value = initialFeaturedId;
+
+  const keyHandler = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      _closeShareCardModal();
+    }
+  };
+  document.addEventListener('keydown', keyHandler, true);
+
+  _shareCardState = {
+    profile,
+    featuredId: initialFeaturedId,
+    backdrop,
+    previewImg,
+    canvasHolder: null,
+    canvas: null,
+    statusEl,
+    keyHandler,
+    pendingSaveRequestId: null,
+  };
+
+  picker.addEventListener('change', () => {
+    if (!_shareCardState) return;
+    _shareCardState.featuredId = picker.value;
+    _refreshShareCardPreview();
+  });
+
+  backdrop.querySelector('.share-card-close').addEventListener('click', _closeShareCardModal);
+  backdrop.querySelector('.share-card-btn-cancel').addEventListener('click', _closeShareCardModal);
+  backdrop.addEventListener('click', (event) => {
+    if (event.target === backdrop) _closeShareCardModal();
+  });
+
+  backdrop.querySelector('.share-card-btn-copy').addEventListener('click', async () => {
+    if (!_shareCardState?.canvas) return;
+    _setShareCardStatus(t('shareCard.copying', 'Copying…'), 'pending');
+    try {
+      const blob = await _canvasToBlob(_shareCardState.canvas);
+      if (!navigator.clipboard || typeof window.ClipboardItem !== 'function') {
+        throw new Error('Clipboard image write is not supported in this environment.');
+      }
+      await navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]);
+      _setShareCardStatus(t('shareCard.copied', '✓ Copied to clipboard'), 'success');
+      vscode.postMessage({ command: 'shareCardCopied' });
+    } catch (err) {
+      const reason = err && err.message ? err.message : String(err);
+      _setShareCardStatus(t('shareCard.copyFailed', 'Copy failed: ') + reason, 'error');
+      vscode.postMessage({ command: 'shareCardCopyFailed', reason });
+    }
+  });
+
+  backdrop.querySelector('.share-card-btn-save').addEventListener('click', () => {
+    if (!_shareCardState?.canvas) return;
+    const requestId = `share-card-save-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    _shareCardState.pendingSaveRequestId = requestId;
+    _setShareCardStatus(t('shareCard.saving', 'Opening save dialog…'), 'pending');
+    vscode.postMessage({
+      command: 'shareCardRequestSave',
+      requestId,
+      dataUrl: _shareCardState.canvas.toDataURL('image/png'),
+    });
+  });
+
+  _refreshShareCardPreview();
+}
+
+export function receiveShareCardSaveResult(payload) {
+  if (!_shareCardState) return;
+  if (payload?.requestId && payload.requestId !== _shareCardState.pendingSaveRequestId) return;
+  _shareCardState.pendingSaveRequestId = null;
+  if (payload?.ok) {
+    _setShareCardStatus(t('shareCard.saved', '✓ Saved'), 'success');
+  } else if (payload?.cancelled) {
+    _setShareCardStatus('', '');
+  } else {
+    _setShareCardStatus(
+      t('shareCard.saveFailed', 'Save failed: ') + String(payload?.error || 'unknown error'),
+      'error'
+    );
+  }
 }
 
 function setupMotionPanel() {
@@ -1258,9 +2177,6 @@ function setupMotionPanel() {
 function showMotionPanel() {
   const panel = document.querySelector('.companion-motion-panel');
   if (!panel) return;
-  document.querySelector('.companion-voice-panel')?.classList.remove('show');
-  document.querySelector('.companion-message-panel')?.classList.remove('show');
-  document.querySelector('.companion-ambient-panel')?.classList.remove('show');
-  document.querySelector('.companion-model-panel')?.classList.remove('show');
+  hideCompanionPanels();
   panel.classList.add('show');
 }

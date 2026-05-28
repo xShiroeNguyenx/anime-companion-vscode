@@ -76,6 +76,12 @@ body {
   line-height: 1.4;
   font-weight: 500;
   letter-spacing: 0.2px;
+  /* Long quick-chat replies must not blow the bubble past the (small) desktop
+     pet window — cap height and scroll instead of overflowing the screen. */
+  max-height: 40vh;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .bubble-tail {
@@ -166,6 +172,11 @@ body {
   filter: drop-shadow(0 4px 12px rgba(180, 100, 160, 0.35));
   transition: all 0.3s ease;
   animation: float 3s ease-in-out infinite;
+}
+
+.character-wrapper.quickchat-compact .character-img {
+  max-width: 50%;
+  max-height: 50%;
 }
 
 .character-img:hover {
@@ -295,6 +306,12 @@ body {
   to { transform: rotate(360deg); }
 }
 
+@keyframes achievement-pulse {
+  0% { transform: translate(-50%, -8px) scale(0.94); }
+  45% { transform: translate(-50%, 0) scale(1.02); }
+  100% { transform: translate(-50%, 0) scale(1); }
+}
+
 /* ── Dark Theme ──────────────────────────────────────────────────────────── */
 
 @media (prefers-color-scheme: dark) {
@@ -406,12 +423,13 @@ body[data-message-language="vi"] .companion-context-menu {
 
 .companion-voice-panel,
 .companion-message-panel,
-.companion-ambient-panel {
+.companion-ambient-panel,
+.companion-agent-panel {
   position: absolute;
   left: 50%;
   bottom: 18px;
   transform: translate(-50%, 12px) scale(0.96);
-  width: min(240px, calc(100% - 24px));
+  width: min(280px, calc(100% - 24px));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -433,10 +451,147 @@ body[data-message-language="vi"] .companion-context-menu {
 
 .companion-voice-panel.show,
 .companion-message-panel.show,
-.companion-ambient-panel.show {
+.companion-ambient-panel.show,
+.companion-agent-panel.show {
   opacity: 1;
   pointer-events: auto;
   transform: translate(-50%, 0) scale(1);
+}
+
+/* Agent profile popup specifics — list rows + save form. */
+.companion-agent-title {
+  font-family: 'Mochiy Pop One', 'Segoe UI', sans-serif;
+  font-size: 12px;
+  color: #7a2950;
+  text-align: center;
+}
+.companion-agent-section-header {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #a4366b;
+  padding: 4px 4px 2px;
+  margin-top: 2px;
+}
+.companion-agent-section-header:first-of-type { margin-top: 0; }
+.companion-agent-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid rgba(206, 109, 154, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+.companion-agent-option:hover {
+  border-color: rgba(206, 109, 154, 0.55);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(176, 71, 122, 0.18);
+}
+.companion-agent-mark {
+  width: 14px;
+  flex: 0 0 14px;
+  color: #c93f7e;
+  font-weight: 700;
+}
+.companion-agent-row-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.companion-agent-name { font-size: 12px; font-weight: 600; color: #5a1a3a; }
+.companion-agent-meta {
+  font-size: 10px;
+  color: rgba(90, 26, 58, 0.65);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.companion-agent-empty,
+.companion-agent-loading {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  color: rgba(90, 26, 58, 0.72);
+  font-size: 11px;
+  text-align: center;
+}
+.companion-agent-name-input {
+  width: 100%;
+  border: 1px solid rgba(206, 109, 154, 0.35);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: #5a1a3a;
+  background: rgba(255, 255, 255, 0.85);
+  outline: none;
+  box-sizing: border-box;
+}
+.companion-agent-name-input:focus { border-color: rgba(206, 109, 154, 0.7); }
+.companion-agent-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.companion-agent-btn {
+  border: 1px solid rgba(206, 109, 154, 0.35);
+  border-radius: 10px;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.72);
+  color: #5a1a3a;
+  transition: filter 0.14s ease;
+}
+.companion-agent-btn.primary {
+  background: linear-gradient(135deg, #ff7eb6, #ff4a90);
+  color: #fff;
+  border-color: transparent;
+}
+.companion-agent-btn:hover { filter: brightness(1.06); }
+
+/* Tool pill (single-tool) + button row (multi-tool) for save panel. */
+.companion-agent-tool-pill {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(206, 109, 154, 0.35);
+  font-size: 11px;
+  color: #5a1a3a;
+}
+.companion-agent-tool-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.companion-agent-tool-btn {
+  flex: 1 1 auto;
+  min-width: 80px;
+  border: 1px solid rgba(206, 109, 154, 0.35);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 11px;
+  color: #5a1a3a;
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  transition: filter 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+.companion-agent-tool-btn:hover {
+  filter: brightness(1.04);
+  border-color: rgba(206, 109, 154, 0.7);
+}
+.companion-agent-tool-btn.active {
+  background: linear-gradient(135deg, #ff7eb6, #ff4a90);
+  color: #fff;
+  border-color: transparent;
 }
 
 .companion-voice-title,
@@ -498,7 +653,8 @@ body[data-message-language="vi"] .companion-context-menu {
   text-align: center;
 }
 
-.companion-model-panel {
+.companion-model-panel,
+.companion-achievements-panel {
   position: absolute;
   left: 50%;
   bottom: 18px;
@@ -525,13 +681,19 @@ body[data-message-language="vi"] .companion-context-menu {
   z-index: 36;
 }
 
-.companion-model-panel.show {
+.companion-achievements-panel {
+  width: min(340px, calc(100% - 20px));
+}
+
+.companion-model-panel.show,
+.companion-achievements-panel.show {
   opacity: 1;
   pointer-events: auto;
   transform: translate(-50%, 0) scale(1);
 }
 
-.companion-model-title {
+.companion-model-title,
+.companion-achievements-title {
   font-family: 'Mochiy Pop One', 'Segoe UI', sans-serif;
   font-size: 12px;
   color: #284e82;
@@ -569,6 +731,317 @@ body[data-message-language="vi"] .companion-context-menu {
   margin-top: 2px;
   color: #5f7391;
   font-size: 10px;
+}
+
+.companion-achievement-option {
+  border: 1px solid rgba(84, 122, 194, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 10px 12px;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+
+.companion-achievement-option.unlocked {
+  border-color: rgba(76, 145, 103, 0.28);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(228, 247, 235, 0.94));
+  box-shadow: 0 10px 24px rgba(76, 145, 103, 0.12);
+}
+
+.companion-achievement-option.locked {
+  opacity: 0.92;
+}
+
+.companion-achievement-label {
+  display: block;
+  color: #233d63;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.companion-achievement-rarity,
+.companion-quest-period {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  margin-bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(84, 122, 194, 0.08);
+  color: #486a9f;
+}
+
+.companion-achievement-desc,
+.companion-achievement-status,
+.companion-achievement-empty {
+  display: block;
+  margin-top: 2px;
+  color: #5f7391;
+  font-size: 10px;
+}
+
+.companion-achievement-status {
+  margin-top: 6px;
+}
+
+.companion-achievement-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.companion-achievement-chain-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.companion-achievement-chain-title {
+  color: #284e82;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.companion-achievement-chain-progress {
+  color: #5f7391;
+  font-size: 10px;
+}
+
+.companion-achievement-lane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  padding-left: 18px;
+}
+
+.companion-achievement-lane::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(84, 122, 194, 0.34), rgba(84, 122, 194, 0.08));
+}
+
+.companion-achievement-node {
+  position: relative;
+  border: 1px solid rgba(84, 122, 194, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 10px 12px;
+  margin-left: 8px;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+
+.companion-achievement-node::before {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: 18px;
+  width: 14px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(84, 122, 194, 0.22);
+}
+
+.companion-achievement-node.unlocked {
+  border-color: rgba(76, 145, 103, 0.28);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(228, 247, 235, 0.94));
+  box-shadow: 0 10px 24px rgba(76, 145, 103, 0.12);
+}
+
+.companion-achievement-node.locked {
+  opacity: 0.94;
+}
+
+.companion-achievement-tier {
+  display: inline-block;
+  margin-bottom: 4px;
+  color: #6d7e9b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.companion-achievement-node.rarity-common,
+.companion-achievement-option.rarity-common {
+  border-color: rgba(100, 135, 185, 0.22);
+}
+
+.companion-achievement-node.rarity-common .companion-achievement-rarity,
+.companion-achievement-option.rarity-common .companion-achievement-rarity {
+  background: rgba(112, 141, 188, 0.14);
+  color: #4a6792;
+}
+
+.companion-achievement-node.rarity-rare,
+.companion-achievement-option.rarity-rare {
+  border-color: rgba(72, 136, 222, 0.3);
+}
+
+.companion-achievement-node.rarity-rare .companion-achievement-rarity,
+.companion-achievement-option.rarity-rare .companion-achievement-rarity {
+  background: rgba(85, 152, 235, 0.16);
+  color: #2b64ae;
+}
+
+.companion-achievement-node.rarity-epic,
+.companion-achievement-option.rarity-epic {
+  border-color: rgba(171, 93, 214, 0.34);
+}
+
+.companion-achievement-node.rarity-epic .companion-achievement-rarity,
+.companion-achievement-option.rarity-epic .companion-achievement-rarity {
+  background: rgba(183, 103, 225, 0.16);
+  color: #8740b4;
+}
+
+.companion-achievement-node.rarity-legendary,
+.companion-achievement-option.rarity-legendary {
+  border-color: rgba(227, 149, 54, 0.36);
+}
+
+.companion-achievement-node.rarity-legendary .companion-achievement-rarity,
+.companion-achievement-option.rarity-legendary .companion-achievement-rarity {
+  background: rgba(242, 177, 81, 0.18);
+  color: #9c5d09;
+}
+
+.companion-achievement-node.rarity-mythic,
+.companion-achievement-option.rarity-mythic {
+  border-color: rgba(222, 95, 144, 0.38);
+}
+
+.companion-achievement-node.rarity-mythic .companion-achievement-rarity,
+.companion-achievement-option.rarity-mythic .companion-achievement-rarity {
+  background: rgba(239, 118, 171, 0.18);
+  color: #a03066;
+}
+
+.companion-achievement-secret-lane {
+  padding-top: 4px;
+  border-top: 1px solid rgba(84, 122, 194, 0.14);
+}
+
+.companion-achievement-secret-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.companion-achievement-option.secret.locked .companion-achievement-label {
+  letter-spacing: 0.08em;
+}
+
+.companion-quest-list,
+.companion-memory-list {
+  display: grid;
+  gap: 8px;
+}
+
+.companion-quest-card,
+.companion-memory-card {
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(84, 122, 194, 0.18);
+  box-shadow: 0 8px 18px rgba(84, 122, 194, 0.08);
+}
+
+.companion-quest-card.completed {
+  border-color: rgba(76, 145, 103, 0.28);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(228, 247, 235, 0.94));
+}
+
+.companion-quest-card.active {
+  border-style: dashed;
+}
+
+.companion-quest-card .companion-achievement-status {
+  margin-top: 6px;
+}
+
+.companion-memory-card {
+  border-color: rgba(206, 109, 154, 0.18);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 235, 244, 0.9));
+}
+
+.companion-achievement-memory-lane {
+  padding-top: 4px;
+  border-top: 1px solid rgba(206, 109, 154, 0.14);
+}
+
+.companion-achievement-toast {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translate(-50%, -10px) scale(0.94);
+  width: min(240px, calc(100% - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(84, 122, 194, 0.22);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(231, 240, 255, 0.94));
+  box-shadow: 0 18px 36px rgba(37, 64, 104, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  z-index: 42;
+}
+
+.companion-achievement-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+  animation: achievement-pulse 0.9s ease;
+}
+
+.companion-achievement-toast.rarity-common {
+  border-color: rgba(100, 135, 185, 0.28);
+}
+
+.companion-achievement-toast.rarity-rare {
+  border-color: rgba(72, 136, 222, 0.32);
+  box-shadow: 0 18px 38px rgba(61, 114, 193, 0.24);
+}
+
+.companion-achievement-toast.rarity-epic {
+  border-color: rgba(171, 93, 214, 0.34);
+  box-shadow: 0 18px 40px rgba(140, 67, 179, 0.28);
+}
+
+.companion-achievement-toast.rarity-legendary {
+  border-color: rgba(227, 149, 54, 0.36);
+  box-shadow: 0 18px 42px rgba(183, 118, 34, 0.3);
+}
+
+.companion-achievement-toast.rarity-mythic {
+  border-color: rgba(222, 95, 144, 0.38);
+  box-shadow: 0 18px 44px rgba(181, 58, 118, 0.32);
+}
+
+.companion-achievement-toast-kicker {
+  color: #5875a8;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.companion-achievement-toast-title {
+  color: #233d63;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.3;
 }
 
 .companion-confirm-panel {
@@ -720,6 +1193,227 @@ body[data-message-language="vi"] .companion-context-menu {
   gap: 8px;
 }
 
+/* ── Quick-chat overlay ─────────────────────────────────────────────────── */
+
+.companion-quickchat-panel {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 28px);
+  transform: translate(-18%, 12px) scale(0.96);
+  width: min(360px, calc(100% - 16px));
+  max-height: min(420px, calc(100% - 28px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 142, 191, 0.38);
+  background:
+    radial-gradient(circle at top, rgba(255, 235, 246, 0.98), rgba(252, 215, 232, 0.94)),
+    rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(18px);
+  box-shadow:
+    0 18px 40px rgba(176, 71, 122, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 39;
+}
+
+.companion-quickchat-panel.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-18%, 0) scale(1);
+}
+
+.character-wrapper.quickchat-compact .companion-quickchat-panel {
+  top: auto;
+  bottom: var(--quickchat-anchor-bottom, 50%);
+}
+
+body.desktop-pet-mode .companion-quickchat-panel {
+  /* The desktop pet's character-wrapper is sized to the pet, so the
+     `bottom: calc(100% - 20px)` default anchors the panel above the wrapper
+     and lets it grow off the top of the Tauri window. Pin the panel to the
+     viewport top instead — it stays inside the window and scrolls history
+     internally when content is tall. */
+  position: fixed;
+  left: 50%;
+  top: 8px;
+  bottom: auto;
+  transform: translate(-50%, -8px) scale(0.96);
+  max-height: calc(100vh - 16px);
+}
+
+body.desktop-pet-mode .companion-quickchat-panel.show {
+  transform: translate(-50%, 0) scale(1);
+}
+
+/* The .quickchat-compact rule above re-anchors with `bottom: 50%` at higher
+   specificity than the plain desktop rule. Override it for desktop so the
+   panel stays pinned to the top of the Tauri window when active. */
+body.desktop-pet-mode .character-wrapper.quickchat-compact .companion-quickchat-panel {
+  top: 8px;
+  bottom: auto;
+}
+
+body.desktop-pet-mode .companion-quickchat-history {
+  max-height: 28vh;
+}
+
+@media (max-width: 520px) {
+  .companion-quickchat-panel {
+    left: 50%;
+    bottom: calc(100% - 18px);
+    transform: translate(-50%, 12px) scale(0.96);
+  }
+
+  .character-wrapper.quickchat-compact .companion-quickchat-panel {
+    top: auto;
+    bottom: var(--quickchat-anchor-bottom, 50%);
+  }
+
+  .companion-quickchat-panel.show {
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.companion-quickchat-title {
+  font-family: 'Mochiy Pop One', 'Segoe UI', sans-serif;
+  font-size: 12px;
+  color: #a4366b;
+  text-align: center;
+}
+
+.companion-quickchat-history-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 84px;
+}
+
+.companion-quickchat-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(207, 73, 130, 0.35) transparent;
+}
+
+.companion-quickchat-history::-webkit-scrollbar {
+  width: 8px;
+}
+
+.companion-quickchat-history::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.companion-quickchat-history::-webkit-scrollbar-thumb {
+  background: rgba(207, 73, 130, 0.28);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.companion-quickchat-empty {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  color: rgba(90, 26, 58, 0.72);
+  font-size: 11px;
+  text-align: center;
+}
+
+.companion-quickchat-message {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(207, 73, 130, 0.14);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.companion-quickchat-message--user {
+  background: rgba(255, 241, 247, 0.98);
+  border-color: rgba(227, 114, 163, 0.18);
+}
+
+.companion-quickchat-message--assistant {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.companion-quickchat-message.is-pending {
+  border-style: dashed;
+}
+
+.companion-quickchat-message.is-error {
+  border-color: rgba(206, 83, 83, 0.28);
+  background: rgba(255, 241, 241, 0.92);
+}
+
+.companion-quickchat-message-role {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: rgba(164, 54, 107, 0.84);
+}
+
+.companion-quickchat-message-body {
+  color: #5a1a3a;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.companion-quickchat-field {
+  width: 100%;
+  border: 1px solid rgba(207, 73, 130, 0.28);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #5a1a3a;
+  font-size: 12px;
+  font-family: var(--vscode-font-family, 'Segoe UI', sans-serif);
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.companion-quickchat-field:focus {
+  border-color: rgba(207, 73, 130, 0.6);
+  box-shadow: 0 0 0 3px rgba(255, 142, 191, 0.22);
+}
+
+.companion-quickchat-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Streaming-state bubble: subtle pulse so the user sees that a reply is being
+   drafted in real time. Pinned state suppresses the pulse so static text reads
+   cleanly. */
+.chat-bubble.streaming .bubble-text::after {
+  content: ' ✨';
+  animation: bubblePulse 1s ease-in-out infinite;
+}
+
+.chat-bubble.pinned {
+  border-color: rgba(255, 142, 191, 0.6);
+}
+
+@keyframes bubblePulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
 @media (prefers-color-scheme: dark) {
   .companion-voice-panel,
   .companion-message-panel,
@@ -737,6 +1431,46 @@ body[data-message-language="vi"] .companion-context-menu {
   .companion-message-title,
   .companion-ambient-title {
     color: #ffd1e3;
+  }
+
+  .companion-quickchat-panel {
+    border-color: rgba(221, 144, 181, 0.24);
+    background:
+      radial-gradient(circle at top, rgba(76, 39, 61, 0.96), rgba(53, 28, 44, 0.94)),
+      rgba(37, 24, 32, 0.92);
+    box-shadow:
+      0 18px 40px rgba(0, 0, 0, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .companion-quickchat-title {
+    color: #ffd1e3;
+  }
+
+  .companion-quickchat-empty,
+  .companion-quickchat-message,
+  .companion-quickchat-message--assistant {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(221, 144, 181, 0.16);
+  }
+
+  .companion-quickchat-message--user {
+    background: rgba(116, 56, 89, 0.44);
+    border-color: rgba(255, 176, 216, 0.16);
+  }
+
+  .companion-quickchat-message.is-error {
+    background: rgba(116, 52, 60, 0.45);
+    border-color: rgba(255, 154, 154, 0.24);
+  }
+
+  .companion-quickchat-empty,
+  .companion-quickchat-message-body {
+    color: #ffe3ef;
+  }
+
+  .companion-quickchat-message-role {
+    color: rgba(255, 209, 227, 0.84);
   }
 
   .companion-voice-option,
@@ -772,7 +1506,8 @@ body[data-message-language="vi"] .companion-context-menu {
     color: #d9a8be;
   }
 
-  .companion-model-panel {
+  .companion-model-panel,
+  .companion-achievements-panel {
     border-color: rgba(144, 181, 221, 0.22);
     background:
       radial-gradient(circle at top, rgba(40, 57, 84, 0.96), rgba(28, 40, 61, 0.94)),
@@ -782,7 +1517,8 @@ body[data-message-language="vi"] .companion-context-menu {
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
-  .companion-model-title {
+  .companion-model-title,
+  .companion-achievements-title {
     color: #dbe8ff;
   }
 
@@ -803,6 +1539,119 @@ body[data-message-language="vi"] .companion-context-menu {
 
   .companion-model-desc {
     color: #b5c6e4;
+  }
+
+  .companion-achievement-option {
+    border-color: rgba(144, 181, 221, 0.14);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .companion-achievement-option.unlocked {
+    border-color: rgba(115, 206, 142, 0.28);
+    background: linear-gradient(135deg, rgba(41, 76, 58, 0.72), rgba(34, 58, 49, 0.78));
+    box-shadow: 0 10px 24px rgba(50, 109, 75, 0.22);
+  }
+
+  .companion-achievement-rarity,
+  .companion-quest-period {
+    background: rgba(144, 181, 221, 0.14);
+    color: #d0def7;
+  }
+
+  .companion-achievement-label {
+    color: #edf3ff;
+  }
+
+  .companion-achievement-chain-title {
+    color: #edf3ff;
+  }
+
+  .companion-achievement-chain-progress,
+  .companion-achievement-tier {
+    color: #b5c6e4;
+  }
+
+  .companion-achievement-lane::before,
+  .companion-achievement-node::before {
+    background: rgba(144, 181, 221, 0.22);
+  }
+
+  .companion-achievement-node {
+    border-color: rgba(144, 181, 221, 0.14);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .companion-achievement-node.unlocked {
+    border-color: rgba(115, 206, 142, 0.28);
+    background: linear-gradient(135deg, rgba(41, 76, 58, 0.72), rgba(34, 58, 49, 0.78));
+    box-shadow: 0 10px 24px rgba(50, 109, 75, 0.22);
+  }
+
+  .companion-achievement-node.rarity-common .companion-achievement-rarity,
+  .companion-achievement-option.rarity-common .companion-achievement-rarity {
+    background: rgba(129, 155, 198, 0.14);
+    color: #d0def7;
+  }
+
+  .companion-achievement-node.rarity-rare .companion-achievement-rarity,
+  .companion-achievement-option.rarity-rare .companion-achievement-rarity {
+    background: rgba(82, 154, 248, 0.18);
+    color: #cae2ff;
+  }
+
+  .companion-achievement-node.rarity-epic .companion-achievement-rarity,
+  .companion-achievement-option.rarity-epic .companion-achievement-rarity {
+    background: rgba(188, 113, 235, 0.18);
+    color: #efd6ff;
+  }
+
+  .companion-achievement-node.rarity-legendary .companion-achievement-rarity,
+  .companion-achievement-option.rarity-legendary .companion-achievement-rarity {
+    background: rgba(232, 170, 88, 0.2);
+    color: #ffe4b1;
+  }
+
+  .companion-achievement-node.rarity-mythic .companion-achievement-rarity,
+  .companion-achievement-option.rarity-mythic .companion-achievement-rarity {
+    background: rgba(232, 114, 173, 0.2);
+    color: #ffd2e5;
+  }
+
+  .companion-achievement-desc,
+  .companion-achievement-status,
+  .companion-achievement-empty {
+    color: #b5c6e4;
+  }
+
+  .companion-quest-card,
+  .companion-memory-card {
+    border-color: rgba(144, 181, 221, 0.16);
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16);
+  }
+
+  .companion-quest-card.completed {
+    border-color: rgba(115, 206, 142, 0.28);
+    background: linear-gradient(135deg, rgba(41, 76, 58, 0.72), rgba(34, 58, 49, 0.78));
+  }
+
+  .companion-memory-card {
+    border-color: rgba(221, 144, 181, 0.2);
+    background: linear-gradient(135deg, rgba(84, 45, 67, 0.7), rgba(66, 35, 53, 0.76));
+  }
+
+  .companion-achievement-toast {
+    border-color: rgba(144, 181, 221, 0.22);
+    background: linear-gradient(135deg, rgba(48, 66, 96, 0.94), rgba(34, 48, 70, 0.9));
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
+  }
+
+  .companion-achievement-toast-kicker {
+    color: #bfd4f4;
+  }
+
+  .companion-achievement-toast-title {
+    color: #edf3ff;
   }
 
   .companion-confirm-panel {
@@ -1014,4 +1863,368 @@ body[data-message-language="vi"] .companion-context-menu {
 
 .companion-pomodoro-ring.break .companion-pomodoro-time {
   color: #6e4d12;
+}
+
+/* ── Share-card preview modal ─────────────────────────────────────── */
+.share-card-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 22, 0.72);
+  backdrop-filter: blur(8px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: shareCardFadeIn 140ms ease-out;
+}
+
+@keyframes shareCardFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.share-card-modal {
+  width: min(960px, 100%);
+  max-height: calc(100vh - 32px);
+  background: linear-gradient(180deg, rgba(30, 22, 50, 0.96), rgba(20, 16, 38, 0.96));
+  border: 1px solid rgba(255, 144, 200, 0.35);
+  border-radius: 18px;
+  box-shadow: 0 30px 80px rgba(255, 100, 180, 0.18), 0 8px 32px rgba(0, 0, 0, 0.5);
+  color: #fff7fb;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.share-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.share-card-title {
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.2px;
+  background: linear-gradient(90deg, #ffd6e7, #b8e8ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.share-card-close {
+  background: transparent;
+  border: none;
+  color: #ffd7e7;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 8px;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.share-card-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.share-card-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr);
+  gap: 16px;
+  padding: 16px;
+  overflow: auto;
+}
+
+.share-card-preview {
+  background: repeating-conic-gradient(rgba(255,255,255,0.04) 0 25%, transparent 0 50%) 0 0 / 24px 24px;
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-card-preview-img {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  display: block;
+}
+
+.share-card-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.share-card-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #ffb8d4;
+}
+
+.share-card-picker {
+  background: rgba(20, 16, 38, 0.7);
+  color: #fff;
+  border: 1px solid rgba(255, 144, 200, 0.35);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 120ms ease;
+}
+
+.share-card-picker:focus {
+  border-color: #ff7fc1;
+}
+
+.share-card-picker:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.share-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.share-card-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 120ms ease, transform 80ms ease, border-color 120ms ease;
+}
+
+.share-card-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 200, 230, 0.4);
+}
+
+.share-card-btn:active {
+  transform: translateY(1px);
+}
+
+.share-card-btn-copy {
+  background: linear-gradient(135deg, rgba(125, 213, 255, 0.25), rgba(125, 213, 255, 0.12));
+}
+
+.share-card-btn-save {
+  background: linear-gradient(135deg, rgba(255, 145, 200, 0.4), rgba(255, 145, 200, 0.2));
+}
+
+.share-card-status {
+  font-size: 12px;
+  min-height: 16px;
+  color: #ffeef6;
+}
+
+.share-card-status[data-kind="success"] {
+  color: #9bf0c4;
+}
+
+.share-card-status[data-kind="error"] {
+  color: #ff9aae;
+}
+
+.share-card-status[data-kind="pending"] {
+  color: #ffd9a3;
+}
+
+@media (max-width: 720px) {
+  .share-card-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Showcase achievement banner ───────────────────────────────────────────
+   Tier-escalating effects: common (flat colour) → rare (glow) → epic
+   (sparkle + pulse) → legendary (animated gradient sweep) → mythic (sweep +
+   floating particles). Each tier inherits the visual weight of the one below. */
+.companion-showcase {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  align-self: center;
+  flex-shrink: 0;
+  max-width: calc(100% - 16px);
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.companion-showcase.hidden {
+  display: none;
+}
+
+.companion-showcase-icon {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.companion-showcase-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.companion-showcase-rarity {
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Common: flat colour only */
+.companion-showcase.rarity-common {
+  background: linear-gradient(90deg, #4a6792, #5a7aa8);
+  color: #fff;
+}
+
+/* Rare: + glow border */
+.companion-showcase.rarity-rare {
+  background: linear-gradient(90deg, #2b64ae, #4a8fde);
+  color: #fff;
+  border: 1px solid rgba(120, 180, 255, 0.55);
+  box-shadow: 0 0 8px rgba(74, 143, 222, 0.6);
+}
+
+/* Epic: + sparkle + pulse */
+.companion-showcase.rarity-epic {
+  background: linear-gradient(90deg, #8740b4, #b269e0);
+  color: #fff;
+  border: 1px solid rgba(220, 170, 255, 0.6);
+  box-shadow: 0 0 14px rgba(178, 105, 224, 0.7);
+  animation: showcase-pulse 2.4s ease-in-out infinite;
+}
+
+.companion-showcase.rarity-epic::after {
+  content: '\2726 \2726';
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 7px;
+  letter-spacing: 1px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Legendary: + animated gradient sweep + shimmer */
+.companion-showcase.rarity-legendary {
+  background: linear-gradient(90deg, #9c5d09, #e6a542, #ffd874, #e6a542, #9c5d09);
+  background-size: 300% 100%;
+  color: #2a1a02;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 220, 130, 0.85);
+  box-shadow: 0 0 18px rgba(255, 200, 80, 0.7);
+  animation: showcase-pulse 2.4s ease-in-out infinite, showcase-sweep 4s linear infinite;
+}
+
+.companion-showcase.rarity-legendary .companion-showcase-rarity {
+  background: rgba(0, 0, 0, 0.16);
+}
+
+/* Mythic: + floating particles + faster rainbow sweep */
+.companion-showcase.rarity-mythic {
+  background: linear-gradient(90deg, #a03066, #d44896, #6845c9, #4a8fde, #d44896, #a03066);
+  background-size: 400% 100%;
+  color: #fff;
+  text-shadow: 0 0 6px rgba(255, 100, 200, 0.8);
+  border: 1px solid rgba(255, 180, 220, 0.7);
+  box-shadow: 0 0 22px rgba(212, 72, 150, 0.9), inset 0 0 12px rgba(255, 255, 255, 0.2);
+  animation: showcase-pulse 2s ease-in-out infinite, showcase-sweep 3s linear infinite;
+}
+
+.companion-showcase-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 12% 35%, rgba(255, 255, 255, 0.95) 0, transparent 2px),
+    radial-gradient(circle at 32% 70%, rgba(255, 255, 255, 0.9) 0, transparent 2px),
+    radial-gradient(circle at 58% 22%, rgba(255, 255, 255, 0.95) 0, transparent 2px),
+    radial-gradient(circle at 78% 60%, rgba(255, 255, 255, 0.9) 0, transparent 2px),
+    radial-gradient(circle at 92% 88%, rgba(255, 255, 255, 0.95) 0, transparent 2px);
+  animation: showcase-particles-float 3.5s linear infinite;
+}
+
+@keyframes showcase-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes showcase-sweep {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+@keyframes showcase-particles-float {
+  0% { transform: translateY(2px); opacity: 0.65; }
+  50% { opacity: 1; }
+  100% { transform: translateY(-4px); opacity: 0.65; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .companion-showcase,
+  .companion-showcase-particles {
+    animation: none !important;
+  }
+}
+
+/* Showcase toggle button inside achievement cards */
+.companion-achievement-showcase-btn {
+  margin-top: 8px;
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(84, 122, 194, 0.32);
+  background: rgba(255, 255, 255, 0.7);
+  color: #34507e;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.companion-achievement-showcase-btn:hover {
+  background: rgba(231, 240, 255, 0.95);
+  box-shadow: 0 4px 10px rgba(84, 122, 194, 0.18);
+}
+
+.companion-achievement-showcase-btn.active {
+  background: linear-gradient(120deg, #6a8edd, #9d7be0);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(120, 120, 220, 0.35);
+}
+
+.companion-achievement-node.showcased,
+.companion-achievement-option.showcased {
+  box-shadow: 0 0 0 2px rgba(120, 130, 220, 0.45), 0 10px 22px rgba(84, 122, 194, 0.18);
 }

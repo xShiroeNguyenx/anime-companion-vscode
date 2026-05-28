@@ -15,8 +15,15 @@ import {
   showCommitMessageInput,
   updatePomodoroRing,
   hidePomodoroRing,
+  appendBubbleStream,
+  finishBubbleStream,
+  errorBubbleStream,
+  syncQuickChatConversationHistory,
+  appendQuickChatHistoryDelta,
+  finishQuickChatHistoryTurn,
+  failQuickChatHistoryTurn,
 } from './ui.js';
-import { setupModel } from './interaction.js';
+import { applyShowcaseBanner, openShareCardPreview, receiveShareCardSaveResult, renderAgentAvailableTools, renderAgentProfileList, setupModel, showAchievementUnlockEffect, showAchievementsPanel, updateAchievementsPanelData } from './interaction.js';
 
 function disposeCurrentModel() {
   state.isLive2DReady = false;
@@ -131,6 +138,11 @@ if (fallbackImg) {
 window.addEventListener('message', (event) => {
   const { command, text } = event.data;
   switch (command) {
+    case 'chat:snapshot':
+      if (window.__DESKTOP_PET_MODE__) {
+        syncQuickChatConversationHistory(event.data.messages || []);
+      }
+      break;
     case 'showMessage':
       showBubble(text);
       if (event.data.speakText) {
@@ -189,6 +201,24 @@ window.addEventListener('message', (event) => {
       setExpression(moodExprMap[state.currentMood] || 'neutral', null);
       break;
     }
+    case 'setAchievementsData':
+      updateAchievementsPanelData(event.data.achievements || []);
+      break;
+    case 'setShowcase':
+      applyShowcaseBanner(event.data.showcase || null);
+      break;
+    case 'showAchievementsPanel':
+      showAchievementsPanel();
+      break;
+    case 'achievementUnlocked':
+      showAchievementUnlockEffect(event.data);
+      break;
+    case 'openShareCardPreview':
+      openShareCardPreview(event.data.profile || {});
+      break;
+    case 'shareCardSaveResult':
+      receiveShareCardSaveResult(event.data);
+      break;
     case 'showProtectedBranchConfirm':
       showProtectedBranchConfirm(event.data.requestId, event.data.branch);
       break;
@@ -200,6 +230,33 @@ window.addEventListener('message', (event) => {
       break;
     case 'captureModelChibi':
       void handleCaptureModelChibi(event.data.modelId);
+      break;
+    case 'agentProfile:list:state':
+      renderAgentProfileList(event.data.profiles || []);
+      break;
+    case 'agentProfile:availableTools:state':
+      renderAgentAvailableTools(event.data.tools || []);
+      break;
+    case 'pet:chat:delta':
+      appendQuickChatHistoryDelta(event.data.requestId, event.data.delta || '');
+      appendBubbleStream(event.data.delta || '');
+      break;
+    case 'pet:chat:end':
+      finishQuickChatHistoryTurn(event.data.requestId, event.data.text || '');
+      finishBubbleStream({ autoDismissMs: 12000 });
+      break;
+    case 'pet:chat:error':
+      failQuickChatHistoryTurn(
+        event.data.requestId,
+        event.data.aborted
+          ? 'Đã hủy.'
+          : `Lỗi quick chat: ${event.data.message || 'unknown'}`
+      );
+      errorBubbleStream(
+        event.data.aborted
+          ? 'Đã hủy.'
+          : `Lỗi quick chat: ${event.data.message || 'unknown'}`
+      );
       break;
   }
 });

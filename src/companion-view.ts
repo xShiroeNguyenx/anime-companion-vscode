@@ -8,7 +8,15 @@ import { ModelFileServer } from './model-server';
 import { ModelDownloader } from './model-downloader';
 import { VoiceAssetDownloader, VoiceAssetLang } from './voice-asset-downloader';
 import { getMessageBank, MessageKey, ResolvedPhrase } from './messages';
-import { StatsStore } from './stats';
+import { AchievementRarity, buildAchievementPanelData, ShowcaseView, StatsStore } from './stats';
+
+const SHOWCASE_RARITY_EMOJI: Record<AchievementRarity, string> = {
+  common: '✨',
+  rare: '💎',
+  epic: '🌟',
+  legendary: '👑',
+  mythic: '🔥',
+};
 import { PomodoroState } from './pomodoro';
 import { AmbientPreset, getAmbientPreset, listAmbientPresets, resolveCustomAmbientTracks } from './ambient-presets';
 import { WebviewTransport } from './companion-transport';
@@ -39,6 +47,11 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
 
   private _saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>;
   private _chatManager?: ChatManager;
+  private _agentProfileManager?: import('./agent-profiles/profile-manager').AgentProfileManager;
+
+  public setAgentProfileManager(manager: import('./agent-profiles/profile-manager').AgentProfileManager): void {
+    this._agentProfileManager = manager;
+  }
   private _chibiRoot?: string;
   private _getCursorChibiState?: () => CursorChibiTuningState;
   private _nudgeCursorChibi?: (dx: number, dy: number) => Promise<void>;
@@ -121,6 +134,48 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     void this._renderWith(this._view);
   }
 
+  private _applyShowcaseToNativeTitle(): ShowcaseView | null {
+    const showcase = this._stats.getShowcase();
+    if (!this._view) return showcase;
+    if (showcase) {
+      const emoji = SHOWCASE_RARITY_EMOJI[showcase.rarity];
+      // Replace the view title outright with the showcased achievement.
+      this._view.title = `${emoji} ${showcase.title}`;
+    } else {
+      // Restore the default contributed title ("Anime Companion").
+      this._view.title = undefined;
+    }
+    this._view.description = undefined;
+    return showcase;
+  }
+
+  private _broadcastShowcase(showcase: ShowcaseView | null): void {
+    this.postMessage({ command: 'setShowcase', showcase });
+  }
+
+  public applyShowcase(): void {
+    const showcase = this._applyShowcaseToNativeTitle();
+    this._broadcastShowcase(showcase);
+  }
+
+  public showAchievementsPanel(): boolean {
+    if (!this._view || !this._view.visible) return false;
+
+    this.postMessage({
+      command: 'setAchievementsData',
+      achievements: this._getAchievementPanelData(),
+    });
+    this.postMessage({ command: 'showAchievementsPanel' });
+    return true;
+  }
+
+  public openShareCardPreview(profile: unknown): void {
+    if (!this._view) {
+      throw new Error('Companion panel is not ready. Open Anime Companion first.');
+    }
+    this.postMessage({ command: 'openShareCardPreview', profile });
+  }
+
   // Resolves (downloading if needed) the requested model, then writes HTML.
   // Webview renders nothing until the model is on disk, so the local server
   // never serves a 404 to PIXI's loader.
@@ -161,6 +216,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     void token;
     this._view = webviewView;
     this._transport.attach(webviewView);
+    this._applyShowcaseToNativeTitle();
 
     void this._renderWith(webviewView);
 
@@ -177,7 +233,19 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       (mood) => {
         this.postMessage({ command: 'setMood', mood });
       },
-      this._stats
+      this._stats,
+      (payload) => {
+        for (const def of payload.achievements ?? []) {
+          this.postMessage({ command: 'achievementUnlocked', achievement: { id: def.id, title: def.title, rarity: def.rarity, secret: def.secret } });
+        }
+        for (const quest of payload.quests ?? []) {
+          this.postMessage({ command: 'achievementUnlocked', quest: { id: quest.id, title: quest.title, period: quest.period, rarity: quest.period === 'daily' ? 'rare' : 'epic' } });
+        }
+        this.postMessage({
+          command: 'setAchievementsData',
+          achievements: this._getAchievementPanelData(),
+        });
+      }
     );
     this._reactive.activate();
 
@@ -194,6 +262,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
         requestCommitMessage: (count) => this._requestCommitMessage(count),
         onInteraction: () => this._startMessageTimer(10000),
         getCustomAmbientTracks: () => this._getCustomAmbientTracks(),
+        stats: this._stats,
         saveCompanionPosition: (x, y) => { void savePanelPosition(x, y); },
         applyModelSelection: async (modelId) => {
           const hasWorkspace = !!vscode.workspace.workspaceFolders?.length;
@@ -210,6 +279,8 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
         resetCursorChibi: () => this._resetCursorChibi?.() ?? Promise.resolve(),
         saveCapturedChibi: this._saveCapturedChibi,
         chatManager: this._chatManager,
+        applyShowcase: () => this.applyShowcase(),
+        agentProfileManager: this._agentProfileManager,
       });
     }));
 
@@ -251,14 +322,14 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     const scheduleNext = () => {
       const delay = (minInterval + Math.random() * (maxInterval - minInterval)) * 1000;
       this._messageTimer = setTimeout(() => {
-        this._sendMessage(this._pickMessage('idle'));
+        this._sendMessage(this._pickIdle());
         scheduleNext();
       }, delay);
     };
 
     if (forceDelayMs) {
       this._messageTimer = setTimeout(() => {
-        this._sendMessage(this._pickMessage('idle'));
+        this._sendMessage(this._pickIdle());
         scheduleNext();
       }, forceDelayMs);
     } else {
@@ -299,6 +370,11 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       phraseTemplate: phrase.template,
       phraseVars: phrase.vars,
     });
+  }
+
+  private _pickIdle(): string {
+    const memory = Math.random() < 0.28 ? this._stats.pickMemoryLine() : null;
+    return memory || this._pickMessage('idle');
   }
 
   private _disposeTransportSubscriptions() {
@@ -435,6 +511,10 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     return undefined;
   }
 
+  private _getAchievementPanelData() {
+    return buildAchievementPanelData(this._stats.getStats());
+  }
+
   private _getHtmlForWebview(webview: vscode.Webview): string {
     const mediaUri = (...segments: string[]) =>
       webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', ...segments));
@@ -479,6 +559,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       name: m.name,
       description: m.description,
     }));
+    const achievements = this._getAchievementPanelData();
 
     return /*html*/ `<!DOCTYPE html>
 <html lang="vi">
@@ -501,6 +582,8 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
   <div class="companion-container">
+    <div id="companion-showcase-banner" class="companion-showcase hidden" aria-live="polite"></div>
+
     <div class="chat-bubble" id="chatBubble">
       <span class="bubble-text" id="bubbleText">Loading...</span>
       <div class="bubble-tail"></div>
@@ -678,6 +761,8 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__AMBIENT_VOLUME__ = ${ambientVolume};
     window.__AMBIENT_TRACKS__ = ${JSON.stringify(ambientTracks)};
     window.__VISIBLE_MODELS__ = ${JSON.stringify(visibleModels)};
+    window.__ACHIEVEMENTS__ = ${JSON.stringify(achievements)};
+    window.__SHOWCASE__ = ${JSON.stringify(achievements.showcase)};
     window.__WEBVIEW_STRINGS__ = ${JSON.stringify(webviewStrings)};
     window.__COMPANION_POSITION__ = ${JSON.stringify(getStoredPanelPosition() ?? null)};
     window.__COMPANION_AVATAR_DEFAULT__ = "${characterUri}";

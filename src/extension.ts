@@ -18,11 +18,21 @@ import { AnimeCompanionViewProvider } from './companion-view';
 import { CursorChibiManager } from './cursor-chibi';
 import { DesktopPetBridge } from './desktop-pet-bridge';
 import { initMessageBank } from './messages';
-import { StatsStore, ACHIEVEMENT_DEFS } from './stats';
+import { ACHIEVEMENT_COUNT, AchievementDef, buildAchievementPanelData, buildAchievementQuickPickRows, buildCompanionProfile, buildQuestQuickPickRows, QuestDef, StatsStore } from './stats';
 import { initCompanionPosition, clearPanelPosition } from './companion-position';
 import { ChatSecrets } from './chat/secrets';
 import { ConversationStore } from './chat/conversation-store';
 import { ChatManager, runSetApiKeyCommand } from './chat/chat-manager';
+import { AgentProfileStore } from './agent-profiles/profile-store';
+import { AgentProfileManager } from './agent-profiles/profile-manager';
+import { AgentProfilePanel } from './agent-profiles/profile-panel';
+import { registerBackend, getBackend } from './agent-profiles/backends/account-backend';
+import { claudeBackend } from './agent-profiles/backends/claude-backend';
+import { codexBackend } from './agent-profiles/backends/codex-backend';
+
+registerBackend(claudeBackend);
+registerBackend(codexBackend);
+// Future: registerBackend(antigravityBackend), …
 
 // Common shape extension.ts depends on regardless of which UI host is active:
 // the in-VS-Code panel webview, or the floating Tauri desktop pet (bridge).
@@ -32,6 +42,7 @@ interface CompanionHost {
   postMessage(message: any): void;
   updatePomodoroTick(state: PomodoroState, secondsLeft: number, totalSeconds: number): void;
   refreshView(): void | Promise<void>;
+  openShareCardPreview?(profile: unknown): void;
 }
 
 type ModelSelectionTarget = 'panel' | 'desktop' | 'auto';
@@ -263,6 +274,50 @@ class CompanionStatusBar {
   }
 }
 
+class AgentProfileStatusBar {
+  private _item: vscode.StatusBarItem;
+
+  constructor(private readonly _manager: AgentProfileManager) {
+    this._item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+    this._item.command = 'animeCompanion.agentProfile.use';
+    this.refresh();
+    this._item.show();
+  }
+
+  refresh(): void {
+    void this._refreshAsync();
+  }
+
+  private async _refreshAsync(): Promise<void> {
+    const activeIds = await this._manager.detectActiveIds();
+    const profiles = this._manager.list();
+    const actives = Array.from(activeIds.entries())
+      .map(([tool, id]) => ({ tool, profile: profiles.find((p) => p.id === id) }))
+      .filter((x): x is { tool: string; profile: typeof profiles[number] } => !!x.profile);
+
+    if (actives.length === 0) {
+      this._item.text = '$(person) Accounts';
+      this._item.tooltip = 'No agent profile matches the live CLI credentials — click to switch';
+      return;
+    }
+
+    if (actives.length === 1) {
+      this._item.text = `$(person) ${actives[0].profile.name}`;
+    } else {
+      this._item.text = `$(person) ${actives.length} accounts`;
+    }
+    const lines = actives.map((a) => {
+      const label = getBackend(a.tool)?.displayName ?? a.tool;
+      return `${label}: ${a.profile.name}`;
+    });
+    this._item.tooltip = `Active agent accounts:\n${lines.join('\n')}\nClick to switch`;
+  }
+
+  dispose(): void {
+    this._item.dispose();
+  }
+}
+
 let modelServer: ModelFileServer | null = null;
 let pomodoroManager: PomodoroManager | null = null;
 
@@ -341,7 +396,43 @@ export async function activate(context: vscode.ExtensionContext) {
   const chatSecrets = new ChatSecrets(context.secrets);
   const chatStore = new ConversationStore(context);
   let chatHostRef: CompanionHost | undefined;
-  const chatManager = new ChatManager(context, chatSecrets, chatStore, () => chatHostRef);
+  const chatManager = new ChatManager(context, chatSecrets, chatStore, () => chatHostRef, stats);
+
+  const announceAchievementUnlocks = (unlocked: AchievementDef[]) => {
+    if (!unlocked.length || !chatHostRef) return;
+    for (const def of unlocked) {
+      const template = messageBank.pickAchievement(def.id) ?? `🏆 ${def.title}`;
+      chatHostRef.postMessage({
+        command: 'showMessage',
+        text: template,
+        speakText: template,
+      });
+      chatHostRef.postMessage({
+        command: 'achievementUnlocked',
+        achievement: { id: def.id, title: def.title, rarity: def.rarity, secret: def.secret },
+      });
+    }
+    chatHostRef.postMessage({
+      command: 'setAchievementsData',
+      achievements: buildAchievementPanelData(stats.getStats()),
+    });
+  };
+
+  const announceQuestCompletions = (quests: QuestDef[]) => {
+    if (!quests.length || !chatHostRef) return;
+    for (const quest of quests) {
+      const text = `✅ ${quest.period === 'daily' ? 'Daily' : 'Weekly'} quest cleared: ${quest.title}`;
+      chatHostRef.postMessage({ command: 'showMessage', text, speakText: text });
+      chatHostRef.postMessage({
+        command: 'achievementUnlocked',
+        quest: { id: quest.id, title: quest.title, period: quest.period, rarity: quest.period === 'daily' ? 'rare' : 'epic' },
+      });
+    }
+    chatHostRef.postMessage({
+      command: 'setAchievementsData',
+      achievements: buildAchievementPanelData(stats.getStats()),
+    });
+  };
 
   // Pre-register the cache root with the file server so already-downloaded
   // models work even if the user never selects them via the UI flow.
@@ -370,6 +461,10 @@ export async function activate(context: vscode.ExtensionContext) {
       downloader,
       desktopPetDownloader
     );
+    // Wire chat manager so the pet's right-click Quick Chat works through
+    // the WS bridge. Must happen before bridge.start() so the dispatcher
+    // context sees it on the very first attached client.
+    bridge.setChatManager(chatManager);
     bridge.start();
     context.subscriptions.push(bridge);
     host = bridge;
@@ -504,8 +599,21 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  let previousPomodoroState: PomodoroState = 'idle';
   pomodoroManager = new PomodoroManager(
     (state) => {
+      if (state === 'work') {
+        void stats.recordPomodoroStart();
+        void stats.tryUnlockNightOwl().then((def) => announceAchievementUnlocks(def ? [def] : []));
+      } else if (state === 'break' && previousPomodoroState === 'work') {
+        void stats.recordPomodoroCompleted()
+          .then(async () => {
+            const defs = await stats.tryUnlockByMetric('pomodoro_completed');
+            const quests = await stats.tryCompleteQuestsByMetric('pomodoro_completed');
+            announceAchievementUnlocks(defs);
+            announceQuestCompletions(quests);
+          });
+      }
       if (state === 'work') {
         host.postMessage({ command: 'pomodoroStart' });
       } else if (state === 'break') {
@@ -513,6 +621,7 @@ export async function activate(context: vscode.ExtensionContext) {
       } else {
         host.postMessage({ command: 'pomodoroStop' });
       }
+      previousPomodoroState = state;
     },
     (state, secondsLeft, totalSeconds) => {
       statusBar.setPomodoro(state, secondsLeft);
@@ -523,6 +632,85 @@ export async function activate(context: vscode.ExtensionContext) {
 
   cursorChibi.activate();
   context.subscriptions.push(cursorChibi);
+
+  const agentProfileStore = new AgentProfileStore(context);
+  const agentProfileManager = new AgentProfileManager(context, agentProfileStore);
+  const agentProfileStatusBar = new AgentProfileStatusBar(agentProfileManager);
+  // Inject the manager into whichever companion host is active so the
+  // in-webview right-click "Đổi nhanh" / "Lưu hồ sơ" popups can dispatch
+  // through the runtime message dispatcher.
+  bridge?.setAgentProfileManager(agentProfileManager);
+  provider?.setAgentProfileManager(agentProfileManager);
+  context.subscriptions.push(
+    agentProfileStatusBar,
+    agentProfileManager,
+    agentProfileManager.onDidChange(() => agentProfileStatusBar.refresh()),
+    vscode.commands.registerCommand('animeCompanion.agentProfile.showPanel', () => {
+      AgentProfilePanel.reveal(agentProfileManager);
+    }),
+    vscode.commands.registerCommand('animeCompanion.agentProfile.save', async () => {
+      const ok = await agentProfileManager.warnIfNoLoggedInTool();
+      if (!ok) return;
+      const name = await vscode.window.showInputBox({
+        prompt: 'Name for this agent profile (e.g. tk1, work, personal)',
+        validateInput: (v) => v.trim() ? undefined : 'Name cannot be empty',
+      });
+      if (!name) return;
+      try {
+        const p = await agentProfileManager.saveProfile(name);
+        vscode.window.showInformationMessage(`Saved agent profile "${p.name}".`);
+      } catch (err) {
+        vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
+      }
+    }),
+    vscode.commands.registerCommand('animeCompanion.agentProfile.list', async () => {
+      const views = await agentProfileManager.getViews();
+      if (!views.length) {
+        vscode.window.showInformationMessage('No agent profiles saved yet.');
+        return;
+      }
+      const items: vscode.QuickPickItem[] = views.map((v) => ({
+        label: `${v.active ? '$(check) ' : `${v.toolIcon} `}${v.name}`,
+        description: `${v.toolDisplayName}${v.identity ? ' · ' + v.identity.text : ''}`,
+        detail: v.capturedAt
+          ? `${v.fileCount} file(s) • captured ${new Date(v.capturedAt).toLocaleString()}`
+          : 'No snapshot',
+      }));
+      await vscode.window.showQuickPick(items, {
+        title: 'Anime Companion — Agent Accounts',
+        placeHolder: 'Press Esc to close',
+      });
+    }),
+    vscode.commands.registerCommand('animeCompanion.agentProfile.use', () => {
+      return agentProfileManager.quickPickAndUse();
+    }),
+    vscode.commands.registerCommand('animeCompanion.agentProfile.delete', async () => {
+      const profiles = agentProfileManager.list();
+      if (!profiles.length) {
+        vscode.window.showInformationMessage('No agent profiles to delete.');
+        return;
+      }
+      const views = await agentProfileManager.getViews();
+      const items = views.map<vscode.QuickPickItem & { id: string }>((v) => ({
+        id: v.id,
+        label: `${v.toolIcon} ${v.name}`,
+        description: `${v.toolDisplayName}${v.identity ? ' · ' + v.identity.text : ''}`,
+      }));
+      const picked = await vscode.window.showQuickPick(items, {
+        title: 'Delete Agent Profile',
+        placeHolder: 'Select a profile to delete',
+      });
+      if (!picked) return;
+      const choice = await vscode.window.showWarningMessage(
+        `Delete profile "${picked.label}"? Snapshot will be removed. The CLI's home directory is NOT touched.`,
+        { modal: true },
+        'Delete'
+      );
+      if (choice !== 'Delete') return;
+      await agentProfileManager.deleteProfile(picked.id);
+      vscode.window.showInformationMessage(`Deleted agent profile "${picked.label}".`);
+    }),
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand('animeCompanion.toggleCursorChase', () => {
@@ -655,6 +843,9 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('animeCompanion.showStats', async () => {
       const s = stats.getStats();
+      const dailyQuests = stats.getQuestViews('daily');
+      const weeklyQuests = stats.getQuestViews('weekly');
+      const recentMemories = stats.getRecentMemories(3);
       const fmtMins = (ms: number) => {
         const m = Math.floor(ms / 60000);
         if (m < 60) return `${m}m`;
@@ -669,7 +860,30 @@ export async function activate(context: vscode.ExtensionContext) {
         { label: `$(bug) Errors fixed`,     description: `${s.errorsFixed}` },
         { label: `$(clock) Coding today`,   description: fmtMins(s.codingMillisToday) },
         { label: `$(watch) Coding all-time`,description: fmtMins(s.codingMillisAllTime) },
-        { label: `$(trophy) Achievements`,  description: `${unlocked} / ${ACHIEVEMENT_DEFS.length} unlocked` },
+        { label: `$(trophy) Achievements`,  description: `${unlocked} / ${ACHIEVEMENT_COUNT} unlocked` },
+        { label: `$(symbol-color) Gems`, description: `${s.gems}` },
+        { label: `$(star-full) Tickets`, description: `${s.tickets}` },
+        { label: `$(comment-discussion) AI prompts`, description: `${s.chatPrompts}` },
+        { label: `$(zap) Quick chats`, description: `${s.quickChatPrompts}` },
+        { label: `$(calendar) Pomodoro started`, description: `${s.pomodoroStarts}` },
+        { label: `$(pass-filled) Pomodoro completed`, description: `${s.pomodoroCompleted}` },
+        { label: `$(paintcan) Cosmetics`, description: `${s.unlockedCosmetics.length} unlocked`, detail: s.unlockedCosmetics.join(', ') || 'None yet' },
+        { label: `$(unmute) Voice packs`, description: `${s.unlockedVoicePacks.length} unlocked`, detail: s.unlockedVoicePacks.join(', ') || 'None yet' },
+        ...dailyQuests.map((quest) => ({
+          label: `$(checklist) Daily: ${quest.title}`,
+          description: quest.description,
+          detail: quest.statusText,
+        })),
+        ...weeklyQuests.map((quest) => ({
+          label: `$(checklist) Weekly: ${quest.title}`,
+          description: quest.description,
+          detail: quest.statusText,
+        })),
+        ...recentMemories.map((memory) => ({
+          label: `$(history) Memory`,
+          description: memory.text,
+          detail: new Date(memory.createdAt).toLocaleString(),
+        })),
       ];
       await vscode.window.showQuickPick(items, {
         title: 'Anime Companion — Stats',
@@ -677,19 +891,81 @@ export async function activate(context: vscode.ExtensionContext) {
       });
     }),
     vscode.commands.registerCommand('animeCompanion.showAchievements', async () => {
-      const unlocked = new Set(stats.getAchievements());
-      const items: vscode.QuickPickItem[] = ACHIEVEMENT_DEFS.map((def) => {
-        const got = unlocked.has(def.id);
-        return {
-          label: `${got ? '$(check) ' : '$(lock) '}${def.title}`,
-          description: def.description,
-          detail: got ? 'Unlocked' : `Locked — threshold ${def.threshold}`,
-        };
-      });
+      if (provider?.showAchievementsPanel()) {
+        return;
+      }
+
+      const s = stats.getStats();
+      const unlocked = new Set(s.achievements);
+      const items: vscode.QuickPickItem[] = buildAchievementQuickPickRows(s).map((row) => ({
+        label: row.label,
+        description: row.description,
+        detail: row.detail,
+      }));
       await vscode.window.showQuickPick(items, {
-        title: `Anime Companion — Achievements (${unlocked.size}/${ACHIEVEMENT_DEFS.length})`,
+        title: `Anime Companion — Achievements (${unlocked.size}/${ACHIEVEMENT_COUNT})`,
         placeHolder: 'Press Esc to close',
       });
+    }),
+    vscode.commands.registerCommand('animeCompanion.showQuests', async () => {
+      const items: vscode.QuickPickItem[] = buildQuestQuickPickRows(stats.getStats()).map((row) => ({
+        label: row.label,
+        description: row.description,
+        detail: row.detail,
+      }));
+      await vscode.window.showQuickPick(items, {
+        title: 'Anime Companion â€” Quests',
+        placeHolder: 'Press Esc to close',
+      });
+    }),
+    vscode.commands.registerCommand('animeCompanion.showProfile', async () => {
+      const profile = buildCompanionProfile(stats.getStats());
+      const topRarity = profile.topAchievementRarity ? profile.topAchievementRarity.toUpperCase() : 'NONE';
+      const cosmetics = profile.inventory.cosmetics.length ? profile.inventory.cosmetics.join(', ') : 'None yet';
+      const voicePacks = profile.inventory.voicePacks.length ? profile.inventory.voicePacks.join(', ') : 'None yet';
+      const items: vscode.QuickPickItem[] = [
+        { label: `$(account) ${profile.title}`, description: profile.badgeLine },
+        { label: `$(symbol-color) Gems`, description: `${profile.inventory.gems}` },
+        { label: `$(star-full) Tickets`, description: `${profile.inventory.tickets}` },
+        { label: `$(trophy) Top achievement`, description: profile.topAchievementTitle, detail: `Rarity: ${topRarity}` },
+        { label: `$(pulse) Affinity`, description: `${profile.affinityPercent}%` },
+        { label: `$(graph) Progress`, description: `${profile.achievementUnlocked}/${profile.achievementTotal} achievements • ${profile.dailyQuestCompleted} daily • ${profile.weeklyQuestCompleted} weekly` },
+        { label: `$(paintcan) Cosmetics`, description: cosmetics },
+        { label: `$(unmute) Voice packs`, description: voicePacks },
+      ];
+      await vscode.window.showQuickPick(items, {
+        title: `Anime Companion â€” Profile (Lv.${profile.level})`,
+        placeHolder: 'Press Esc to close',
+      });
+    }),
+    vscode.commands.registerCommand('animeCompanion.exportShareCard', async () => {
+      if (!host.openShareCardPreview) {
+        vscode.window.showWarningMessage('Share-card preview is not available for the current companion host.');
+        return;
+      }
+
+      if (!desktopPetEnabled) {
+        await vscode.commands.executeCommand('setContext', 'animeCompanion.visible', true);
+        try {
+          await vscode.commands.executeCommand('animeCompanion.live2dView.focus');
+        } catch {
+          // Ignore focus errors; preview will surface a clearer error if needed.
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+
+      const profile = {
+        ...buildCompanionProfile(stats.getStats()),
+        companionName: getSelectedModel(desktopPetEnabled ? 'desktop' : 'panel').name,
+        exportedAt: new Date().toISOString(),
+      };
+
+      try {
+        host.openShareCardPreview(profile);
+      } catch (error) {
+        const details = error instanceof Error ? error.message : String(error);
+        vscode.window.showErrorMessage(`Couldn't open share card preview: ${details}`);
+      }
     }),
     vscode.commands.registerCommand('animeCompanion.playMotion', async () => {
       const motions = [

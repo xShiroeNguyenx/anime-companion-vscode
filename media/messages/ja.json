@@ -173,11 +173,27 @@
   "achievements": {
     "save50": "🏆 アチーブメント解除: 50回セーブ〜 お兄ちゃん勤勉！",
     "save100": "🏆 アチーブメント解除: 100回セーブ〜 真のCtrl+Sマスター！",
+    "save250": "🏆 アチーブメント解除: 250回セーブ〜 指先が止まらないね！",
     "error_fix_10": "🏆 アチーブメント解除: 10個のバグ退治〜 一流ハンターだね！",
     "error_fix_50": "🏆 アチーブメント解除: 50個のバグ退治〜 バグもお兄ちゃんが怖い！",
+    "error_fix_100": "🏆 アチーブメント解除: 100個のバグ退治〜 バグ軍団まで浄化しちゃった！",
     "coding_1h": "🏆 アチーブメント解除: 1時間連続コーディング〜 すごい集中！",
     "coding_3h": "🏆 アチーブメント解除: 3時間コーディング〜 伝説のスタミナ！",
-    "commit10": "🏆 アチーブメント解除: 10コミット〜 Gitもにっこりだね！"
+    "coding_6h": "🏆 アチーブメント解除: 6時間コーディング〜 集中オーラが輝いてるよ！",
+    "coding_12h": "🏆 アチーブメント解除: 12時間コーディング〜 持久力の王様だね！",
+    "commit10": "🏆 アチーブメント解除: 10コミット〜 Gitもにっこりだね！",
+    "commit25": "🏆 アチーブメント解除: 25コミット〜 リポジトリに完全信頼されてる！",
+    "commit50": "🏆 アチーブメント解除: 50コミット〜 リモート軌道を支配してるね！",
+    "chat_10": "🏆 アチーブメント解除: AIに10回質問〜 もう相棒ホットラインだね！",
+    "chat_25": "🏆 アチーブメント解除: AIに25回質問〜 コンテキスト魔法がすごいよ！",
+    "chat_100": "🏆 アチーブメント解除: AIに100回質問〜 予言者までお兄ちゃんを覚えたね！",
+    "pomodoro_1": "🏆 アチーブメント解除: 初ポモドーロ完了〜 小さな集中の芽が出たよ！",
+    "pomodoro_5": "🏆 アチーブメント解除: 5回ポモドーロ〜 リズムがしっかり育ってきたね！",
+    "pomodoro_25": "🏆 アチーブメント解除: 25回ポモドーロ〜 集中の要塞が完成したよ！",
+    "night_owl": "🏆 シークレット解除: Night Owl〜 朝3時まで一緒に起きてたね...",
+    "save_storm": "🏆 シークレット解除: Save Storm〜 そのCtrl+Sコンボ、雷みたいだった！",
+    "pet_chaos": "🏆 シークレット解除: Pet Chaos〜 つつきすぎで本当に目が回っちゃうよ！",
+    "provider_polyglot": "🏆 シークレット解除: Provider Polyglot〜 3つのAI世界を旅したね！"
   },
   "webview": {
     "dblClickMessages": [
@@ -201,7 +217,9 @@
       "muteOn": "少し静かにしてるね〜 🤫",
       "muteOff": "またおしゃべりするね〜 🎀",
       "settings": "設定を開くね〜 ⚙️",
-      "motion": "どのモーションにするか選んでね〜 🎬"
+      "motion": "どのモーションにするか選んでね〜 🎬",
+      "quickChatThinking": "ちょっと考えるね〜 💭",
+      "stopPomodoro": "ポモドーロ止めるね〜 一休みしよ！ ☕"
     },
     "menu": {
       "run": "実行",
@@ -218,11 +236,15 @@
       "motion": "モーション",
       "pomodoro": "ポモドーロ",
       "achievements": "実績",
+      "quests": "クエスト",
       "stats": "統計",
+      "profile": "プロフィール",
+      "shareCard": "シェアカード",
       "settings": "設定",
       "all": "すべて",
       "allSettings": "すべての設定",
       "chatCategory": "AI チャット",
+      "chatQuick": "クイックチャット",
       "chatOpen": "チャットを開く",
       "chatNew": "新しい会話",
       "chatAskSelection": "選択範囲について聞く",
@@ -242,7 +264,11 @@
       "switchToDesktop": "デスクトップへ切替",
       "switchToPanel": "パネルへ切替",
       "clickThrough": "クリックスルー切替",
-      "resetWorkspaceModel": "ワークスペースモデルをリセット"
+      "resetWorkspaceModel": "ワークスペースモデルをリセット",
+      "agentCategory": "Agent",
+      "agentList": "アカウントを管理…",
+      "agentSwitch": "クイック切替…",
+      "agentSave": "現在の状態を保存…"
     },
     "panels": {
       "voiceTitle": "Voice",
@@ -262,10 +288,45 @@
       "ambientTitle": "Ambient",
       "ambientFootnote": "Volume: <code>animeCompanion.ambientVolume</code> | custom files: <code>animeCompanion.customAmbientTracks</code>",
       "modelTitle": "Model",
+      "achievementsTitle": "実績",
+      "achievementsSecretTitle": "シークレット実績",
+      "achievementsEmpty": "まだ実績はありません。",
+      "questsTitle": "クエスト",
+      "questsDaily": "デイリー",
+      "questsWeekly": "ウィークリー",
+      "memoriesTitle": "思い出",
+      "memoriesEmpty": "まだ思い出はありません。",
+      "showcaseBtn": "☆ 展示する",
+      "showcaseActive": "★ 展示中",
+      "showcaseHint": "この実績をパネルのヘッダーに展示します",
+      "showcaseActiveHint": "クリックで展示を解除",
       "motionTitle": "Motion",
       "motionTapBodyDesc": "Body tap",
       "motionTapHeadDesc": "Head pat",
-      "motionIdleDesc": "Default idle"
+      "motionIdleDesc": "Default idle",
+      "agentSwitchTitle": "🔁 アカウント切替",
+      "agentSaveTitle": "💾 現在のアカウントを保存",
+      "agentNamePlaceholder": "プロファイル名 (例: tk1, work, personal)",
+      "agentCancel": "キャンセル",
+      "agentSaveBtn": "保存",
+      "agentLoading": "読み込み中…",
+      "agentEmpty": "まだ保存済みプロファイルがありません。",
+      "agentPickTool": "ツールを選択",
+      "agentNoTool": "ログイン中のCLIが見つかりません。"
+    },
+    "shareCard": {
+      "title": "シェアカードのプレビュー",
+      "featuredLabel": "表示する実績",
+      "noneUnlocked": "まだ実績が解除されていません",
+      "copy": "📋 画像をコピー",
+      "save": "💾 PNGとして保存…",
+      "close": "閉じる",
+      "copying": "コピー中…",
+      "copied": "✓ クリップボードにコピーしました",
+      "copyFailed": "コピー失敗: ",
+      "saving": "保存ダイアログを開いています…",
+      "saved": "✓ 保存しました",
+      "saveFailed": "保存失敗: "
     }
   }
 }

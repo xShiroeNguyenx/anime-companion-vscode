@@ -7,9 +7,32 @@ import { getProvider, PROVIDER_INFO, ChatMessage } from './llm-provider';
 import { resolveSystemPrompt } from './persona';
 import { buildContext, ContextRequest, searchWorkspaceFiles } from './context-builder';
 import { detectSentiment } from './sentiment';
+import { getMessageBank } from '../messages';
+import { AchievementDef, buildAchievementPanelData, QuestDef, StatsStore } from '../stats';
 
 export interface ChatHost {
   postMessage(msg: any): void;
+}
+
+// Best-effort heuristic to spot obvious provider/model mismatches before they
+// reach the wire and come back as a raw 4xx in the bubble. Used by the
+// transient quick-chat path where falling back to the provider's default is
+// safer than showing a cryptic API error. Conservative — only rejects when
+// the model name clearly belongs to a different vendor's family.
+function isModelCompatibleWithProvider(model: string, providerId: ProviderId): boolean {
+  const m = (model || '').toLowerCase().trim();
+  if (!m) return false;
+  switch (providerId) {
+    case 'anthropic': return m.includes('claude');
+    case 'openai':    return m.includes('gpt') || /^o[1-9]/.test(m);
+    case 'gemini':    return m.includes('gemini') || m.includes('gemma');
+    case 'xai':       return m.includes('grok');
+    case 'deepseek':  return m.includes('deepseek');
+    case 'openrouter':return m.includes('/');
+    case 'ollama':    return true;
+    case 'copilot':   return true;
+    default:          return true;
+  }
 }
 
 interface CopilotAccountPreference {
@@ -28,6 +51,12 @@ export class ChatManager {
   private _abort?: AbortController;
   private _inFlight = false;
   private _streamingMessageId = 0;
+  // Independent abort + in-flight guard for transient pet quick-chat. Lives
+  // alongside the panel chat's _abort/_inFlight so the two surfaces never
+  // cancel each other — user typing in the panel and right-clicking the pet
+  // for a quick reply at the same time both work.
+  private _quickAbort?: AbortController;
+  private _quickInFlight = false;
   // Cached dynamic model lists keyed by provider id. Refetched when stale so
   // the dropdown shows whatever the provider actually supports for this key
   // (e.g. Gemini 2.5/3.x families appear without a code release).
@@ -40,7 +69,8 @@ export class ChatManager {
     private readonly _context: vscode.ExtensionContext,
     private readonly _secrets: ChatSecrets,
     private readonly _store: ConversationStore,
-    private readonly _hostRef: () => ChatHost | undefined
+    private readonly _hostRef: () => ChatHost | undefined,
+    private readonly _stats: StatsStore
   ) {
     void this._context;
   }
@@ -84,6 +114,7 @@ export class ChatManager {
     }
 
     const model = this._resolveActiveModel(providerId) || provider.defaultModel;
+    await this._recordChatProgress(false);
 
     // Resolve context attachments before saving the turn so the user's
     // stored message includes everything that was sent to the model.
@@ -180,6 +211,7 @@ export class ChatManager {
         title: conv.meta.title,
       });
 
+      await this._recordSuccessfulProvider(providerId);
       this._reactToReply(assistantMsg.content);
     } catch (err) {
       const aborted =
@@ -220,6 +252,116 @@ export class ChatManager {
     if (this._abort) {
       this._abort.abort();
     }
+  }
+
+  // Transient quick-chat used by the pet right-click overlay. Does NOT touch
+  // ConversationStore or broadcast `chat:*` messages — caller drives the
+  // bubble via the supplied callbacks instead. `maxTokens` defaults low (200)
+  // because the speech bubble has limited room.
+  async sendQuickChat(
+    prompt: string,
+    opts: {
+      maxTokens?: number;
+      onDelta: (chunk: string) => void;
+      onEnd: (full: string) => void;
+      onError: (message: string, aborted: boolean) => void;
+    }
+  ): Promise<void> {
+    const text = (prompt ?? '').trim();
+    if (!text) {
+      opts.onError('Empty prompt.', false);
+      return;
+    }
+    if (this._quickInFlight) {
+      opts.onError('A quick-chat reply is already in flight.', false);
+      return;
+    }
+
+    const providerId = this._resolveActiveProvider();
+    const provider = getProvider(providerId);
+    if (!provider) {
+      opts.onError(`Unknown chat provider "${providerId}".`, false);
+      return;
+    }
+
+    if (providerId === 'copilot') {
+      try {
+        await this._ensureCopilotAccountAccess();
+      } catch (err) {
+        opts.onError(err instanceof Error ? err.message : String(err), false);
+        return;
+      }
+    }
+
+    let apiKey = '';
+    if (provider.requiresApiKey) {
+      const stored = await this._secrets.get(providerId);
+      if (!stored) {
+        opts.onError(`No API key for ${providerId}. Configure it in chat panel first.`, false);
+        return;
+      }
+      apiKey = stored;
+    }
+
+    // Defensive provider/model pairing. The chat panel lets users pick a
+    // provider and model independently — a stale combo (e.g. provider=gemini
+    // with a leftover model=claude-haiku-4.5) hits the API and crashes with a
+    // raw "model not found for v1beta" error in the pet's bubble. For the
+    // transient quick-chat surface, silently fall back to the provider's
+    // default model when the configured model name doesn't look like a fit.
+    const requestedModel = this._resolveActiveModel(providerId) || provider.defaultModel;
+    const model = isModelCompatibleWithProvider(requestedModel, providerId)
+      ? requestedModel
+      : provider.defaultModel;
+    const modelName = getSelectedModel('panel').name;
+    const systemPrompt = resolveSystemPrompt(modelName);
+
+    const providerMessages: ChatMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: text },
+    ];
+
+    this._quickAbort = new AbortController();
+    this._quickInFlight = true;
+    const cfg = vscode.workspace.getConfiguration('animeCompanion');
+    const maxTokens = opts.maxTokens ?? 200;
+    const temperature = cfg.get<number>('chat.temperature', 0.7);
+    await this._recordChatProgress(true);
+
+    let accumulated = '';
+    try {
+      const { stream } = provider.sendStream({
+        apiKey,
+        model,
+        messages: providerMessages,
+        maxTokens,
+        temperature,
+        signal: this._quickAbort.signal,
+      });
+
+      for await (const chunk of stream) {
+        accumulated += chunk;
+        opts.onDelta(chunk);
+      }
+
+      opts.onEnd(accumulated || '(empty response)');
+      await this._recordSuccessfulProvider(providerId);
+      this._reactToReply(accumulated);
+    } catch (err) {
+      const aborted =
+        (err instanceof Error && err.name === 'AbortError') ||
+        (err instanceof Error && /aborted|cancell?ed/i.test(err.message));
+      const msg = aborted ? 'Cancelled.' : err instanceof Error ? err.message : String(err);
+      log(`ChatManager: quick-chat failed (${providerId}/${model}): ${msg}`);
+      opts.onError(msg, aborted);
+    } finally {
+      this._quickInFlight = false;
+      this._quickAbort = undefined;
+    }
+  }
+
+  cancelQuickChat(): void {
+    if (this._quickAbort) this._quickAbort.abort();
   }
 
   async newConversation(): Promise<void> {
@@ -624,6 +766,48 @@ export class ChatManager {
 
   private _post(msg: any) {
     this._hostRef()?.postMessage(msg);
+  }
+
+  private async _recordChatProgress(quick: boolean): Promise<void> {
+    await this._stats.recordChatPrompt(quick);
+    const unlocked = await this._stats.tryUnlockByMetric('chat_prompt');
+    const quests = await this._stats.tryCompleteQuestsByMetric('chat_prompt');
+    await this._stats.tryUnlockNightOwl().then((def) => this._announceUnlocks(def ? [def] : []));
+    this._announceUnlocks(unlocked);
+    this._announceQuestCompletions(quests);
+    this._refreshAchievementsData();
+  }
+
+  private async _recordSuccessfulProvider(providerId: ProviderId): Promise<void> {
+    await this._stats.recordSuccessfulChatProvider(providerId);
+    const polyglot = await this._stats.tryUnlockProviderPolyglot();
+    this._announceUnlocks(polyglot ? [polyglot] : []);
+    this._refreshAchievementsData();
+  }
+
+  private _announceUnlocks(unlocked: AchievementDef[]): void {
+    if (!unlocked.length) return;
+    for (const def of unlocked) {
+      const template = getMessageBank().pickAchievement(def.id) ?? `🏆 ${def.title}`;
+      this._post({ command: 'showMessage', text: template, speakText: template });
+      this._post({ command: 'achievementUnlocked', achievement: { id: def.id, title: def.title, rarity: def.rarity, secret: def.secret } });
+    }
+  }
+
+  private _announceQuestCompletions(quests: QuestDef[]): void {
+    if (!quests.length) return;
+    for (const quest of quests) {
+      const text = `✅ ${quest.period === 'daily' ? 'Daily' : 'Weekly'} quest cleared: ${quest.title}`;
+      this._post({ command: 'showMessage', text, speakText: text });
+      this._post({ command: 'achievementUnlocked', quest: { id: quest.id, title: quest.title, period: quest.period, rarity: quest.period === 'daily' ? 'rare' : 'epic' } });
+    }
+  }
+
+  private _refreshAchievementsData(): void {
+    this._post({
+      command: 'setAchievementsData',
+      achievements: buildAchievementPanelData(this._stats.getStats()),
+    });
   }
 
   private _chatConfigTarget(): vscode.ConfigurationTarget {

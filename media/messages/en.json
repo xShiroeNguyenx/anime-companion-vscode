@@ -173,11 +173,27 @@
   "achievements": {
     "save50": "🏆 Achievement unlocked: 50 saves~ so diligent, Onii-chan!",
     "save100": "🏆 Achievement unlocked: 100 saves~ true Ctrl+S master!",
+    "save250": "🏆 Achievement unlocked: 250 saves~ your fingertips are unstoppable!",
     "error_fix_10": "🏆 Achievement unlocked: 10 errors fixed~ ace bug hunter!",
     "error_fix_50": "🏆 Achievement unlocked: 50 errors fixed~ bugs fear you now!",
+    "error_fix_100": "🏆 Achievement unlocked: 100 errors fixed~ you exorcised a whole bug legion!",
     "coding_1h": "🏆 Achievement unlocked: 1 hour of coding~ super dedicated!",
     "coding_3h": "🏆 Achievement unlocked: 3 hours of coding~ legendary stamina!",
-    "commit10": "🏆 Achievement unlocked: 10 commits~ Git is smiling at you!"
+    "coding_6h": "🏆 Achievement unlocked: 6 hours of coding~ your focus aura is glowing!",
+    "coding_12h": "🏆 Achievement unlocked: 12 hours of coding~ ruler of endurance!",
+    "commit10": "🏆 Achievement unlocked: 10 commits~ Git is smiling at you!",
+    "commit25": "🏆 Achievement unlocked: 25 commits~ the repo trusts you completely!",
+    "commit50": "🏆 Achievement unlocked: 50 commits~ orbiting the remote like a pro!",
+    "chat_10": "🏆 Achievement unlocked: 10 AI prompts~ your companion is officially on speed dial!",
+    "chat_25": "🏆 Achievement unlocked: 25 AI prompts~ look at that context wizardry!",
+    "chat_100": "🏆 Achievement unlocked: 100 AI prompts~ the oracle knows your name now!",
+    "pomodoro_1": "🏆 Achievement unlocked: first Pomodoro clear~ tiny focus seed planted!",
+    "pomodoro_5": "🏆 Achievement unlocked: 5 Pomodoros~ your rhythm is getting strong!",
+    "pomodoro_25": "🏆 Achievement unlocked: 25 Pomodoros~ focus fortress complete!",
+    "night_owl": "🏆 Secret unlocked: Night Owl~ we really stayed up until 3 AM together...",
+    "save_storm": "🏆 Secret unlocked: Save Storm~ that Ctrl+S combo was thunderous!",
+    "pet_chaos": "🏆 Secret unlocked: Pet Chaos~ hey, that's too much poking!",
+    "provider_polyglot": "🏆 Secret unlocked: Provider Polyglot~ you've chatted across three AI worlds!"
   },
   "webview": {
     "dblClickMessages": [
@@ -201,7 +217,9 @@
       "muteOn": "I'll stay quiet for a little while~ 🤫",
       "muteOff": "I'm chirping again~ 🎀",
       "settings": "Opening Settings for you~ ⚙️",
-      "motion": "Pick a motion for me to perform~ 🎬"
+      "motion": "Pick a motion for me to perform~ 🎬",
+      "quickChatThinking": "Thinking about that for a sec~ 💭",
+      "stopPomodoro": "Pausing Pomodoro~ take a little break! ☕"
     },
     "menu": {
       "run": "Run",
@@ -218,11 +236,15 @@
       "motion": "Motion",
       "pomodoro": "Pomodoro",
       "achievements": "Achievements",
+      "quests": "Quests",
       "stats": "Stats",
+      "profile": "Profile",
+      "shareCard": "Share Card",
       "settings": "Settings",
       "all": "All",
       "allSettings": "All Settings",
       "chatCategory": "AI Chat",
+      "chatQuick": "Quick Chat",
       "chatOpen": "Open Chat",
       "chatNew": "New Conversation",
       "chatAskSelection": "Ask About Selection",
@@ -242,7 +264,11 @@
       "switchToDesktop": "Switch to Desktop",
       "switchToPanel": "Switch to Panel",
       "clickThrough": "Toggle Click-Through",
-      "resetWorkspaceModel": "Reset Workspace Model"
+      "resetWorkspaceModel": "Reset Workspace Model",
+      "agentCategory": "Agent",
+      "agentList": "Manage Accounts…",
+      "agentSwitch": "Quick Switch…",
+      "agentSave": "Save Current as…"
     },
     "panels": {
       "voiceTitle": "Voice",
@@ -262,10 +288,45 @@
       "ambientTitle": "Ambient",
       "ambientFootnote": "Volume: <code>animeCompanion.ambientVolume</code> | custom files: <code>animeCompanion.customAmbientTracks</code>",
       "modelTitle": "Model",
+      "achievementsTitle": "Achievements",
+      "achievementsSecretTitle": "Secret Achievements",
+      "achievementsEmpty": "No achievements yet.",
+      "questsTitle": "Quests",
+      "questsDaily": "Daily",
+      "questsWeekly": "Weekly",
+      "memoriesTitle": "Memories",
+      "memoriesEmpty": "No memories yet.",
+      "showcaseBtn": "☆ Showcase",
+      "showcaseActive": "★ Showcasing",
+      "showcaseHint": "Showcase this achievement in the panel header",
+      "showcaseActiveHint": "Click to stop showcasing",
       "motionTitle": "Motion",
       "motionTapBodyDesc": "Body tap",
       "motionTapHeadDesc": "Head pat",
-      "motionIdleDesc": "Default idle"
+      "motionIdleDesc": "Default idle",
+      "agentSwitchTitle": "🔁 Switch Account",
+      "agentSaveTitle": "💾 Save Current Account",
+      "agentNamePlaceholder": "Profile name (e.g. tk1, work, personal)",
+      "agentCancel": "Cancel",
+      "agentSaveBtn": "Save",
+      "agentLoading": "Loading…",
+      "agentEmpty": "No saved profiles yet. Save the current account first.",
+      "agentPickTool": "Pick a tool",
+      "agentNoTool": "No logged-in CLI detected."
+    },
+    "shareCard": {
+      "title": "Share card preview",
+      "featuredLabel": "Featured achievement",
+      "noneUnlocked": "No achievement unlocked yet",
+      "copy": "📋 Copy image",
+      "save": "💾 Save as PNG…",
+      "close": "Close",
+      "copying": "Copying…",
+      "copied": "✓ Copied to clipboard",
+      "copyFailed": "Copy failed: ",
+      "saving": "Opening save dialog…",
+      "saved": "✓ Saved",
+      "saveFailed": "Save failed: "
     }
   }
 }

@@ -8,7 +8,7 @@ import { ModelFileServer } from './model-server';
 import { ModelDownloader } from './model-downloader';
 import { DesktopPetDownloader } from './desktop-pet-downloader';
 import { ReactiveManager } from './reactive';
-import { StatsStore } from './stats';
+import { buildAchievementPanelData, StatsStore } from './stats';
 import { WebSocketTransport } from './companion-transport';
 import { dispatchRuntimeMessage } from './companion-message-dispatcher';
 import { getSelectedModel, HIYORI, ModelInfo, listVisibleModels } from './models';
@@ -58,6 +58,12 @@ export class DesktopPetBridge implements vscode.Disposable {
   private _pendingInputs = new Map<string, (value: string | undefined) => void>();
   private _transportSubscriptions: vscode.Disposable[] = [];
   private _messageTimer?: NodeJS.Timeout;
+  // Set after construction by extension.ts. Bridge is created before
+  // ChatManager in the startup sequence so the wiring has to happen as a
+  // setter — passing through the dispatcher context lets quick-chat work
+  // in Desktop mode the same way it does in panel mode.
+  private _chatManager?: import('./chat/chat-manager').ChatManager;
+  private _agentProfileManager?: import('./agent-profiles/profile-manager').AgentProfileManager;
 
   constructor(
     extensionUri: vscode.Uri,
@@ -76,6 +82,14 @@ export class DesktopPetBridge implements vscode.Disposable {
 
   get token(): string {
     return this._token;
+  }
+
+  setChatManager(manager: import('./chat/chat-manager').ChatManager): void {
+    this._chatManager = manager;
+  }
+
+  setAgentProfileManager(manager: import('./agent-profiles/profile-manager').AgentProfileManager): void {
+    this._agentProfileManager = manager;
   }
 
   private _getDesktopCompanionSetting<T>(key: string, defaultValue: T): T {
@@ -170,6 +184,7 @@ export class DesktopPetBridge implements vscode.Disposable {
         requestCommitMessage: (count) => this._requestCommitMessage(count),
         onInteraction: () => this._startMessageTimer(10000),
         getCustomAmbientTracks: () => this._getCustomAmbientTracks(),
+        stats: this._stats,
         // Bridge mode: drag inside the floating window calls Tauri's
         // startDragging which moves the OS window. The runtime won't fire
         // setCompanionPosition in that path, but if it ever does we just
@@ -180,6 +195,8 @@ export class DesktopPetBridge implements vscode.Disposable {
             .getConfiguration('animeCompanion')
             .update('desktopCompanion.model', modelId, vscode.ConfigurationTarget.Global);
         },
+        chatManager: this._chatManager,
+        agentProfileManager: this._agentProfileManager,
       });
     }));
 
@@ -192,6 +209,11 @@ export class DesktopPetBridge implements vscode.Disposable {
         this._pendingInputs.clear();
       }
     }));
+
+    this.postMessage({
+      command: 'setAchievementsData',
+      achievements: buildAchievementPanelData(this._stats.getStats()),
+    });
 
     // Start reactive once. It listens to VS Code events that fire whether or
     // not the sidecar is connected; messages are simply dropped by the
@@ -208,7 +230,19 @@ export class DesktopPetBridge implements vscode.Disposable {
         (mood) => {
           this.postMessage({ command: 'setMood', mood });
         },
-        this._stats
+        this._stats,
+        (payload) => {
+          for (const def of payload.achievements ?? []) {
+            this.postMessage({ command: 'achievementUnlocked', achievement: { id: def.id, title: def.title, rarity: def.rarity, secret: def.secret } });
+          }
+          for (const quest of payload.quests ?? []) {
+            this.postMessage({ command: 'achievementUnlocked', quest: { id: quest.id, title: quest.title, period: quest.period, rarity: quest.period === 'daily' ? 'rare' : 'epic' } });
+          }
+          this.postMessage({
+            command: 'setAchievementsData',
+            achievements: buildAchievementPanelData(this._stats.getStats()),
+          });
+        }
       );
       this._reactive.activate();
     }
@@ -229,6 +263,10 @@ export class DesktopPetBridge implements vscode.Disposable {
 
   public postMessage(message: any): void {
     this._transport.post(message);
+  }
+
+  public openShareCardPreview(profile: unknown): void {
+    this.postMessage({ command: 'openShareCardPreview', profile });
   }
 
   public updatePomodoroTick(state: PomodoroState, secondsLeft: number, totalSeconds: number) {
@@ -646,6 +684,8 @@ export class DesktopPetBridge implements vscode.Disposable {
   }
 
   private _pickIdle(): string {
+    const memory = Math.random() < 0.28 ? this._stats.pickMemoryLine() : null;
+    if (memory) return memory;
     const key: MessageKey = 'idle';
     return getMessageBank().pick(key);
   }

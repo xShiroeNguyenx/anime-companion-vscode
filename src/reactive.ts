@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getMessageBank, MessageKey, ResolvedPhrase } from './messages';
-import { StatsStore } from './stats';
+import { AchievementDef, QuestDef, StatsStore } from './stats';
 
 export type CompanionMood = 'idle' | 'happy' | 'angry' | 'sleepy';
 
@@ -12,6 +12,7 @@ const CODING_GAP_CAP_MS = 60_000;
 export class ReactiveManager {
   private _sendMessageImpl: (phrase: ResolvedPhrase, motion?: string) => void;
   private _sendMood: (mood: CompanionMood) => void;
+  private _onProgress?: (payload: { achievements?: AchievementDef[]; quests?: QuestDef[] }) => void;
   private _stats: StatsStore;
   private _disposables: vscode.Disposable[] = [];
 
@@ -32,11 +33,13 @@ export class ReactiveManager {
   constructor(
     sendMessage: (phrase: ResolvedPhrase, motion?: string) => void,
     sendMood: (mood: CompanionMood) => void,
-    stats: StatsStore
+    stats: StatsStore,
+    onProgress?: (payload: { achievements?: AchievementDef[]; quests?: QuestDef[] }) => void
   ) {
     this._sendMessageImpl = sendMessage;
     this._sendMood = sendMood;
     this._stats = stats;
+    this._onProgress = onProgress;
   }
 
   private _pick(key: MessageKey, vars?: Record<string, string | number>): ResolvedPhrase {
@@ -126,9 +129,9 @@ export class ReactiveManager {
           }
         } else if (errors === 0 && this._prevErrorCount > 0) {
           const fixed = this._prevErrorCount;
-          void this._stats.incErrorsFixed(fixed).then((total) => {
+          void this._stats.incErrorsFixed(fixed).then(() => {
             this._sendMessage(this._pick('errorFixed'), 'Idle');
-            void this._tryUnlock('error_fix', total);
+            void this._tryUnlock('error_fix');
           });
         } else if (warnings > 0 && errors === 0 && this._prevErrorCount === 0 && Math.random() < 0.3) {
           this._sendMessage(this._pick('warning'));
@@ -150,11 +153,12 @@ export class ReactiveManager {
           ? document.fileName.split('.').pop() || ''
           : '';
         this._saveTimes.push(now);
-        // Keep only last 10 saves
-        if (this._saveTimes.length > 10) this._saveTimes.shift();
+        // Keep enough history to detect the 60-second secret combo.
+        if (this._saveTimes.length > 30) this._saveTimes.shift();
 
         // Detect spam save (3+ saves in 5 seconds)
         const recent = this._saveTimes.filter(t => now - t < 5000);
+        const storm = this._saveTimes.filter(t => now - t < 60000);
         if (recent.length >= 3) {
           this._sendMessage(this._pick('saveSpam', {
             filename: fileName,
@@ -167,11 +171,45 @@ export class ReactiveManager {
           }));
         }
 
-        void this._stats.incSave().then((total) => {
-          void this._tryUnlock('save', total);
+        void this._stats.incSave().then(() => {
+          void this._tryUnlock('save');
         });
+        if (storm.length >= 20) {
+          void this._stats.unlockById('save_storm').then((def) => this._announceUnlocks(def ? [def] : []));
+        }
+        void this._stats.tryUnlockNightOwl().then((def) => this._announceUnlocks(def ? [def] : []));
       })
     );
+  }
+
+  private _announceUnlocks(unlocked: AchievementDef[]) {
+    if (!unlocked.length) return;
+    for (const def of unlocked) {
+      const template = getMessageBank().pickAchievement(def.id) ?? `🏆 ${def.title}`;
+      this._sendMessage({
+        key: 'moodHappy',
+        text: template,
+        template,
+        fromCustom: false,
+        hasPlaceholders: /\{[a-zA-Z0-9_]+\}/.test(template),
+      });
+    }
+    this._onProgress?.({ achievements: unlocked });
+  }
+
+  private _announceQuestCompletions(quests: QuestDef[]) {
+    if (!quests.length) return;
+    for (const quest of quests) {
+      const template = `✅ ${quest.period === 'daily' ? 'Daily' : 'Weekly'} quest cleared: ${quest.title}`;
+      this._sendMessage({
+        key: 'moodHappy',
+        text: template,
+        template,
+        fromCustom: false,
+        hasPlaceholders: false,
+      });
+    }
+    this._onProgress?.({ quests });
   }
 
   // 5. Typing intensity + Easter eggs + user-defined keywords
@@ -236,12 +274,15 @@ export class ReactiveManager {
   // 6. Break reminder
   private _startBreakTimer() {
     this._breakTimer = setInterval(() => {
+      const allTimeMinutes = Math.floor(this._stats.getStats().codingMillisAllTime / 60000);
+      if (allTimeMinutes > 0) {
+        void this._tryUnlock('coding_minutes');
+      }
+
       const elapsed = Date.now() - this._codingStartTime;
       const mins = Math.floor(elapsed / 60000);
       if (elapsed >= this._breakIntervalMs) {
         this._sendMessage(this._pick('breakReminder', { mins }));
-        // Check coding achievements (threshold in minutes)
-        void this._tryUnlock('coding', mins);
       }
     }, 10 * 60 * 1000); // Check every 10 minutes
   }
@@ -253,7 +294,9 @@ export class ReactiveManager {
     const delta = now - this._lastActivityTime;
     this._lastActivityTime = now;
     if (delta > 0 && delta <= CODING_GAP_CAP_MS) {
-      void this._stats.addCodingTime(delta);
+      void this._stats.addCodingTime(delta).then(() => {
+        void this._tryUnlock('coding_minutes');
+      });
     }
   }
 
@@ -316,8 +359,8 @@ export class ReactiveManager {
           if (indexedNow === 0 && this._prevCommitCount > 0) {
             this._sendMessage(this._pick('gitCommitted'), 'Idle');
             this._setMood('happy');
-            void this._stats.incCommit().then((total) => {
-              void this._tryUnlock('commit', total);
+            void this._stats.incCommit().then(() => {
+              void this._tryUnlock('commit');
             });
           }
         }
@@ -412,18 +455,11 @@ export class ReactiveManager {
     }, 8000);
   }
 
-  // 11. Achievements — checks stats threshold and announces if newly unlocked.
-  private async _tryUnlock(type: 'save' | 'commit' | 'error_fix' | 'coding', count: number) {
-    const def = await this._stats.tryUnlockByThreshold(type, count);
-    if (def) {
-      const template = getMessageBank().pickAchievement(def.id) ?? `🏆 ${def.title}`;
-      this._sendMessage({
-        key: 'moodHappy',
-        text: template,
-        template,
-        fromCustom: false,
-        hasPlaceholders: /\{[a-zA-Z0-9_]+\}/.test(template),
-      });
-    }
+  // 11. Achievements — checks threshold-based progress and announces all new unlocks.
+  private async _tryUnlock(metric: 'save' | 'commit' | 'error_fix' | 'coding_minutes') {
+    const unlocked = await this._stats.tryUnlockByMetric(metric);
+    const quests = await this._stats.tryCompleteQuestsByMetric(metric);
+    this._announceUnlocks(unlocked);
+    this._announceQuestCompletions(quests);
   }
 }

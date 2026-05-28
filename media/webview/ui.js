@@ -1,7 +1,5 @@
 import { state, debugLog, vscode } from './core.js';
 
-// DOM elements — captured lazily on first use so this module can be imported
-// before DOM is ready.
 function $bubble() { return document.getElementById('chatBubble'); }
 function $bubbleText() { return document.getElementById('bubbleText'); }
 function $particles() { return document.getElementById('particles'); }
@@ -14,11 +12,43 @@ let confirmPanel = null;
 let confirmRequestId = null;
 let inputPanel = null;
 let inputRequestId = null;
+let bubbleStreaming = false;
+let bubbleClickHandler = null;
+const STREAM_BUBBLE_MAX_CHARS = 600;
+
+function removeBubbleClickHandler() {
+  const bubble = $bubble();
+  if (bubble && bubbleClickHandler) {
+    bubble.removeEventListener('click', bubbleClickHandler);
+  }
+  bubbleClickHandler = null;
+}
+
+// Hard-reset the chat bubble: cancel timers, clear streaming state, drop any
+// click handler. Used when opening Quick Chat again so a lingering long reply
+// bubble can't overlap the freshly-opened input panel.
+export function forceDismissBubble() {
+  const bubble = $bubble();
+  if (!bubble) return;
+  if (bubbleTimeout) {
+    clearTimeout(bubbleTimeout);
+    bubbleTimeout = null;
+  }
+  clearStreamWatchdog();
+  removeBubbleClickHandler();
+  bubble.classList.remove('visible');
+  bubble.classList.remove('streaming');
+  bubble.classList.remove('pinned');
+  bubble.style.cursor = '';
+  bubbleStreaming = false;
+  streamAccumulated = '';
+}
 
 export function showBubble(text) {
   const bubble = $bubble();
   const txt = $bubbleText();
   if (!bubble || !txt) return;
+  if (bubbleStreaming) return;
 
   if (bubbleTimeout) clearTimeout(bubbleTimeout);
   bubble.classList.remove('visible');
@@ -32,6 +62,335 @@ export function showBubble(text) {
       bubble.classList.remove('visible');
     }, 6000);
   }, 200);
+}
+
+let streamAccumulated = '';
+let streamWatchdog = null;
+const STREAM_WATCHDOG_MS = 30000;
+
+function clearStreamWatchdog() {
+  if (streamWatchdog) {
+    clearTimeout(streamWatchdog);
+    streamWatchdog = null;
+  }
+}
+
+export function startBubbleStream(initialText) {
+  const bubble = $bubble();
+  const txt = $bubbleText();
+  if (!bubble || !txt) return;
+  if (bubbleTimeout) {
+    clearTimeout(bubbleTimeout);
+    bubbleTimeout = null;
+  }
+  bubble.classList.remove('pinned');
+  bubble.style.cursor = 'default';
+  bubbleStreaming = true;
+  streamAccumulated = initialText || '';
+  txt.textContent = streamAccumulated;
+  bubble.classList.add('visible');
+  bubble.classList.add('streaming');
+  if (state.isLive2DReady) playMotion('Idle');
+  clearStreamWatchdog();
+  streamWatchdog = setTimeout(() => {
+    streamWatchdog = null;
+    errorBubbleStream('Không nhận được phản hồi. Thử lại nha~ ⏳');
+  }, STREAM_WATCHDOG_MS);
+}
+
+export function appendBubbleStream(chunk) {
+  const txt = $bubbleText();
+  if (!txt || !bubbleStreaming) return;
+  clearStreamWatchdog();
+  streamAccumulated += chunk || '';
+  const display =
+    streamAccumulated.length > STREAM_BUBBLE_MAX_CHARS
+      ? '...' + streamAccumulated.slice(-(STREAM_BUBBLE_MAX_CHARS - 3))
+      : streamAccumulated;
+  txt.textContent = display;
+}
+
+export function finishBubbleStream(opts) {
+  const bubble = $bubble();
+  if (!bubble) return;
+  clearStreamWatchdog();
+  const autoDismissMs = (opts && opts.autoDismissMs) || 12000;
+  bubble.classList.remove('streaming');
+  bubble.style.cursor = 'pointer';
+
+  const hardDismiss = () => {
+    if (bubbleTimeout) {
+      clearTimeout(bubbleTimeout);
+      bubbleTimeout = null;
+    }
+    bubble.classList.remove('visible');
+    bubble.classList.remove('pinned');
+    bubble.style.cursor = '';
+    removeBubbleClickHandler();
+    bubbleStreaming = false;
+    streamAccumulated = '';
+  };
+
+  const onClick = (e) => {
+    e.stopPropagation();
+    if (bubble.classList.contains('pinned')) {
+      if (bubbleTimeout) clearTimeout(bubbleTimeout);
+      bubble.classList.remove('pinned');
+      bubbleTimeout = setTimeout(hardDismiss, 1500);
+    } else {
+      if (bubbleTimeout) {
+        clearTimeout(bubbleTimeout);
+        bubbleTimeout = null;
+      }
+      bubble.classList.add('pinned');
+    }
+  };
+  // Each stream finishes with a fresh handler; ditch any prior one so a long
+  // sequence of replies doesn't pile up click listeners and double-toggle pin.
+  removeBubbleClickHandler();
+  bubbleClickHandler = onClick;
+  bubble.addEventListener('click', onClick);
+
+  bubbleTimeout = setTimeout(hardDismiss, autoDismissMs);
+}
+
+export function errorBubbleStream(errorText) {
+  const bubble = $bubble();
+  const txt = $bubbleText();
+  if (!bubble || !txt) return;
+  clearStreamWatchdog();
+  if (bubbleTimeout) {
+    clearTimeout(bubbleTimeout);
+    bubbleTimeout = null;
+  }
+  bubble.classList.remove('streaming');
+  bubble.style.cursor = '';
+  txt.textContent = errorText;
+  bubble.classList.add('visible');
+  bubbleTimeout = setTimeout(() => {
+    bubble.classList.remove('visible');
+    bubbleStreaming = false;
+    streamAccumulated = '';
+  }, 6000);
+}
+
+let quickChatPanel = null;
+let quickChatHandlers = null;
+let quickChatConversationHistory = [];
+let quickChatSessionHistory = [];
+const QUICK_CHAT_PENDING_TEXT = 'Em đang suy nghĩ chút nha~';
+
+function syncQuickChatOverlayState(visible) {
+  state.quickChatOverlayVisible = Boolean(visible);
+  const wrapper = document.getElementById('characterWrapper');
+  wrapper?.classList.toggle('quickchat-compact', state.quickChatOverlayVisible);
+  window.dispatchEvent(
+    new CustomEvent('anime-companion:layoutchange', {
+      detail: {
+        source: 'quickchat',
+        visible: state.quickChatOverlayVisible,
+      },
+    })
+  );
+}
+
+function getQuickChatMergedHistory() {
+  return [...quickChatConversationHistory, ...quickChatSessionHistory];
+}
+
+function renderQuickChatHistory() {
+  if (!quickChatPanel) return;
+  const history = quickChatPanel.querySelector('.companion-quickchat-history');
+  const empty = quickChatPanel.querySelector('.companion-quickchat-empty');
+  if (!history || !empty) return;
+
+  const items = getQuickChatMergedHistory();
+  history.innerHTML = '';
+  empty.hidden = items.length > 0;
+
+  for (const item of items) {
+    const row = document.createElement('div');
+    row.className = `companion-quickchat-message companion-quickchat-message--${item.role || 'assistant'}`;
+    if (item.pending) row.classList.add('is-pending');
+    if (item.error) row.classList.add('is-error');
+
+    const badge = document.createElement('span');
+    badge.className = 'companion-quickchat-message-role';
+    badge.textContent = item.role === 'user' ? 'You' : item.error ? 'Status' : 'Companion';
+
+    const body = document.createElement('div');
+    body.className = 'companion-quickchat-message-body';
+    body.textContent = item.content || '';
+
+    row.appendChild(badge);
+    row.appendChild(body);
+    history.appendChild(row);
+  }
+
+  history.scrollTop = history.scrollHeight;
+}
+
+function updateQuickChatSessionMessage(requestId, updater) {
+  const index = quickChatSessionHistory.findIndex(
+    (item) => item.requestId === requestId && item.role === 'assistant'
+  );
+  if (index < 0) return;
+  quickChatSessionHistory[index] = updater(quickChatSessionHistory[index]);
+  renderQuickChatHistory();
+}
+
+function ensureQuickChatPanel() {
+  if (quickChatPanel) return quickChatPanel;
+  const wrapper = document.getElementById('characterWrapper');
+  if (!wrapper) return null;
+
+  quickChatPanel = document.createElement('div');
+  quickChatPanel.className = 'companion-quickchat-panel';
+  quickChatPanel.innerHTML = `
+    <div class="companion-quickchat-title">💬 Quick Chat</div>
+    <div class="companion-quickchat-history-wrap">
+      <div class="companion-quickchat-history"></div>
+      <div class="companion-quickchat-empty">Chưa có history nào cả. Hỏi em một câu trước nha~</div>
+    </div>
+    <textarea class="companion-quickchat-field" rows="2" maxlength="400"
+      placeholder="Hỏi gì đó nhanh nha~ (Enter để gửi, Shift+Enter xuống dòng)"></textarea>
+    <div class="companion-quickchat-actions">
+      <button class="companion-confirm-btn secondary" data-choice="cancel">Cancel</button>
+      <button class="companion-confirm-btn primary" data-choice="send">Send</button>
+    </div>
+  `;
+  wrapper.appendChild(quickChatPanel);
+
+  const field = quickChatPanel.querySelector('.companion-quickchat-field');
+
+  const submit = () => {
+    const value = (field?.value || '').trim();
+    if (!value) return;
+    quickChatPanel.classList.remove('show');
+    syncQuickChatOverlayState(false);
+    if (quickChatHandlers && quickChatHandlers.onSubmit) {
+      quickChatHandlers.onSubmit(value);
+    }
+    if (field) field.value = '';
+  };
+
+  const cancel = () => {
+    quickChatPanel.classList.remove('show');
+    syncQuickChatOverlayState(false);
+    if (quickChatHandlers && quickChatHandlers.onCancel) {
+      quickChatHandlers.onCancel();
+    }
+    if (field) field.value = '';
+  };
+
+  quickChatPanel.addEventListener('click', (e) => {
+    const button = e.target.closest('.companion-confirm-btn');
+    if (!button) return;
+    const choice = button.getAttribute('data-choice');
+    if (choice === 'send') submit();
+    else cancel();
+  });
+
+  field?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancel();
+    }
+  });
+
+  renderQuickChatHistory();
+  return quickChatPanel;
+}
+
+export function showQuickChatPanel(handlers) {
+  const panel = ensureQuickChatPanel();
+  if (!panel) return;
+  // A previous reply's bubble may still be visible (12s auto-dismiss, or
+  // pinned). On the small desktop pet window a long bubble overlaps the
+  // freshly-opened input panel and the layout breaks. Drop it first so the
+  // user sees a clean quick-chat surface.
+  forceDismissBubble();
+  quickChatHandlers = handlers || {};
+  panel.classList.add('show');
+  syncQuickChatOverlayState(true);
+  renderQuickChatHistory();
+  const field = panel.querySelector('.companion-quickchat-field');
+  setTimeout(() => field?.focus(), 30);
+}
+
+export function hideQuickChatPanel() {
+  if (!quickChatPanel) return;
+  quickChatPanel.classList.remove('show');
+  syncQuickChatOverlayState(false);
+}
+
+export function syncQuickChatConversationHistory(messages) {
+  quickChatConversationHistory = Array.isArray(messages)
+    ? messages
+      .filter((item) => item && typeof item.content === 'string' && item.content.trim())
+      .map((item, index) => ({
+        id: `conv-${index}`,
+        role: item.role === 'user' ? 'user' : 'assistant',
+        content: item.content.trim(),
+      }))
+    : [];
+  renderQuickChatHistory();
+}
+
+export function startQuickChatHistoryTurn(requestId, prompt) {
+  if (!requestId || typeof prompt !== 'string') return;
+  quickChatSessionHistory.push(
+    {
+      id: `${requestId}-user`,
+      requestId,
+      role: 'user',
+      content: prompt.trim(),
+      pending: false,
+      error: false,
+    },
+    {
+      id: `${requestId}-assistant`,
+      requestId,
+      role: 'assistant',
+      content: QUICK_CHAT_PENDING_TEXT,
+      pending: true,
+      error: false,
+    }
+  );
+  renderQuickChatHistory();
+}
+
+export function appendQuickChatHistoryDelta(requestId, delta) {
+  if (!requestId || typeof delta !== 'string' || !delta) return;
+  updateQuickChatSessionMessage(requestId, (current) => ({
+    ...current,
+    content:
+      current.pending && current.content === QUICK_CHAT_PENDING_TEXT
+        ? delta
+        : `${current.content}${delta}`,
+  }));
+}
+
+export function finishQuickChatHistoryTurn(requestId, text) {
+  if (!requestId) return;
+  updateQuickChatSessionMessage(requestId, (current) => ({
+    ...current,
+    content: typeof text === 'string' && text.trim() ? text.trim() : current.content,
+    pending: false,
+  }));
+}
+
+export function failQuickChatHistoryTurn(requestId, text) {
+  if (!requestId) return;
+  updateQuickChatSessionMessage(requestId, (current) => ({
+    ...current,
+    content: typeof text === 'string' && text.trim() ? text.trim() : current.content,
+    pending: false,
+    error: true,
+  }));
 }
 
 export function playMotion(group, index) {
@@ -62,8 +421,6 @@ export function createSparkle() {
   }
 }
 
-// ─── Loading / Error / Fallback ──────────────────────────────────────────
-
 export function showLoading(text) {
   const loading = $loading();
   if (!loading) return;
@@ -92,7 +449,6 @@ export function showError(msg) {
   }
 }
 
-// Switch to static PNG when Live2D fails to load.
 export function showFallback() {
   hideLoading();
   const canvas = $canvas();
@@ -235,8 +591,6 @@ function ensureInputPanel() {
   return inputPanel;
 }
 
-// ─── Pomodoro ring overlay ─────────────────────────────────────────────
-
 let pomodoroRing = null;
 
 function ensurePomodoroRing() {
@@ -246,7 +600,6 @@ function ensurePomodoroRing() {
 
   pomodoroRing = document.createElement('div');
   pomodoroRing.className = 'companion-pomodoro-ring';
-  // SVG circumference for r=22 → 2*pi*22 ≈ 138.23
   pomodoroRing.innerHTML = `
     <svg viewBox="0 0 50 50" class="companion-pomodoro-svg">
       <circle class="companion-pomodoro-track" cx="25" cy="25" r="22"></circle>

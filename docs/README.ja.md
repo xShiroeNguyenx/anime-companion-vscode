@@ -97,6 +97,28 @@ code --install-extension shiroenguyen.anime-companion-vscode
 - `Anime Companion: Reset Captured Chibi` で、キャプチャ済み PNG を削除して同梱アイコンに戻せます。
 - Output / Debug Console への漏れを防ぐため、チビは実際のエディター（`file`、`untitled`、`vscode-userdata`）のみを追跡します。
 
+### 🪪 Agent Accounts (Claude / Codex 認証情報スワップ)
+
+- **複数の Agent CLI ログインを保存して再認証なしで切り替え。** コンパニオンが各 CLI の認証ファイルをスナップショットし、切り替え時にアトミックに復元します — PowerShell のアカウントスワップスクリプトと同じ発想を、Node `fs` でクロスプラットフォーム化してペットの右クリックメニューに統合しました。
+- **ツール非依存のバックエンドレジストリ** — 新しい CLI 対応はバックエンドファイル 1 個 (`AccountBackend` インターフェース) + `registerBackend(...)` 1 行で完了。UI 全体 (ポップアップ、パネル、ステータスバー、コマンドパレット) がレジストリ経由で自動的に発見します。
+- **同梱バックエンド:**
+  - 🤖 **Claude Code** — `~/.claude/.credentials.json` ほかをスナップショット。識別表示 `sub=team · org=09eb97ad · exp=…` で 2 つのアカウントを一目で区別可能。
+  - ⚡ **Codex** — `~/.codex/auth.json` をスナップショット。識別表示 `mode=chatgpt · user@example.com · plan=plus` (OAuth `id_token` のペイロードからデコード、トークン本体は読みません)。
+- **ツール単位のアクティブ検出** — 「最後の切り替え」を信用せず、各バックエンドの実際の認証ファイルを読んで保存済みスナップショットの署名と照合します。外部 (PowerShell スクリプト等) でスワップしてもステータスバーとパネルに正しく反映されます。複数ツールが同時に "active" — Claude アカウント A *と同時に* Codex アカウント B、のような状態も表現可能。
+- **ペットの位置に出るポップアップ** — ペットを右クリック → **Agent ›**:
+  - **🔁 クイック切替** — ツールごとにグループ化された一覧 (`🤖 Claude (2)` / `⚡ Codex (1)`)、行をクリックでスワップ。
+  - **💾 現在のアカウントを保存** — インラインのツールピッカー (1 ツールなら自動選択) + 名前入力 — すべてペットに紐づく、VS Code QuickPick への中断なし。
+  - **👀 アカウントを管理…** — Use / Rename / Delete + ツール別セクションのスタンドアロン Webview パネル。
+- **ステータスバー項目** — アクティブなプロファイル名 (複数ツールアクティブ時は「N accounts」+ ツール別ツールチップ) を表示。クリックでクイック切替。
+- **アトミックで安全な復元** — 各ファイル `<final>.tmp` + `fs.rename`。復元前にツール単位で 3 件のローリングバックアップ。スナップショットが空/欠落 → 拒否、ライブ認証は上書きされません。
+- **再起動ヒント** — スワップごとに、新トークン読み込みのため CLI 再起動を促す情報トーストを表示。プロセスを自動で kill することはしません。
+
+**クイックスタート:**
+1. 任意のターミナルで `claude` (または `codex`) にログインして認証ファイルを作成。
+2. ペットを右クリック → **Agent → 💾 現在のアカウントを保存…** → 名前を入力 (例: `work`)。
+3. ログアウト後 2 つ目のアカウントでログインして別名で繰り返し (例: `personal`)。
+4. ペットを右クリック → **Agent → 🔁 クイック切替** → 選択 → 認証ファイルが即時にスワップ。CLI を再起動して新アカウントで使用開始。
+
 ### 🪟 Desktop Companion (Windows v1)
 
 ![Desktop pet](images/06-desktop-pet-window.png)
@@ -157,11 +179,15 @@ code --install-extension shiroenguyen.anime-companion-vscode
 
 ![Achievements](images/09-achievements-panel.png)
 
-- マイルストーン到達で自動アンロック: `save50`、`save100`、`error_fix_10`、`error_fix_50`、`coding_1h`、`coding_3h`、`commit10`。
-- 解除済み／未解除のアチーブメントを表示するコマンドが用意されています。
+- 実績は **全23個**。`save`、`bug fix`、`commit`、`coding time`、`AI chat`、`Pomodoro` の6つの進化チェーンに加えて、4つの secret achievements があります。
+- Achievements パネルは companion 上の **evolution tree** 表示になり、rarity (`Common` → `Mythic`) と rarity ごとの unlock effect、各チェーンの tier progression、解除前は hint だけ見える secret lane を表示します。
+- 同じパネルに **daily / weekly quest** と **companion memory** も入り、解除した実績や達成した quest を一緒に振り返れます。
+- local-first の **reward economy** も入り、achievement / quest から `gems`、`tickets`、cosmetic、voice pack をオフラインのまま獲得できます。
+- 実績一覧は companion パネルでも確認でき、パネルが使えない場合は Quick Pick fallback でも見られます。
 
 ### 📊 統計
-- `save` 回数、`commit` 回数、修正済みエラー数、今日のコーディング時間、累計コーディング時間を追跡します。
+- `save` 回数、`commit` 回数、修正済みエラー数、今日のコーディング時間、累計コーディング時間、AI prompt 数、Pomodoro 集計、quest progress、最近の memory を追跡します。
+- **local profile** では level、affinity、top achievement、unlock inventory を見られ、**PNG share card** も export できます。
 - クイック表示用のコマンドがあります。
 
 ### 🍅 ポモドーロ
@@ -173,26 +199,20 @@ code --install-extension shiroenguyen.anime-companion-vscode
 - キャラクター上にビジュアルリングをオーバーレイ。
 - ステータスバーをクリックですぐに停止できます。
 
-### 🖱️ カスタム右クリックメニュー（15 項目）
+### 🖱️ カスタム右クリックメニュー
 
 ![Right-click menu](images/11-rightclick-menu.png)
 
 コンパニオンを右クリックでインラインメニューが開きます — Command Palette を経由する必要はありません。
 
 - 🚀 **Run** — デバッグセッションを再起動または開始
-- 📦 **Commit** — 保護ブランチ（`main`/`master`/`production`）をガード、必要なら stage-all を確認、メッセージはインライン入力
-- ⬇️ **Pull** / ⬆️ **Push** — 実際のフィードバック付き（"succeeded / nothing to do / failed"）
-- 🌸 **Model** — キャラクターの上でインラインピッカー
-- 🗣️ **Voice** — `ja` / `vi` / `en` のインラインピッカー
-- 💬 **Messages** — 吹き出し言語を `vi` / `en` / `ja` に切り替え
-- 🎧 **Ambient** — `off` / `lofi` / `rain` / `cafe` とカスタムトラックを選択
-- 🔇 **Mute** — オーディオの切り替え（ラベルが `Mute` ↔ `Unmute` で反転）
-- 👉 **Poke** — モデルに触る
-- 🎬 **Motion** — `TapBody` / `TapHead` / `Idle` をクイック再生
-- 🍅 **Pomodoro** — 開始
-- 🏆 **Achievements** — アチーブメント一覧を開く
-- 📊 **Stats** — 統計を開く
-- ⚙️ **Settings** — フィルタ済みの Settings UI を開く
+- 🔧 **Git** — `Commit`、`Pull`、`Push`
+- 💬 **AI Chat** — `Quick Chat`。パネルモードでは `Open Chat`、`New Conversation`、`Ask About Selection`、`Configure Provider`、`Clear All` も表示
+- 🌸 **Appearance** — `Model`、`Capture Chibi`、`Toggle Cursor Chibi`、`Tune Cursor Chibi`、`Reset Position`、`Motion`、`Poke`
+- 🔊 **Voice & Sound** — `Voice`、`Messages`、`Ambient`、`Mute` / `Unmute`
+- 🍅 **Workflow** — `Start Pomodoro`、`Stop Pomodoro`、`Stats`、`Achievements`、`Quests`、`Profile`、`Share Card`
+- 🖥️ **Desktop Companion** — `Switch to Desktop` / `Switch to Panel`、デスクトップモード時のみ `Toggle Click-Through`、`Reset Workspace Model`
+- ⚙️ **All Settings** — フィルタ済みの Settings UI を開く
 
 ### 🌙 Quiet Hours
 
@@ -348,6 +368,9 @@ Command Palette (`Ctrl+Shift+P`) を開いて `Anime Companion` と入力しま�
 | `Anime Companion: Start Pomodoro` / `Stop Pomodoro` | ポモドーロ開始／停止 |
 | `Anime Companion: Show Stats` | クイック統計を開く |
 | `Anime Companion: Show Achievements` | アチーブメント一覧を表示 |
+| `Anime Companion: Show Quests` | デイリー / ウィークリー quest を表示 |
+| `Anime Companion: Show Profile` | ローカル profile を表示 |
+| `Anime Companion: Export Share Card` | PNG シェアカードを書き出す |
 | `Anime Companion: Play Motion` | `TapBody` / `TapHead` / `Idle` をクイック再生 |
 | `Anime Companion: Reset Companion Position` | パネルモードでのコンパニオン位置をリセット |
 | `Anime Companion: Open Settings` | フィルタ済みの Settings を開く |
