@@ -131,3 +131,52 @@ export async function readJsonSafe<T = any>(filePath: string): Promise<T | undef
     return undefined;
   }
 }
+
+// Lift a subset of top-level keys out of a JSON file. Used to capture just the
+// account-binding fields of a large shared config (e.g. ~/.claude.json) without
+// snapshotting the whole thing. Returns only the keys that are actually present.
+export async function readJsonSubset(
+  filePath: string,
+  keys: readonly string[],
+): Promise<Record<string, unknown> | undefined> {
+  const j = await readJsonSafe<Record<string, unknown>>(filePath);
+  if (!j || typeof j !== 'object') return undefined;
+  const out: Record<string, unknown> = {};
+  for (const k of keys) {
+    if (Object.prototype.hasOwnProperty.call(j, k)) out[k] = j[k];
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+// Merge top-level keys into a JSON file, preserving every other key. Backs the
+// original up to <backupDir>/<name>.backup.<ts> first (best-effort), then writes
+// atomically via tmp+rename so a crash mid-write can't truncate the file. When
+// the target doesn't exist yet it's created from the patch alone.
+export async function mergeJsonFile(
+  filePath: string,
+  patch: Record<string, unknown>,
+  backupDir?: string,
+): Promise<void> {
+  if (!patch || Object.keys(patch).length === 0) return;
+  const current = (await readJsonSafe<Record<string, unknown>>(filePath)) ?? {};
+
+  if (backupDir) {
+    try {
+      await ensureDir(backupDir);
+      const stamp = Date.now();
+      const name = `${path.basename(filePath)}.backup.${stamp}`;
+      // Only back up a file that already exists; nothing to preserve otherwise.
+      if (await fileExists(filePath)) {
+        await fsp.copyFile(filePath, path.join(backupDir, name));
+      }
+    } catch {
+      // A failed backup shouldn't block the swap — the atomic write below is
+      // still safe on its own.
+    }
+  }
+
+  const merged = { ...current, ...patch };
+  const tmpPath = `${filePath}.tmp`;
+  await fsp.writeFile(tmpPath, JSON.stringify(merged, null, 2), 'utf8');
+  await fsp.rename(tmpPath, filePath);
+}

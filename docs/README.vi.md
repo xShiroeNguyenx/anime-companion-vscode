@@ -8,13 +8,13 @@
 
 > ⚠️ **Experimental — v0.4.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.4.2
+**Phiên bản hiện tại:** v0.4.3
 
-> 🆕 **Có gì mới ở v0.4.2**:
-> - **🪪 Lưu tài khoản Claude ổn định hơn** — tài khoản Claude **team/SSO** (không có `organizationUuid` ở top level) giờ lưu được và nhận diện đúng tài khoản đang active, thay vì bị bỏ qua âm thầm. Tài khoản vẫn nhận diện được kể cả khi org id nằm trong oauth blob hoặc không có.
-> - **🐙 Swap tài khoản GitHub** — đổi tài khoản GitHub mà extension dùng cho **Copilot**, phạm vi *toàn cục*, từ panel Agent Accounts, status bar, command palette, hoặc pet → **Agent › GitHub Account…**. Dựa trên auth của VS Code nên **không** đổi danh tính commit git hay ảnh hưởng extension khác. Gộp chung với swap credential Claude · Codex trong một UI Accounts.
+> 🆕 **Có gì mới ở v0.4.3**:
+> - **🪪 Swap tài khoản Claude giờ chạy đúng** — trước đây sau khi đổi tài khoản Claude, phiên bị "load hoài" rồi văng ra bắt đăng nhập lại. Swap chỉ đổi OAuth token, nhưng `organizationUuid` của Claude lại nằm trong `~/.claude.json` ở thư mục home — nên token mới chạy với org của tài khoản *cũ*. Giờ swap đổi luôn phần account binding đó (giữ nguyên mọi thứ còn lại trong file), và luôn làm mới snapshot của từng profile để chống việc refresh token bị xoay vòng.
+> - ⚠️ **Cần làm 1 lần:** lưu lại mỗi profile Claude đang có (Agent Accounts → **Save current**) — snapshot cũ chưa có account binding nên sẽ chưa tự sửa cho tới khi được lưu lại.
 >
-> Kế thừa từ **v0.4.0**: Agent Accounts (swap credential Claude/Codex) và 💬 Pet Quick Chat.
+> Kế thừa từ **v0.4.2** (lưu tài khoản Claude team/SSO ổn định + 🐙 swap tài khoản GitHub) và **v0.4.0** (Agent Accounts — swap credential Claude/Codex, 💬 Pet Quick Chat).
 
 ![Anime Companion hero](images/01-hero-companion-panel.png)
 

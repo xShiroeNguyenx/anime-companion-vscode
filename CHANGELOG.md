@@ -3,6 +3,14 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-06-02
+
+### Fixed — Claude account swap left the account broken (load forever → logged out)
+
+- **Swapping Claude accounts restored only the OAuth tokens, not the account binding — so every swap left Claude spinning and then forced a re-login.** Claude's identity is split across two files: `~/.claude/.credentials.json` (the tokens, which the swap handled) and the home-level `~/.claude.json`, whose `oauthAccount` holds the **organizationUuid** and account identity. `organizationUuid` exists *only* in `~/.claude.json`, so restoring the new account's token while that file still advertised the previous account's org produced a mismatch on every API call ("loads forever → kicked out → must log in again"). The Claude backend now captures `oauthAccount` + `userID` into a snapshot sidecar (`.claude-account.json`) on save and **merges** them back into `~/.claude.json` on switch — preserving everything else in that file (projects, MCP servers, caches), backing it up first, and writing atomically ([src/agent-profiles/backends/claude-backend.ts](src/agent-profiles/backends/claude-backend.ts), [src/agent-profiles/credential-fs.ts](src/agent-profiles/credential-fs.ts)). **Existing saved Claude profiles must be re-saved once** to capture the binding — older snapshots lack the sidecar and the swap stays inert for them.
+- **Stale OAuth refresh tokens after a swap.** Claude rotates refresh tokens as the live session refreshes, so a profile captured earlier could hold an already-dead token by the time you switched back to it. Switching away from an account now re-snapshots its *current* live credentials into its own profile first (guarded so a manual CLI re-login can't corrupt the saved profile), keeping it restorable ([src/agent-profiles/profile-manager.ts](src/agent-profiles/profile-manager.ts)). For that guard — and live-active detection — to survive rotation, the account **signature is now derived from the stable `organizationUuid`** (read from the account binding) instead of a refresh-token hash, which itself drifts on every rotation ([src/agent-profiles/backends/claude-backend.ts](src/agent-profiles/backends/claude-backend.ts)). The saved-profile label now shows the account email too.
+- **Dropped phantom whitelist entries** (`claude.json`, `config.json`, `.config.json`) — no such files exist inside `~/.claude`, and `claude.json` in particular implied the home-level `~/.claude.json` was being handled when it wasn't.
+
 ## [0.4.2] - 2026-06-02
 
 ### Fixed — Saving Claude team/SSO accounts

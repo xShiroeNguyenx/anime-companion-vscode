@@ -9,13 +9,13 @@
 
 > ⚠️ **実験版 — v0.4.x.** これは early-access ビルドです。v1.0 に到達するまで、マイナーバージョン間で API、設定、振る舞いが変わることがあります。バグや感想は [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) で歓迎します。
 
-**現在のバージョン:** v0.4.2
+**現在のバージョン:** v0.4.3
 
-> 🆕 **v0.4.2 の新着**:
-> - **🪪 Claude アカウントの保存が確実に** — トップレベルに `organizationUuid` を持たない **team/SSO** の Claude アカウントも、保存・アクティブ判定ができるようになりました（以前は黙ってスキップされていました）。org id が oauth blob 内にネストされていても、存在しなくても識別できます。
-> - **🐙 GitHub アカウント切替** — 拡張機能が **Copilot** に使う GitHub アカウントを *グローバルに* 切り替え。Agent Accounts パネル・ステータスバー・コマンドパレット・ペット → **Agent › GitHub Account…** から。VS Code の認証ベースなので、git のコミット ID や他の拡張機能には影響しません。Claude · Codex の認証情報スワップと同じ Accounts UI に統合。
+> 🆕 **v0.4.3 の新着**:
+> - **🪪 Claude アカウント切替がついに正常動作** — 以前は Claude アカウントを切り替えるとセッションが延々と読み込み続け、最終的にログアウトされていました。切替が OAuth トークンしか移していなかったためで、Claude の `organizationUuid` はホーム直下の `~/.claude.json` にあり、新しいトークンが*古い*アカウントの org に対して動いていました。切替時にそのアカウント情報も移すようになり（ファイル内の他の項目はすべて保持）、OAuth リフレッシュトークンのローテーションに備えて各プロファイルのスナップショットも常に最新化します。
+> - ⚠️ **一度だけ必要な作業:** 既存の各 Claude プロファイルを保存し直してください（Agent Accounts → **Save current**）。以前のスナップショットにはアカウント情報がなく、保存し直すまで反映されません。
 >
-> **v0.4.0** の Agent Accounts (Claude/Codex の認証情報スワップ) と 💬 Pet Quick Chat を土台にしています。
+> **v0.4.2**（Claude team/SSO アカウント保存の安定化 + 🐙 GitHub アカウント切替）と **v0.4.0**（Agent Accounts — Claude/Codex の認証情報スワップ、💬 Pet Quick Chat）を土台にしています。
 
 ![Anime Companion hero](images/01-hero-companion-panel.png)
 

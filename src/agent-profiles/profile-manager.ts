@@ -277,12 +277,49 @@ export class AgentProfileManager {
     if (!backend) throw new Error(`No backend registered for tool "${profile.tool}"`);
 
     const snapDir = this._snapshotDir(id);
+    // Capture the OUTGOING account's current live credentials into its own
+    // profile before we overwrite them. OAuth refresh tokens rotate as the live
+    // session refreshes, so a profile captured earlier can hold an already-dead
+    // token; re-snapshotting at switch-away keeps it restorable next time.
+    await this._refreshOutgoingProfile(backend, id);
     await this._backupCurrent(backend);
     const written = await this._restoreSnapshot(backend, snapDir);
     await this._store.setActive(id);
     log(`AgentProfile activated: ${profile.name} (tool=${backend.id}, restored ${written.length} files)`);
     this._emitter.fire();
     return profile;
+  }
+
+  // Re-snapshot the currently-active profile from live before switching away.
+  // Guarded so it never corrupts a saved profile: it only overwrites when the
+  // live account still matches that profile's snapshot (a manual CLI re-login
+  // could have changed the live account out from under us), and never touches
+  // the profile we're switching to.
+  private async _refreshOutgoingProfile(b: AccountBackend, incomingId: string): Promise<void> {
+    try {
+      const activeId = this._store.getActiveId();
+      if (!activeId || activeId === incomingId) return;
+      const outgoing = this._store.get(activeId);
+      if (!outgoing || outgoing.tool !== b.id) return;
+
+      const liveId = await this._readLiveIdentity(b);
+      const snapId = await b.readIdentity(this._snapshotDir(activeId));
+      if (!liveId || !snapId || liveId.signature !== snapId.signature) return;
+
+      const dest = this._snapshotDir(activeId);
+      const snap = await this._snapshotLive(b, dest);
+      if (snap.files.length === 0) return;
+      outgoing.claudeSnapshot = {
+        dir: path.relative(this._context.globalStorageUri.fsPath, dest),
+        files: snap.files,
+        capturedAt: snap.capturedAt,
+      };
+      outgoing.updatedAt = Date.now();
+      await this._store.upsert(outgoing);
+      log(`AgentProfile refreshed outgoing snapshot: ${outgoing.name} (${snap.files.length} files)`);
+    } catch (err) {
+      log(`AgentProfile outgoing-refresh warning: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   // ───────────────────────── rename / delete ─────────────────────────

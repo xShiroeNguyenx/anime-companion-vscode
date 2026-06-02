@@ -6,13 +6,13 @@
 
 > ⚠️ **Experimental — v0.4.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.4.2
+**Current version:** v0.4.3
 
-> 🆕 **What's new in v0.4.2**:
-> - **🪪 Reliable Claude account save** — Claude **team/SSO** accounts (those without a top-level `organizationUuid`) can now be saved and detected as active, instead of being silently skipped. Accounts stay identifiable even when the org id is nested in the oauth blob or absent entirely.
-> - **🐙 GitHub account swap** — switch which signed-in GitHub account the extension uses for **Copilot**, *globally*, from the Agent Accounts panel, the status bar, the command palette, or pet → **Agent › GitHub Account…**. Auth-based, so it does **not** change your git commit identity or what other extensions use. Joins the Claude · Codex credential swap in one Accounts UI.
+> 🆕 **What's new in v0.4.3**:
+> - **🪪 Claude account swap actually works now** — previously, switching Claude accounts left the session spinning forever and then logged you out. The swap only moved the OAuth tokens, but Claude's `organizationUuid` lives in the home-level `~/.claude.json` — so the new token ran against the *old* account's org. The swap now also moves that account binding (preserving everything else in the file), and keeps each profile's snapshot fresh against OAuth refresh-token rotation.
+> - ⚠️ **One-time action:** re-save each existing Claude profile once (Agent Accounts → **Save current**) — older snapshots predate the binding and stay inert until re-saved.
 >
-> Builds on **v0.4.0**'s Agent Accounts (Claude/Codex credential swap) and 💬 Pet Quick Chat.
+> Builds on **v0.4.2**'s reliable Claude team/SSO account save + 🐙 GitHub account swap, and **v0.4.0**'s Agent Accounts (Claude/Codex credential swap) and 💬 Pet Quick Chat.
 
 ![Anime Companion hero](docs/images/01-hero-companion-panel.png)
 
