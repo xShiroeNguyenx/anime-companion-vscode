@@ -7,11 +7,15 @@
 
 > VS Code のパネルに住む、かわいい Live2D の相棒。コーディング中の出来事に反応します — エラー、保存、コミット、ビルド、デバッグ、ポモドーロ… **そして今や、あなたとチャットができます**。GitHub Copilot か、お好きな API キー（Anthropic / OpenAI / Gemini / xAI / DeepSeek / OpenRouter / Ollama）で使えます。
 
-> ⚠️ **実験版 — v0.3.x.** これは early-access ビルドです。v1.0 に到達するまで、マイナーバージョン間で API、設定、振る舞いが変わることがあります。バグや感想は [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) で歓迎します。
+> ⚠️ **実験版 — v0.4.x.** これは early-access ビルドです。v1.0 に到達するまで、マイナーバージョン間で API、設定、振る舞いが変わることがあります。バグや感想は [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) で歓迎します。
 
-**現在のバージョン:** v0.3.3
+**現在のバージョン:** v0.4.2
 
-> 🆕 **v0.3.3 の新着**: companion の右クリックメニューが **6 つの機能別サブメニュー** に整理されました。**AI Chat**、**Appearance**、**Voice & Sound**、**Workflow**、**Git**、**Desktop** です。これにより、チャット開始、新規会話、選択中コードについて質問、モデル切り替え、Cursor Chibi 関連操作、Desktop 専用アクションなどを pet から直接開けます。あわせて英語 / ベトナム語 / 日本語のメニュー文言も短く整え、ベトナム語メニューではアクセント付き文字が崩れないよう専用の丸みあるフォントフォールバックも追加しました。
+> 🆕 **v0.4.2 の新着**:
+> - **🪪 Claude アカウントの保存が確実に** — トップレベルに `organizationUuid` を持たない **team/SSO** の Claude アカウントも、保存・アクティブ判定ができるようになりました（以前は黙ってスキップされていました）。org id が oauth blob 内にネストされていても、存在しなくても識別できます。
+> - **🐙 GitHub アカウント切替** — 拡張機能が **Copilot** に使う GitHub アカウントを *グローバルに* 切り替え。Agent Accounts パネル・ステータスバー・コマンドパレット・ペット → **Agent › GitHub Account…** から。VS Code の認証ベースなので、git のコミット ID や他の拡張機能には影響しません。Claude · Codex の認証情報スワップと同じ Accounts UI に統合。
+>
+> **v0.4.0** の Agent Accounts (Claude/Codex の認証情報スワップ) と 💬 Pet Quick Chat を土台にしています。
 
 ![Anime Companion hero](images/01-hero-companion-panel.png)
 
@@ -211,6 +215,7 @@ code --install-extension shiroenguyen.anime-companion-vscode
 - 🌸 **Appearance** — `Model`、`Capture Chibi`、`Toggle Cursor Chibi`、`Tune Cursor Chibi`、`Reset Position`、`Motion`、`Poke`
 - 🔊 **Voice & Sound** — `Voice`、`Messages`、`Ambient`、`Mute` / `Unmute`
 - 🍅 **Workflow** — `Start Pomodoro`、`Stop Pomodoro`、`Stats`、`Achievements`、`Quests`、`Profile`、`Share Card`
+- 🪪 **Agent** — `アカウントを管理…`、`クイック切替…`、`現在のアカウントを保存…`、`GitHub Account…` (Claude · Codex · GitHub のアカウント切替；ペットの位置に出るポップアップ)
 - 🖥️ **Desktop Companion** — `Switch to Desktop` / `Switch to Panel`、デスクトップモード時のみ `Toggle Click-Through`、`Reset Workspace Model`
 - ⚙️ **All Settings** — フィルタ済みの Settings UI を開く
 

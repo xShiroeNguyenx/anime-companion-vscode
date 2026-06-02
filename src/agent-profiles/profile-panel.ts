@@ -73,7 +73,8 @@ export class AgentProfilePanel {
       identityText: v.identity?.text ?? '(no credential info)',
       active: v.active,
     }));
-    this._panel.webview.postMessage({ command: 'profile:state', profiles: rows });
+    const github = await this._manager.getGitHubState();
+    this._panel.webview.postMessage({ command: 'profile:state', profiles: rows, github });
   }
 
   private async _handleMessage(msg: any): Promise<void> {
@@ -115,6 +116,19 @@ export class AgentProfilePanel {
             );
             if (choice === 'Delete') await this._manager.deleteProfile(msg.id);
           }
+          return;
+        case 'github:use':
+          if (typeof msg.id === 'string') {
+            await this._manager.useGitHubAccount(msg.id);
+            vscode.window.showInformationMessage('Switched the GitHub account this extension uses for Copilot.');
+          }
+          return;
+        case 'github:default':
+          await this._manager.useGitHubDefault();
+          vscode.window.showInformationMessage('Anime Companion will use the VS Code default GitHub account for Copilot.');
+          return;
+        case 'github:add':
+          await this._manager.addGitHubAccount();
           return;
       }
     } catch (err) {
@@ -165,13 +179,16 @@ export class AgentProfilePanel {
   button:hover { filter: brightness(1.1); }
   .footer { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--vscode-panel-border); }
   .empty { padding: 24px; text-align: center; color: var(--vscode-descriptionForeground); border: 1px dashed var(--vscode-panel-border); border-radius: 6px; }
+  .gh-note { font-size: 11px; color: var(--vscode-descriptionForeground); margin: 2px 4px 10px; line-height: 1.4; }
+  .gh-empty { font-size: 12px; color: var(--vscode-descriptionForeground); padding: 8px 4px; }
 </style>
 </head>
 <body>
 <h1>🪪 Agent Accounts</h1>
-<div class="sub">Save and switch between multiple agent CLI accounts (Claude, more soon). Each profile snapshots that tool's credential files locally.</div>
+<div class="sub">Save and switch between multiple agent CLI accounts (Claude, Codex) — each profile snapshots that tool's credential files locally — plus the GitHub account this extension uses for Copilot.</div>
 <div id="active" class="active-card"></div>
 <div id="sections"></div>
+<div id="github-wrap"></div>
 <div class="footer">
   <button id="save-btn" class="primary">+ Save current as new profile</button>
 </div>
@@ -179,6 +196,7 @@ export class AgentProfilePanel {
 const vscode = acquireVsCodeApi();
 const sectionsEl = document.getElementById('sections');
 const activeEl = document.getElementById('active');
+const githubEl = document.getElementById('github-wrap');
 document.getElementById('save-btn').addEventListener('click', () => vscode.postMessage({ command: 'profile:save' }));
 
 function fmtDate(ts) {
@@ -236,6 +254,39 @@ function render(profiles) {
   }).join('');
 }
 
+function renderGitHub(github) {
+  const g = github || { available: false, usingDefault: true, accounts: [] };
+  const note = 'Global · only changes which GitHub account this extension (Copilot) uses. It does NOT change git commit identity or other extensions.';
+  const defaultRow =
+    '<div class="row ' + (g.usingDefault ? 'active' : '') + '">' +
+      '<div><div class="name">' + (g.usingDefault ? '✓ ' : '') + 'VS Code default account</div>' +
+      '<div class="meta">No extension-specific account</div></div>' +
+      '<div class="actions">' +
+        (g.usingDefault ? '' : '<button class="primary" data-gh="default">Use default</button>') +
+      '</div>' +
+    '</div>';
+  const accountRows = (g.accounts || []).map((a) =>
+    '<div class="row ' + (a.active ? 'active' : '') + '">' +
+      '<div><div class="name">' + (a.active ? '✓ ' : '🐙 ') + escapeHtml(a.label) + '</div>' +
+      '<div class="meta">' + escapeHtml(a.id) + '</div></div>' +
+      '<div class="actions">' +
+        (a.active ? '' : '<button class="primary" data-gh="use" data-id="' + escapeHtml(a.id) + '">Use</button>') +
+      '</div>' +
+    '</div>'
+  ).join('');
+  const body = g.available
+    ? accountRows
+    : '<div class="gh-empty">No GitHub accounts are signed in to VS Code yet.</div>';
+  githubEl.innerHTML =
+    '<div class="section-header">🐙 GitHub <span class="count">(extension / Copilot)</span></div>' +
+    '<div class="gh-note">' + note + '</div>' +
+    defaultRow +
+    body +
+    '<div style="margin-top:8px;">' +
+      '<button data-gh="add">+ Add another GitHub account…</button>' +
+    '</div>';
+}
+
 sectionsEl.addEventListener('click', (e) => {
   const btn = e.target.closest('button');
   if (!btn) return;
@@ -247,9 +298,21 @@ sectionsEl.addEventListener('click', (e) => {
   else if (act === 'delete') vscode.postMessage({ command: 'profile:delete', id });
 });
 
+githubEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const gh = btn.getAttribute('data-gh');
+  if (gh === 'use') vscode.postMessage({ command: 'github:use', id: btn.getAttribute('data-id') });
+  else if (gh === 'default') vscode.postMessage({ command: 'github:default' });
+  else if (gh === 'add') vscode.postMessage({ command: 'github:add' });
+});
+
 window.addEventListener('message', (event) => {
   const msg = event.data;
-  if (msg && msg.command === 'profile:state') render(msg.profiles || []);
+  if (msg && msg.command === 'profile:state') {
+    render(msg.profiles || []);
+    renderGitHub(msg.github);
+  }
 });
 
 vscode.postMessage({ command: 'profile:ready' });

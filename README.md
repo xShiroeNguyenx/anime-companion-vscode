@@ -4,11 +4,15 @@
 
 > A cute Live2D companion that lives in your VS Code panel and reacts to your coding flow — errors, saves, commits, builds, debug sessions, Pomodoro… **and now chats with you** through GitHub Copilot or your own API key (Anthropic / OpenAI / Gemini / xAI / DeepSeek / OpenRouter / Ollama).
 
-> ⚠️ **Experimental — v0.3.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
+> ⚠️ **Experimental — v0.4.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.3.3
+**Current version:** v0.4.2
 
-> 🆕 **What's new in v0.3.3**: the companion's right-click menu is now reorganized into **6 functional submenus** — **AI Chat**, **Appearance**, **Voice & Sound**, **Workflow**, **Git**, and **Desktop**. That means you can now open chat, start a new conversation, ask about the current selection, switch models, access Cursor Chibi controls, and toggle desktop-only actions directly from the pet. Menu labels were also polished across English / Vietnamese / Japanese, and the Vietnamese menu now uses a dedicated rounded font fallback so accented characters render cleanly without breaking the existing cute style.
+> 🆕 **What's new in v0.4.2**:
+> - **🪪 Reliable Claude account save** — Claude **team/SSO** accounts (those without a top-level `organizationUuid`) can now be saved and detected as active, instead of being silently skipped. Accounts stay identifiable even when the org id is nested in the oauth blob or absent entirely.
+> - **🐙 GitHub account swap** — switch which signed-in GitHub account the extension uses for **Copilot**, *globally*, from the Agent Accounts panel, the status bar, the command palette, or pet → **Agent › GitHub Account…**. Auth-based, so it does **not** change your git commit identity or what other extensions use. Joins the Claude · Codex credential swap in one Accounts UI.
+>
+> Builds on **v0.4.0**'s Agent Accounts (Claude/Codex credential swap) and 💬 Pet Quick Chat.
 
 ![Anime Companion hero](docs/images/01-hero-companion-panel.png)
 
@@ -208,6 +212,7 @@ Right-click on the companion to open an inline menu — no Command Palette neede
 - 🌸 **Appearance** — `Model`, `Capture Chibi`, `Toggle Cursor Chibi`, `Tune Cursor Chibi`, `Reset Position`, `Motion`, `Poke`
 - 🔊 **Voice & Sound** — `Voice`, `Messages`, `Ambient`, `Mute` / `Unmute`
 - 🍅 **Workflow** — `Start Pomodoro`, `Stop Pomodoro`, `Stats`, `Achievements`, `Quests`, `Profile`, `Share Card`
+- 🪪 **Agent** — `Manage Profiles…`, `Quick Switch…`, `Save Current as…`, `GitHub Account…` (swap Claude · Codex · GitHub accounts; popups attached to the pet)
 - 🖥️ **Desktop Companion** — `Switch to Desktop` / `Switch to Panel`, desktop-only `Toggle Click-Through`, `Reset Workspace Model`
 - ⚙️ **All Settings** — open Settings UI pre-filtered
 

@@ -6,11 +6,15 @@
 
 > Một bạn đồng hành Live2D dễ thương ngự ngay trong VS Code, phản ứng theo lúc bạn code: lỗi, save, commit, build, debug, Pomodoro… **và giờ có thể chat với bạn** qua GitHub Copilot hoặc API key của bạn (Anthropic / OpenAI / Gemini / xAI / DeepSeek / OpenRouter / Ollama).
 
-> ⚠️ **Experimental — v0.3.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
+> ⚠️ **Experimental — v0.4.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.3.3
+**Phiên bản hiện tại:** v0.4.2
 
-> 🆕 **Có gì mới ở v0.3.3**: menu chuột phải của companion giờ được gom lại thành **6 nhóm chức năng** — **Chat AI**, **Diện mạo**, **Âm thanh**, **Quy trình**, **Git**, và **Desktop**. Từ đây bạn có thể mở chat, tạo cuộc trò chuyện mới, hỏi về đoạn code đang chọn, đổi model, dùng các nút Cursor Chibi, hoặc bật các hành động riêng cho Desktop ngay trên pet. Nhãn menu cũng đã được rút gọn và đồng bộ hơn giữa tiếng Anh / Việt / Nhật, đồng thời menu tiếng Việt có thêm font fallback bo tròn riêng để chữ có dấu hiển thị đẹp mà vẫn giữ đúng vibe hiện tại.
+> 🆕 **Có gì mới ở v0.4.2**:
+> - **🪪 Lưu tài khoản Claude ổn định hơn** — tài khoản Claude **team/SSO** (không có `organizationUuid` ở top level) giờ lưu được và nhận diện đúng tài khoản đang active, thay vì bị bỏ qua âm thầm. Tài khoản vẫn nhận diện được kể cả khi org id nằm trong oauth blob hoặc không có.
+> - **🐙 Swap tài khoản GitHub** — đổi tài khoản GitHub mà extension dùng cho **Copilot**, phạm vi *toàn cục*, từ panel Agent Accounts, status bar, command palette, hoặc pet → **Agent › GitHub Account…**. Dựa trên auth của VS Code nên **không** đổi danh tính commit git hay ảnh hưởng extension khác. Gộp chung với swap credential Claude · Codex trong một UI Accounts.
+>
+> Kế thừa từ **v0.4.0**: Agent Accounts (swap credential Claude/Codex) và 💬 Pet Quick Chat.
 
 ![Anime Companion hero](images/01-hero-companion-panel.png)
 
@@ -210,6 +214,7 @@ Click chuột phải lên companion để mở menu inline — không phải m�
 - 🌸 **Diện mạo** — `Model`, `Capture Chibi`, `Toggle Cursor Chibi`, `Tune Cursor Chibi`, `Reset Position`, `Motion`, `Poke`
 - 🔊 **Âm thanh** — `Voice`, `Messages`, `Ambient`, `Mute` / `Unmute`
 - 🍅 **Quy trình** — `Start Pomodoro`, `Stop Pomodoro`, `Stats`, `Achievements`, `Quests`, `Profile`, `Share Card`
+- 🪪 **Agent** — `Quản lý tài khoản…`, `Đổi nhanh…`, `Lưu tài khoản hiện tại…`, `Tài khoản GitHub…` (swap tài khoản Claude · Codex · GitHub; popup gắn ngay tại pet)
 - 🖥️ **Desktop Companion** — `Switch to Desktop` / `Switch to Panel`, thêm `Toggle Click-Through` khi đang ở desktop mode, và `Reset Workspace Model`
 - ⚙️ **All Settings** — mở Settings UI đã filter sẵn
 

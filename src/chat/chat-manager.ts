@@ -9,6 +9,7 @@ import { buildContext, ContextRequest, searchWorkspaceFiles } from './context-bu
 import { detectSentiment } from './sentiment';
 import { getMessageBank } from '../messages';
 import { AchievementDef, buildAchievementPanelData, QuestDef, StatsStore } from '../stats';
+import { GitHubAccountService } from '../github-account-service';
 
 export interface ChatHost {
   postMessage(msg: any): void;
@@ -35,17 +36,9 @@ function isModelCompatibleWithProvider(model: string, providerId: ProviderId): b
   }
 }
 
-interface CopilotAccountPreference {
-  id?: string;
-  label?: string;
-}
-
 export class ChatManager {
-  private static readonly COPILOT_ACCOUNT_KEY = 'chat.copilotAccountPreference';
   private static readonly PROVIDER_STATE_KEY = 'chat.providerSelection';
   private static readonly MODEL_STATE_KEY = 'chat.modelSelection';
-  private static readonly GITHUB_AUTH_PROVIDER = 'github';
-  private static readonly GITHUB_AUTH_SCOPES = ['read:user'];
   private static readonly MODEL_CACHE_TTL_MS = 5 * 60 * 1000;
 
   private _abort?: AbortController;
@@ -70,7 +63,8 @@ export class ChatManager {
     private readonly _secrets: ChatSecrets,
     private readonly _store: ConversationStore,
     private readonly _hostRef: () => ChatHost | undefined,
-    private readonly _stats: StatsStore
+    private readonly _stats: StatsStore,
+    private readonly _github: GitHubAccountService
   ) {
     void this._context;
   }
@@ -621,101 +615,12 @@ export class ChatManager {
     return PROVIDER_INFO.find((p) => p.id === providerId)?.defaultModel || '';
   }
 
+  // The picker, the global preference, and the per-call session wiring all
+  // live in GitHubAccountService now so the chat panel, the Agent Accounts
+  // panel, the status bar and the pet menu share one source of truth. We just
+  // refresh the chat snapshot afterwards so the panel reflects the new choice.
   async pickCopilotAccount(): Promise<void> {
-    let accounts = await this._getCopilotAccounts();
-    if (accounts.length === 0) {
-      try {
-        await vscode.authentication.getSession(
-          ChatManager.GITHUB_AUTH_PROVIDER,
-          ChatManager.GITHUB_AUTH_SCOPES,
-          {
-            createIfNone: {
-              detail: 'Sign in to GitHub to choose which Copilot account Anime Companion should use.',
-            },
-          }
-        );
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        vscode.window.showWarningMessage(`Couldn't sign in to GitHub: ${msg}`);
-        return;
-      }
-
-      accounts = await this._getCopilotAccounts();
-      if (accounts.length === 0) {
-        vscode.window.showWarningMessage('No GitHub accounts are signed in inside VS Code yet.');
-        return;
-      }
-    }
-
-    const preferred = this._getStoredCopilotAccountPreference();
-    const picks: Array<vscode.QuickPickItem & {
-      account?: vscode.AuthenticationSessionAccountInformation;
-      reset?: boolean;
-    }> = [
-      {
-        label: 'Use VS Code default account',
-        description: !preferred.id ? 'Current' : undefined,
-        detail: 'Clear the Anime Companion-specific Copilot account preference.',
-        reset: true,
-      },
-      ...accounts.map((account) => ({
-        label: account.label,
-        description: account.id === preferred.id ? 'Current' : undefined,
-        detail: account.id,
-        account,
-      })),
-    ];
-
-    const pick = await vscode.window.showQuickPick(picks, {
-      title: 'Anime Companion: Choose GitHub Copilot Account',
-      placeHolder: 'Select the GitHub account this extension should use for Copilot',
-      ignoreFocusOut: true,
-    });
-    if (!pick) return;
-
-    if (pick.reset) {
-      await this._clearStoredCopilotAccountPreference();
-      try {
-        await vscode.authentication.getSession(
-          ChatManager.GITHUB_AUTH_PROVIDER,
-          ChatManager.GITHUB_AUTH_SCOPES,
-          { clearSessionPreference: true }
-        );
-      } catch {
-        // Best-effort: clearing our own stored preference is the important bit.
-      }
-      await this.sendSnapshot();
-      vscode.window.showInformationMessage(
-        'Anime Companion will use the VS Code default GitHub account for Copilot.'
-      );
-      return;
-    }
-
-    if (!pick.account) return;
-
-    await this._storeCopilotAccountPreference({
-      id: pick.account.id,
-      label: pick.account.label,
-    });
-
-    try {
-      await vscode.authentication.getSession(
-        ChatManager.GITHUB_AUTH_PROVIDER,
-        ChatManager.GITHUB_AUTH_SCOPES,
-        {
-          account: pick.account,
-          createIfNone: {
-            detail: `Anime Companion will use ${pick.account.label} for GitHub Copilot in this workspace.`,
-          },
-        }
-      );
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      vscode.window.showWarningMessage(
-        `Saved the account choice, but GitHub auth permission failed: ${msg}`
-      );
-    }
-
+    await this._github.pickAccountInteractive();
     await this.sendSnapshot();
   }
 
@@ -817,49 +722,15 @@ export class ChatManager {
   }
 
   private async _ensureCopilotAccountAccess(): Promise<void> {
-    const preferred = this._getStoredCopilotAccountPreference();
-    if (!preferred.id) return;
-
-    const accounts = await this._getCopilotAccounts();
-    const account = accounts.find((item) => item.id === preferred.id);
-    if (!account) {
-      await this._clearStoredCopilotAccountPreference();
-      return;
-    }
-
-    await vscode.authentication.getSession(
-      ChatManager.GITHUB_AUTH_PROVIDER,
-      ChatManager.GITHUB_AUTH_SCOPES,
-      {
-        account,
-        createIfNone: {
-          detail: `Anime Companion will use ${account.label} for GitHub Copilot in this workspace.`,
-        },
-      }
-    );
+    await this._github.ensureAccess();
   }
 
   private async _getCopilotAccounts(): Promise<readonly vscode.AuthenticationSessionAccountInformation[]> {
-    try {
-      return await vscode.authentication.getAccounts(ChatManager.GITHUB_AUTH_PROVIDER);
-    } catch {
-      return [];
-    }
+    return this._github.listAccounts();
   }
 
-  private _getStoredCopilotAccountPreference(): CopilotAccountPreference {
-    return this._context.workspaceState.get<CopilotAccountPreference>(
-      ChatManager.COPILOT_ACCOUNT_KEY,
-      {}
-    );
-  }
-
-  private async _storeCopilotAccountPreference(value: CopilotAccountPreference): Promise<void> {
-    await this._context.workspaceState.update(ChatManager.COPILOT_ACCOUNT_KEY, value);
-  }
-
-  private async _clearStoredCopilotAccountPreference(): Promise<void> {
-    await this._context.workspaceState.update(ChatManager.COPILOT_ACCOUNT_KEY, undefined);
+  private _getStoredCopilotAccountPreference(): { id?: string; label?: string } {
+    return this._github.getPreference();
   }
 }
 

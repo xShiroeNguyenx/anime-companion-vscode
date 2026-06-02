@@ -268,7 +268,8 @@
       "agentCategory": "Agent",
       "agentList": "Manage Accounts…",
       "agentSwitch": "Quick Switch…",
-      "agentSave": "Save Current as…"
+      "agentSave": "Save Current as…",
+      "agentGithub": "GitHub Account…"
     },
     "panels": {
       "voiceTitle": "Voice",

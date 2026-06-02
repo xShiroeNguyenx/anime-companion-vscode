@@ -786,6 +786,7 @@ function setupCompactContextMenu() {
         { icon: '👀', label: t('menu.agentList',   'Manage Profiles…'), action: 'agent-profile-panel' },
         { icon: '🔁', label: t('menu.agentSwitch', 'Quick Switch…'),    action: 'agent-profile-switch' },
         { icon: '💾', label: t('menu.agentSave',   'Save Current as…'), action: 'agent-profile-save' },
+        { icon: '🐙', label: t('menu.agentGithub', 'GitHub Account…'),  action: 'agent-github-account' },
       ],
     },
     {
@@ -1003,6 +1004,8 @@ function setupCompactContextMenu() {
       showAgentSwitchPanel();
     } else if (action === 'agent-profile-save') {
       showAgentSavePanel();
+    } else if (action === 'agent-github-account') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.githubAccount.switch' });
     }
   };
 

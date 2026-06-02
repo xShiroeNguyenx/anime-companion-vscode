@@ -43,6 +43,38 @@ const mockVscode = {
   StatusBarAlignment: {
     Right: 2,
   },
+  QuickPickItemKind: {
+    Separator: -1,
+    Default: 0,
+  },
+  EventEmitter: class EventEmitter {
+    constructor() {
+      this._listeners = new Set();
+      this.event = (listener) => {
+        this._listeners.add(listener);
+        return { dispose: () => this._listeners.delete(listener) };
+      };
+    }
+    fire(data) {
+      for (const listener of this._listeners) {
+        try { listener(data); } catch { /* ignore */ }
+      }
+    }
+    dispose() {
+      this._listeners.clear();
+    }
+  },
+  authentication: {
+    getAccounts() {
+      return Promise.resolve([]);
+    },
+    getSession() {
+      return Promise.resolve(undefined);
+    },
+    onDidChangeSessions() {
+      return { dispose() {} };
+    },
+  },
   ConfigurationTarget: {
     Global: 1,
     Workspace: 2,
@@ -142,8 +174,17 @@ async function main() {
       subscriptions: [],
       globalState: {
         state: new Map(),
-        get(key) {
-          return this.state.get(key);
+        get(key, fallback) {
+          return this.state.has(key) ? this.state.get(key) : fallback;
+        },
+        async update(key, value) {
+          this.state.set(key, value);
+        },
+      },
+      workspaceState: {
+        state: new Map(),
+        get(key, fallback) {
+          return this.state.has(key) ? this.state.get(key) : fallback;
         },
         async update(key, value) {
           this.state.set(key, value);

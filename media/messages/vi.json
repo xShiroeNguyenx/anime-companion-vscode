@@ -268,7 +268,8 @@
       "agentCategory": "Agent",
       "agentList": "Quản lý tài khoản…",
       "agentSwitch": "Đổi nhanh…",
-      "agentSave": "Lưu tài khoản hiện tại…"
+      "agentSave": "Lưu tài khoản hiện tại…",
+      "agentGithub": "Tài khoản GitHub…"
     },
     "panels": {
       "voiceTitle": "Voice",

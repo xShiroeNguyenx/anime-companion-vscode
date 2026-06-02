@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -237,6 +237,11 @@
       {
         "command": "animeCompanion.agentProfile.delete",
         "title": "Agent Accounts: Delete…",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.githubAccount.switch",
+        "title": "Agent Accounts: Switch GitHub Account…",
         "category": "Anime Companion"
       }
     ],

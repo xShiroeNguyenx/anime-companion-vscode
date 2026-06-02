@@ -3,6 +3,34 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-06-02
+
+### Fixed — Saving Claude team/SSO accounts
+
+- **Claude accounts without a top-level `organizationUuid` could not be saved or detected as active.** Team/SSO logins (and logins that nest the org id inside the `claudeAiOauth` blob) were silently treated as "no account", so *Save current as…* and the live-active check skipped them ([src/agent-profiles/backends/claude-backend.ts](src/agent-profiles/backends/claude-backend.ts)). Identity reading now: reads the org id from the oauth blob when it's absent at the top level; and when there's no org at all, derives a stable account signature from a SHA-256 hash of the **refresh** token (more stable than the access token, which rotates on every refresh), falling back to the subscription type. Org-less accounts stay identifiable instead of being dropped.
+
+### Changed — Backend abstraction for non-file accounts
+
+- **`AccountBackend` now supports two flavours uniformly** ([src/agent-profiles/backends/account-backend.ts](src/agent-profiles/backends/account-backend.ts), [src/agent-profiles/profile-manager.ts](src/agent-profiles/profile-manager.ts)): *file-based* backends (Claude, Codex) that describe a `homeDir` + whitelist and let the manager drive the file copy, and *custom* backends that own their own `isAvailable`/`readLiveIdentity`/`snapshot`/`restore`. The manager drives both through capability wrappers, so a non-file (e.g. auth-based) account can ride alongside the file-swap profiles.
+- **Clearer errors when a CLI isn't logged in** — *Save* now reports "No `<tool>` credentials found. Log in to `<tool>` first." instead of a raw missing-path message.
+
+## [0.4.1] - 2026-05-30
+
+### Added — GitHub account swap (Agent Accounts)
+
+- **Switch which signed-in GitHub account the extension uses for Copilot, from the same Agent Accounts surfaces — globally.** GitHub accounts in VS Code's account menu are authenticated *into VS Code* (tokens in the OS keychain), so unlike the Claude/Codex file-swap this is **auth-based**: it picks which signed-in account the extension's own sessions use via `vscode.authentication.getSession({ account })`. It does **not** change git commit identity or what other extensions use — VS Code has no global "active account".
+  - **Single source of truth** ([src/github-account-service.ts](src/github-account-service.ts)) — `GitHubAccountService` lists accounts (`getAccounts('github')`), stores the chosen account in **`globalState['agentProfiles.githubAccountPreference']`** (global, per the user's choice), switches/adds/clears, re-applies on activation, and emits change events. The previous per-workspace Copilot preference is migrated up to global on first run.
+  - **Surfaced everywhere the CLI accounts are** — a 🐙 GitHub section in the Agent Accounts panel (Use / Use VS Code default / Add account, with a "global · only affects this extension/Copilot" note) ([src/agent-profiles/profile-panel.ts](src/agent-profiles/profile-panel.ts)); the unified status-bar quick-switch ([src/agent-profiles/profile-manager.ts](src/agent-profiles/profile-manager.ts)); a new command `Anime Companion: Agent Accounts — Switch GitHub Account…`; and pet right-click → **Agent › GitHub Account…**.
+  - **Chat stays in sync** — `ChatManager` delegates its Copilot-account logic to the shared service ([src/chat/chat-manager.ts](src/chat/chat-manager.ts)), and any GitHub switch (from any surface) refreshes the chat panel snapshot.
+
+### Changed
+
+- **GitHub Copilot account preference moved from per-workspace to global** (`workspaceState` → `globalState`), with a one-time migration of any existing choice — so the chosen GitHub account applies across every workspace.
+
+### Fixed
+
+- **`npm test` (smoke test) was broken since v0.4.0** — the mocked `vscode` lacked `EventEmitter`, which `AgentProfileManager` constructs at activation, so activation threw. Completed the mock (`EventEmitter`, `authentication`, `QuickPickItemKind`, `workspaceState`, and a fallback-aware `globalState.get`) so activation is validated again.
+
 ## [0.4.0] - 2026-05-28
 
 ### Added — Agent Accounts (multi-CLI credential swap)

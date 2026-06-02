@@ -268,7 +268,8 @@
       "agentCategory": "Agent",
       "agentList": "アカウントを管理…",
       "agentSwitch": "クイック切替…",
-      "agentSave": "現在の状態を保存…"
+      "agentSave": "現在の状態を保存…",
+      "agentGithub": "GitHubアカウント…"
     },
     "panels": {
       "voiceTitle": "Voice",

@@ -29,10 +29,10 @@ import { AgentProfilePanel } from './agent-profiles/profile-panel';
 import { registerBackend, getBackend } from './agent-profiles/backends/account-backend';
 import { claudeBackend } from './agent-profiles/backends/claude-backend';
 import { codexBackend } from './agent-profiles/backends/codex-backend';
+import { GitHubAccountService } from './github-account-service';
 
 registerBackend(claudeBackend);
 registerBackend(codexBackend);
-// Future: registerBackend(antigravityBackend), …
 
 // Common shape extension.ts depends on regardless of which UI host is active:
 // the in-VS-Code panel webview, or the floating Tauri desktop pet (bridge).
@@ -291,26 +291,38 @@ class AgentProfileStatusBar {
   private async _refreshAsync(): Promise<void> {
     const activeIds = await this._manager.detectActiveIds();
     const profiles = this._manager.list();
+    const github = await this._manager.getGitHubState();
     const actives = Array.from(activeIds.entries())
       .map(([tool, id]) => ({ tool, profile: profiles.find((p) => p.id === id) }))
       .filter((x): x is { tool: string; profile: typeof profiles[number] } => !!x.profile);
 
-    if (actives.length === 0) {
+    const lines = actives.map((a) => {
+      const label = getBackend(a.tool)?.displayName ?? a.tool;
+      return `${label}: ${a.profile.name}`;
+    });
+    const githubActive = github.accounts.find((a) => a.active);
+    if (github.available) {
+      lines.push(`GitHub: ${githubActive ? githubActive.label : 'VS Code default'}`);
+    }
+
+    if (actives.length === 0 && !githubActive) {
       this._item.text = '$(person) Accounts';
-      this._item.tooltip = 'No agent profile matches the live CLI credentials — click to switch';
+      this._item.tooltip = lines.length
+        ? `Active accounts:\n${lines.join('\n')}\nClick to switch`
+        : 'No agent profile matches the live CLI credentials — click to switch';
       return;
     }
 
     if (actives.length === 1) {
       this._item.text = `$(person) ${actives[0].profile.name}`;
-    } else {
+    } else if (actives.length > 1) {
       this._item.text = `$(person) ${actives.length} accounts`;
+    } else if (githubActive) {
+      this._item.text = `$(github) ${githubActive.label}`;
+    } else {
+      this._item.text = '$(person) Accounts';
     }
-    const lines = actives.map((a) => {
-      const label = getBackend(a.tool)?.displayName ?? a.tool;
-      return `${label}: ${a.profile.name}`;
-    });
-    this._item.tooltip = `Active agent accounts:\n${lines.join('\n')}\nClick to switch`;
+    this._item.tooltip = `Active accounts:\n${lines.join('\n')}\nClick to switch`;
   }
 
   dispose(): void {
@@ -396,7 +408,15 @@ export async function activate(context: vscode.ExtensionContext) {
   const chatSecrets = new ChatSecrets(context.secrets);
   const chatStore = new ConversationStore(context);
   let chatHostRef: CompanionHost | undefined;
-  const chatManager = new ChatManager(context, chatSecrets, chatStore, () => chatHostRef, stats);
+  // Owns which signed-in GitHub account the extension/Copilot uses (global).
+  // Shared by the chat manager, the Agent Accounts surfaces, and the command.
+  const githubAccountService = new GitHubAccountService(context);
+  context.subscriptions.push(githubAccountService);
+  void githubAccountService.ensureAccess();
+  const chatManager = new ChatManager(context, chatSecrets, chatStore, () => chatHostRef, stats, githubAccountService);
+  // Any GitHub switch (panel, status bar, pet, command) should refresh the
+  // chat panel's account display too, so every surface stays in sync.
+  context.subscriptions.push(githubAccountService.onDidChange(() => void chatManager.sendSnapshot()));
 
   const announceAchievementUnlocks = (unlocked: AchievementDef[]) => {
     if (!unlocked.length || !chatHostRef) return;
@@ -634,7 +654,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(cursorChibi);
 
   const agentProfileStore = new AgentProfileStore(context);
-  const agentProfileManager = new AgentProfileManager(context, agentProfileStore);
+  const agentProfileManager = new AgentProfileManager(context, agentProfileStore, githubAccountService);
   const agentProfileStatusBar = new AgentProfileStatusBar(agentProfileManager);
   // Inject the manager into whichever companion host is active so the
   // in-webview right-click "Đổi nhanh" / "Lưu hồ sơ" popups can dispatch
@@ -683,6 +703,11 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('animeCompanion.agentProfile.use', () => {
       return agentProfileManager.quickPickAndUse();
+    }),
+    // Dedicated GitHub-only picker. Routes through the chat manager so the
+    // chat panel's account display refreshes alongside the global switch.
+    vscode.commands.registerCommand('animeCompanion.githubAccount.switch', () => {
+      return chatManager.pickCopilotAccount();
     }),
     vscode.commands.registerCommand('animeCompanion.agentProfile.delete', async () => {
       const profiles = agentProfileManager.list();
