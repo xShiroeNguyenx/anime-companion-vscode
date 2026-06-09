@@ -8,13 +8,13 @@
 
 > ⚠️ **Experimental — v0.4.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.4.3
+**Phiên bản hiện tại:** v0.5.0
 
-> 🆕 **Có gì mới ở v0.4.3**:
-> - **🪪 Swap tài khoản Claude giờ chạy đúng** — trước đây sau khi đổi tài khoản Claude, phiên bị "load hoài" rồi văng ra bắt đăng nhập lại. Swap chỉ đổi OAuth token, nhưng `organizationUuid` của Claude lại nằm trong `~/.claude.json` ở thư mục home — nên token mới chạy với org của tài khoản *cũ*. Giờ swap đổi luôn phần account binding đó (giữ nguyên mọi thứ còn lại trong file), và luôn làm mới snapshot của từng profile để chống việc refresh token bị xoay vòng.
-> - ⚠️ **Cần làm 1 lần:** lưu lại mỗi profile Claude đang có (Agent Accounts → **Save current**) — snapshot cũ chưa có account binding nên sẽ chưa tự sửa cho tới khi được lưu lại.
+> 🆕 **Có gì mới ở v0.5.0**:
+> - **🖼️ Ảnh nền (workbench) kèm bảng điều khiển thật sự** — đặt ảnh phía sau editor, sidebar và panel. Giống extension "Background", nó vá file workbench của VS Code, nhưng điểm nhấn ở đây là **bảng điều khiển trực quan** thay vì chỉnh JSON rối rắm: chọn ảnh từng vùng, tinh chỉnh độ mờ / blur / kích thước / vị trí với preview trực tiếp, rồi **Áp dụng** (reload cửa sổ). Một nút **Tắt & Khôi phục**, tự vá lại sau khi VS Code cập nhật, và dọn sạch qua hook `vscode:uninstall` nên không bao giờ để lại bản cài bị vá.
+> - ⚠️ Ảnh nền xuất hiện sau khi **reload cửa sổ**, phải **vá lại sau mỗi lần VS Code update**, và nếu cài ở Program Files có thể cần chạy VS Code bằng quyền Administrator một lần — bảng điều khiển có giải thích đầy đủ. Có toggle tùy chọn để tắt cảnh báo "installation corrupt".
 >
-> Kế thừa từ **v0.4.2** (lưu tài khoản Claude team/SSO ổn định + 🐙 swap tài khoản GitHub) và **v0.4.0** (Agent Accounts — swap credential Claude/Codex, 💬 Pet Quick Chat).
+> Kế thừa từ **v0.4.3** (swap tài khoản Claude chạy đúng), **v0.4.2** (lưu tài khoản Claude team/SSO + 🐙 swap tài khoản GitHub) và **v0.4.0** (Agent Accounts, 💬 Pet Quick Chat).
 
 ![Anime Companion hero](images/01-hero-companion-panel.png)
 
@@ -38,6 +38,26 @@ Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroen
 ---
 
 ## ✨ Tính năng nổi bật
+
+### 🖼️ Ảnh nền (workbench) — kèm bảng điều khiển thật sự
+
+![Bảng điều khiển ảnh nền](images/13-background-image.png)
+
+- **Đặt ảnh của bạn phía sau VS Code** — editor, sidebar, panel — hoặc một ảnh **Toàn cửa sổ** phủ cả màn hình. Giống extension "Background" nổi tiếng (vá file workbench của VS Code vì không có API công khai), nhưng điểm nhấn ở đây là **bảng điều khiển trực quan** thay vì sửa JSON rối rắm.
+- **Theo từng vùng hoặc toàn cửa sổ:**
+  - 🪟 **Toàn cửa sổ** — một ảnh phủ cả cửa sổ (editor + sidebar + panel + activity/status bar).
+  - 📝 **Editor / 📁 Sidebar / 🖥️ Panel** — ảnh riêng *nằm sau chữ* của từng vùng, bật/tắt độc lập.
+- **Điều khiển thân thiện** cho mỗi vùng: chọn ảnh kèm thumbnail, **độ mờ** / **làm mờ** / **kích thước** (phủ kín / vừa khung / lặp / kéo giãn) / **vị trí** (lưới 3×3), và **xem trước trực tiếp** ngay trong panel.
+- **Lifecycle minh bạch** — những điểm "đau" mà các extension chỉ-JSON hay giấu thì ở đây hiển thị rõ:
+  - **Áp dụng (reload cửa sổ)** để thấy thay đổi; **Tắt & Khôi phục** để gỡ sạch.
+  - Tự vá lại sau khi VS Code cập nhật; tự dọn dẹp khi gỡ extension (hook `vscode:uninstall`).
+  - Toggle tùy chọn **"Tắt cảnh báo installation corrupt"** (vá checksum trong `product.json`).
+  - Ghi chú rõ về reload / vá lại sau update / cần Administrator nếu cài ở Program Files.
+- **Đa ngôn ngữ** — panel theo ngôn ngữ tin nhắn (vi / en / ja) và đổi ngay khi bạn đổi.
+
+**Bắt đầu nhanh:** Command Palette → `Background Image: Open Control Panel` (hoặc menu chuột phải companion → **Diện mạo › 🖼️ Ảnh nền**) → chọn ảnh → **Áp dụng**.
+
+> ⚠️ Thay đổi ảnh nền cần **reload cửa sổ**, phải **vá lại sau khi VS Code update**, và nếu cài ở Program Files có thể cần chạy VS Code bằng quyền Administrator một lần. Panel giải thích đầy đủ. v1 hỗ trợ **VS Code stable** (chạy được cả trên Cursor).
 
 ### 💬 AI Chat Companion
 

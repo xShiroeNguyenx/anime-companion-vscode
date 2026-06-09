@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -242,6 +242,21 @@
       {
         "command": "animeCompanion.githubAccount.switch",
         "title": "Agent Accounts: Switch GitHub Account…",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.openBackgroundSettings",
+        "title": "Background Image: Open Control Panel",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.background.apply",
+        "title": "Background Image: Apply (reload window)",
+        "category": "Anime Companion"
+      },
+      {
+        "command": "animeCompanion.background.remove",
+        "title": "Background Image: Disable & Restore",
         "category": "Anime Companion"
       }
     ],
@@ -665,12 +680,183 @@
           "type": "boolean",
           "default": true,
           "description": "After a chat reply finishes, run a lightweight sentiment heuristic and trigger the Live2D companion's mood/motion to match (happy / thinking / sad / excited)."
+        },
+        "animeCompanion.background.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Master switch for the workbench background image. Editing background settings only takes effect after running 'Background Image: Apply (reload window)'. Best configured through the 'Background Image: Open Control Panel' command rather than by hand."
+        },
+        "animeCompanion.background.patchChecksums": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also patch VS Code's checksums so it stops warning that the installation 'appears corrupt'. More invasive — modifies an app integrity check and may need re-applying after updates. Leave off unless the warning bothers you."
+        },
+        "animeCompanion.background.fullscreen.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Fullscreen mode: show a single image behind the ENTIRE window (editor + sidebar + panel + activity/status bars). Opt-in; layers beneath the per-region images when both are on."
+        },
+        "animeCompanion.background.fullscreen.image": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the fullscreen (whole-window) background image. Managed by the control panel."
+        },
+        "animeCompanion.background.fullscreen.opacity": {
+          "type": "number",
+          "default": 15,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Fullscreen background opacity, 0–100 (%)."
+        },
+        "animeCompanion.background.fullscreen.blur": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 40,
+          "description": "Fullscreen background blur radius in pixels (0–40)."
+        },
+        "animeCompanion.background.fullscreen.size": {
+          "type": "string",
+          "enum": [
+            "cover",
+            "contain",
+            "repeat",
+            "stretch"
+          ],
+          "default": "cover",
+          "description": "How the fullscreen background image is sized."
+        },
+        "animeCompanion.background.fullscreen.position": {
+          "type": "string",
+          "default": "center",
+          "description": "CSS background-position for the fullscreen image."
+        },
+        "animeCompanion.background.editor.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the background image behind the editor area."
+        },
+        "animeCompanion.background.editor.image": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the editor background image. Managed by the control panel (copied into global storage when picked)."
+        },
+        "animeCompanion.background.editor.opacity": {
+          "type": "number",
+          "default": 15,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Editor background opacity, 0–100 (%)."
+        },
+        "animeCompanion.background.editor.blur": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 40,
+          "description": "Editor background blur radius in pixels (0–40)."
+        },
+        "animeCompanion.background.editor.size": {
+          "type": "string",
+          "enum": [
+            "cover",
+            "contain",
+            "repeat",
+            "stretch"
+          ],
+          "default": "cover",
+          "description": "How the editor background image is sized."
+        },
+        "animeCompanion.background.editor.position": {
+          "type": "string",
+          "default": "center",
+          "description": "CSS background-position for the editor image (e.g. center, top left, bottom right)."
+        },
+        "animeCompanion.background.sidebar.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the background image behind the sidebar."
+        },
+        "animeCompanion.background.sidebar.image": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the sidebar background image. Managed by the control panel."
+        },
+        "animeCompanion.background.sidebar.opacity": {
+          "type": "number",
+          "default": 15,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Sidebar background opacity, 0–100 (%)."
+        },
+        "animeCompanion.background.sidebar.blur": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 40,
+          "description": "Sidebar background blur radius in pixels (0–40)."
+        },
+        "animeCompanion.background.sidebar.size": {
+          "type": "string",
+          "enum": [
+            "cover",
+            "contain",
+            "repeat",
+            "stretch"
+          ],
+          "default": "cover",
+          "description": "How the sidebar background image is sized."
+        },
+        "animeCompanion.background.sidebar.position": {
+          "type": "string",
+          "default": "center",
+          "description": "CSS background-position for the sidebar image."
+        },
+        "animeCompanion.background.panel.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the background image behind the bottom panel (terminal/output)."
+        },
+        "animeCompanion.background.panel.image": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the panel background image. Managed by the control panel."
+        },
+        "animeCompanion.background.panel.opacity": {
+          "type": "number",
+          "default": 15,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Panel background opacity, 0–100 (%)."
+        },
+        "animeCompanion.background.panel.blur": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 40,
+          "description": "Panel background blur radius in pixels (0–40)."
+        },
+        "animeCompanion.background.panel.size": {
+          "type": "string",
+          "enum": [
+            "cover",
+            "contain",
+            "repeat",
+            "stretch"
+          ],
+          "default": "cover",
+          "description": "How the panel background image is sized."
+        },
+        "animeCompanion.background.panel.position": {
+          "type": "string",
+          "default": "center",
+          "description": "CSS background-position for the panel image."
         }
       }
     }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
+    "vscode:uninstall": "node ./out/background/uninstall",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",

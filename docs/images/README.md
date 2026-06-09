@@ -21,6 +21,7 @@ Until you fill these in, the marketplace listing will show broken image icons (w
 | 10 | `10-ambient-menu.png` | Right-click → Ambient submenu (or QuickPick) showing the `lofi / rain / cafe` presets plus a custom track entry. |
 | 11 | `11-rightclick-menu.png` | Right-click context menu opened on the companion (panel mode or desktop pet). Show the reorganized top-level menu: `Run`, the six category rows (`Git`, `AI Chat`, `Appearance`, `Voice & Sound`, `Workflow`, `Desktop Companion`), and `All Settings`. In the `Workflow` submenu, make sure the newer `Quests`, `Profile`, and `Share Card` entries are visible if possible. |
 | 12 | `12-settings-ui.png` | VS Code Settings UI filtered by `animeCompanion`. Scroll so the new `chat.ollamaEndpoint` and the extended `chat.provider` enum dropdown (8 options) are visible. |
+| 13 | `13-background-image.png` | **Background Image feature.** The "Ảnh nền / Background Image" control panel open in the editor, with a Fullscreen image applied behind the whole window (anime wallpaper visible behind the explorer + editor). Show the region card (image thumbnail, opacity/blur sliders, sizing segmented control, 3×3 position grid, live preview) and the footer (Enable, Apply, Disable & Restore, silence-corrupt-warning toggle). This is the v0.5.0 headline shot. |
 
 ## Conventions
 

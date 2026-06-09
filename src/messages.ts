@@ -48,6 +48,7 @@ export interface WebviewStrings {
   bubbles?: Record<string, string>;
   menu?: Record<string, string>;
   panels?: Record<string, string>;
+  backgroundPanel?: Record<string, string>;
 }
 
 interface MessageDict {

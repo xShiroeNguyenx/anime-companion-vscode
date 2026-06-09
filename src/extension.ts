@@ -30,6 +30,8 @@ import { registerBackend, getBackend } from './agent-profiles/backends/account-b
 import { claudeBackend } from './agent-profiles/backends/claude-backend';
 import { codexBackend } from './agent-profiles/backends/codex-backend';
 import { GitHubAccountService } from './github-account-service';
+import { BackgroundPatchManager } from './background/background-patch-manager';
+import { BackgroundPanel } from './background/background-panel';
 
 registerBackend(claudeBackend);
 registerBackend(codexBackend);
@@ -401,6 +403,19 @@ export async function activate(context: vscode.ExtensionContext) {
   // CursorChibiManager built up here so we can pass its saveCapturedChibi
   // method into AnimeCompanionViewProvider's dispatcher context below.
   const cursorChibi = new CursorChibiManager(context.extensionUri, context.globalStorageUri);
+
+  // Workbench background-image feature: patches workbench.desktop.main.js to
+  // render an image behind the editor/sidebar/panel, driven by a dedicated
+  // control panel. Settings live under animeCompanion.background.*.
+  const backgroundManager = new BackgroundPatchManager(context);
+  context.subscriptions.push(
+    backgroundManager,
+    vscode.commands.registerCommand('animeCompanion.openBackgroundSettings', () => {
+      BackgroundPanel.reveal(context, backgroundManager);
+    }),
+    vscode.commands.registerCommand('animeCompanion.background.apply', () => backgroundManager.apply()),
+    vscode.commands.registerCommand('animeCompanion.background.remove', () => backgroundManager.disableAndRestore()),
+  );
 
   // BYOK chat — secret-storage-backed key store, workspace-scoped single
   // conversation history, and a manager that routes user messages through
@@ -1158,6 +1173,13 @@ export async function activate(context: vscode.ExtensionContext) {
         (err) => log(`showOnStartup: animeCompanion.show failed: ${err instanceof Error ? err.message : String(err)}`)
       );
     }, 1500);
+  }
+
+  // Re-apply (or clean up) the workbench background after VS Code restarted or
+  // updated. Deferred and fully self-contained so a slow/failing Program Files
+  // write can never delay or break activation.
+  if (context.extensionMode !== vscode.ExtensionMode.Test) {
+    setTimeout(() => { void backgroundManager.applyIfNeeded(); }, 2500);
   }
 }
 

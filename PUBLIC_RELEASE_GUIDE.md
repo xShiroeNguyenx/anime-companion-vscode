@@ -1,6 +1,61 @@
 # Public Release Guide
 
-> Bản hiện tại đang publish: **v0.3.3** (release notes ngay bên dưới). Phần `v0.1.50` cũ giữ làm reference cho flow chung.
+> Bản hiện tại đang publish: **v0.5.0** (release notes ngay bên dưới). Các phần cũ giữ làm reference cho flow chung.
+
+---
+
+## 📦 v0.5.0 Release (2026-06-09)
+
+### Scope
+
+- Extension version public: `0.5.0`
+- Headline user-facing: **🖼️ Background Image (workbench) với bảng điều khiển trực quan**
+  - Đặt ảnh nền cho **từng vùng** (Editor / Sidebar / Panel — ảnh *sau chữ*) hoặc **Toàn cửa sổ** (Fullscreen — 1 ảnh phủ cả window).
+  - Bảng điều khiển webview riêng: chọn ảnh + thumbnail, slider opacity / blur, sizing (cover/contain/repeat/stretch), vị trí 3×3, **live preview**.
+  - Lifecycle minh bạch: **Apply (reload)** / **Disable & Restore**, tự re-apply sau VS Code update, dọn dẹp khi gỡ qua hook `vscode:uninstall`, toggle opt-in vá checksum để tắt cảnh báo "installation corrupt".
+  - i18n đầy đủ vi / en / ja, đổi ngôn ngữ là panel cập nhật ngay.
+- Platform: **desktop VS Code stable** (chạy được cả Cursor / editor nền VS Code). Cơ chế = vá `workbench.desktop.main.js` (không có API công khai cho nền workbench).
+
+### Marketplace / Release notes pitch
+
+- Đặt ảnh nền cho VS Code giống extension "Background", nhưng **tập trung vào bảng điều khiển**: chọn ảnh, kéo slider độ mờ/blur, xem trước trực tiếp — không phải sửa JSON.
+- Chế độ **Fullscreen** phủ 1 ảnh cả cửa sổ; hoặc đặt ảnh *sau chữ* riêng cho Editor / Sidebar / Panel.
+- Toàn bộ "đau đầu" của việc vá workbench được nói thẳng trong panel: cần reload, vá lại sau update, dọn sạch khi tắt/gỡ, và tùy chọn tắt cảnh báo corrupt.
+
+### Pre-publish checklist v0.5.0
+
+- [x] `package.json` ở `0.5.0` + `scripts."vscode:uninstall"`
+- [x] `README.md` (EN) + `docs/README.vi.md` + `docs/README.ja.md` — "What's new" + section feature 🖼️ Background Image
+- [x] `CHANGELOG.md` có entry `## [0.5.0] - 2026-06-09`
+- [x] `docs/images/README.md` — thêm spec ảnh `13-background-image.png`
+- [x] `docs/BACKGROUND_IMAGE_PLAN.md` — implementation plan
+- [x] Local `npm run compile` clean + smoke test pass
+- [ ] **Lưu screenshot** `docs/images/13-background-image.png` (ảnh hero của feature — panel + nền fullscreen)
+- [ ] **Smoke test** trên VS Code thật: Apply (nền hiện sau chữ) / Fullscreen / Disable & Restore / tắt cảnh báo corrupt / đổi messageLanguage (panel đổi label)
+- [ ] (Optional) Review tiếng Nhật phần feature mới trong `docs/README.ja.md`
+
+### Publish flow
+
+```bash
+# 1. Bump version đã xong (package.json = 0.5.0)
+# 2. Build VSIX final
+npm run package
+
+# 3. (Optional) Local install test — DÙNG ĐÚNG CLI VS Code (lệnh `code` máy này trỏ Cursor)
+& "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd" --install-extension .\anime-companion-vscode-0.5.0.vsix --force
+
+# 4. Tag + push để trigger release workflow (.github/workflows/release.yml)
+git add -A
+git commit -m "release: v0.5.0 — Background Image (workbench) + control panel"
+git push origin main
+git tag -a v0.5.0 -m "v0.5.0 — Background Image with control panel"
+git push origin v0.5.0
+
+# 5. (Nếu workflow không tự publish Open VSX) publish thủ công
+npm run publish:ovsx
+```
+
+> ⚠️ Tag phải khớp `package.json` version (`0.5.0`), nếu lệch workflow fail ở bước verify.
 
 ---
 

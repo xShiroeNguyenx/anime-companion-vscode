@@ -748,6 +748,7 @@ function setupCompactContextMenu() {
         { icon: '📸', label: t('menu.captureChibi', 'Capture Chibi'),           action: 'capture-chibi' },
         { icon: '🐾', label: t('menu.toggleCursorChibi', 'Toggle Cursor Chibi'),action: 'toggle-cursor-chibi' },
         { icon: '🎯', label: t('menu.tuneCursorChibi', 'Tune Cursor Chibi'),    action: 'tune-cursor-chibi' },
+        { icon: '🖼️', label: t('menu.background', 'Background Image'),           action: 'open-background' },
         { icon: '📍', label: t('menu.resetPosition', 'Reset Position'),         action: 'reset-position' },
         { icon: '🎬', label: t('menu.motion', 'Motion'),                        action: 'play-motion' },
         { icon: '👉', label: t('menu.poke', 'Poke'),                            action: 'poke' },
@@ -994,6 +995,8 @@ function setupCompactContextMenu() {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.toggleCursorChase' });
     } else if (action === 'tune-cursor-chibi') {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.tuneCursorChibi' });
+    } else if (action === 'open-background') {
+      vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.openBackgroundSettings' });
     } else if (action === 'reset-position') {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.resetPosition' });
     } else if (action === 'reset-workspace-model') {

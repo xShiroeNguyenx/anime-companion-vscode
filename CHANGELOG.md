@@ -3,6 +3,18 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-06-09
+
+### Added — 🖼️ Background Image (workbench) with a friendly control panel
+
+- **Put a background image behind the editor, sidebar, and panel — driven by a visual control panel instead of hand-edited JSON.** Like the popular "Background" extension, this works by patching VS Code's `workbench.desktop.main.js` (there is no public API for a workbench background), but the focus here is the **control panel** that makes the whole lifecycle obvious — picking images, tuning per region, applying, and cleanly restoring. v1 targets desktop **VS Code stable**.
+  - **Patch engine + lifecycle** ([src/background/background-patch-manager.ts](src/background/background-patch-manager.ts), [src/background/patch-generator.ts](src/background/patch-generator.ts), [src/background/workbench-locator.ts](src/background/workbench-locator.ts)) — locates the workbench file (`require.main` → `vscode.env.appRoot` fallback), backs up the pristine content per VS Code version, strips any old block, appends a uniquely-marked block (`// anime-companion-background-*`, distinct from other extensions so they can coexist), and writes atomically via tmp+rename. **Re-applies automatically after a VS Code update** (marker gone → re-patch on activate, gated by a cheap input signature so unchanged setups don't re-encode), handles **EACCES** on protected installs (Program Files) with an actionable message instead of crashing, and never throws into `activate()`.
+  - **Clean uninstall** ([src/background/uninstall.ts](src/background/uninstall.ts)) — a `vscode:uninstall` Node hook strips the patch from the workbench file when the extension is removed, so VS Code is left clean. (Best-effort: doesn't fire on a hard kill; the in-app **Disable & Restore** is the other path.)
+  - **Dedicated control panel** ([src/background/background-panel.ts](src/background/background-panel.ts), [media/webview/background-panel.js](media/webview/background-panel.js), [media/webview/background-panel.css](media/webview/background-panel.css)) — one card per region (**Fullscreen / Editor / Sidebar / Panel** — Fullscreen puts a single image behind the whole window) with image picker + thumbnail, opacity / blur / sizing / position controls, an in-panel live preview, a master enable toggle, **Apply (reloads window)**, **Disable & Restore**, an opt-in "silence the installation-corrupt warning" toggle (patches `product.json` checksums), and a "how this works" lifecycle explainer. Picked images are copied into global storage and embedded as data-URIs.
+  - **Settings** — `animeCompanion.background.*` (master `enabled` / `patchChecksums` + per-region `enabled` / `image` / `opacity` / `blur` / `size` / `position`). Best configured through the panel, not by hand.
+  - **Commands** — `Background Image: Open Control Panel` / `Apply` / `Disable & Restore`; also reachable from the companion right-click menu (Appearance › 🖼️ Background Image).
+- **i18n** — new `webview.backgroundPanel.*` strings and a `menu.background` entry across en/vi/ja.
+
 ## [0.4.3] - 2026-06-02
 
 ### Fixed — Claude account swap left the account broken (load forever → logged out)

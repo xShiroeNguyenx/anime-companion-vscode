@@ -6,13 +6,13 @@
 
 > ⚠️ **Experimental — v0.4.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.4.3
+**Current version:** v0.5.0
 
-> 🆕 **What's new in v0.4.3**:
-> - **🪪 Claude account swap actually works now** — previously, switching Claude accounts left the session spinning forever and then logged you out. The swap only moved the OAuth tokens, but Claude's `organizationUuid` lives in the home-level `~/.claude.json` — so the new token ran against the *old* account's org. The swap now also moves that account binding (preserving everything else in the file), and keeps each profile's snapshot fresh against OAuth refresh-token rotation.
-> - ⚠️ **One-time action:** re-save each existing Claude profile once (Agent Accounts → **Save current**) — older snapshots predate the binding and stay inert until re-saved.
+> 🆕 **What's new in v0.5.0**:
+> - **🖼️ Background image (workbench) with a real control panel** — put an image behind your editor, sidebar, and panel. Like the "Background" extension it patches VS Code's workbench, but the whole point here is a **visual control panel** instead of fiddly JSON: pick an image per region, tune opacity / blur / sizing / position with a live preview, then **Apply** (reloads the window). One-click **Disable & Restore**, automatic re-apply after a VS Code update, and a clean `vscode:uninstall` cleanup so it never leaves your install patched.
+> - ⚠️ The background appears after a **window reload**, must be **re-applied after VS Code updates**, and on a Program Files install may need running VS Code as Administrator once — the panel explains all of this inline. Opt-in toggle to silence the "installation corrupt" warning.
 >
-> Builds on **v0.4.2**'s reliable Claude team/SSO account save + 🐙 GitHub account swap, and **v0.4.0**'s Agent Accounts (Claude/Codex credential swap) and 💬 Pet Quick Chat.
+> Builds on **v0.4.3**'s working Claude account swap, **v0.4.2**'s Claude team/SSO save + 🐙 GitHub account swap, and **v0.4.0**'s Agent Accounts and 💬 Pet Quick Chat.
 
 ![Anime Companion hero](docs/images/01-hero-companion-panel.png)
 
@@ -36,6 +36,26 @@ Or download the `.vsix` from the [Open VSX page](https://open-vsx.org/extension/
 ---
 
 ## ✨ Features
+
+### 🖼️ Background Image (workbench) — with a real control panel
+
+![Background image control panel](docs/images/13-background-image.png)
+
+- **Put your own image behind VS Code** — the editor, sidebar, and panel — or one **Fullscreen** image across the whole window. Like the popular "Background" extension (it patches VS Code's workbench, since there's no public API for this), but the whole point here is a **visual control panel** instead of fiddly JSON.
+- **Per-region or whole-window:**
+  - 🪟 **Fullscreen** — one image over the entire window (editor + sidebar + panel + activity/status bars).
+  - 📝 **Editor / 📁 Sidebar / 🖥️ Panel** — a separate image *behind the text* of each region, each independently toggled.
+- **Friendly controls** for every region: image picker with thumbnail, **opacity** / **blur** / **sizing** (cover / contain / repeat / stretch) / **position** (3×3 grid), and an in-panel **live preview**.
+- **Honest, guided lifecycle** — the pain points the JSON-only extensions hide are surfaced inline:
+  - **Apply (reloads window)** to see changes; **Disable & Restore** to cleanly revert.
+  - Auto re-applies after a VS Code update; cleans itself up on uninstall (`vscode:uninstall` hook).
+  - Opt-in **"silence the installation-corrupt warning"** toggle (patches `product.json` checksums).
+  - Clear notes about reload / re-apply-after-update / Administrator-if-in-Program-Files.
+- **Localized** — the panel follows your message language (vi / en / ja) and updates live when you change it.
+
+**Quick start:** Command Palette → `Background Image: Open Control Panel` (or the companion right-click menu → **Appearance › 🖼️ Background Image**) → pick an image → **Apply**.
+
+> ⚠️ Background changes need a **window reload**, must be **re-applied after VS Code updates**, and on a Program Files install may need running VS Code as Administrator once. The panel explains all of this. v1 targets **desktop VS Code stable** (works on Cursor too).
 
 ### 💬 AI Chat Companion
 
