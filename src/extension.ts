@@ -32,6 +32,8 @@ import { codexBackend } from './agent-profiles/backends/codex-backend';
 import { GitHubAccountService } from './github-account-service';
 import { BackgroundPatchManager } from './background/background-patch-manager';
 import { BackgroundPanel } from './background/background-panel';
+import { MarkdownEditorPanel } from './markdown/markdown-editor-panel';
+import { MarkdownStatusBar } from './markdown/markdown-status-bar';
 
 registerBackend(claudeBackend);
 registerBackend(codexBackend);
@@ -415,6 +417,21 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('animeCompanion.background.apply', () => backgroundManager.apply()),
     vscode.commands.registerCommand('animeCompanion.background.remove', () => backgroundManager.disableAndRestore()),
+  );
+
+  // Markdown WYSIWYG editor: a flower button on the editor title bar (and a
+  // pulsing status-bar item) opens the active .md file in a Toast UI Editor
+  // panel where it can be previewed and edited in place.
+  context.subscriptions.push(
+    new MarkdownStatusBar(),
+    vscode.commands.registerCommand('animeCompanion.openMarkdownEditor', (arg?: vscode.Uri) => {
+      const uri = arg instanceof vscode.Uri ? arg : vscode.window.activeTextEditor?.document.uri;
+      if (!uri) {
+        vscode.window.showInformationMessage('Open a Markdown (.md) file first.');
+        return;
+      }
+      MarkdownEditorPanel.reveal(context, uri);
+    }),
   );
 
   // BYOK chat — secret-storage-backed key store, workspace-scoped single

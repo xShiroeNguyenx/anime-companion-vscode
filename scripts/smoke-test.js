@@ -104,6 +104,7 @@ const mockVscode = {
         command: undefined,
         backgroundColor: undefined,
         show() {},
+        hide() {},
         dispose() {},
       };
     },

@@ -4,15 +4,14 @@
 
 > A cute Live2D companion that lives in your VS Code panel and reacts to your coding flow — errors, saves, commits, builds, debug sessions, Pomodoro… **and now chats with you** through GitHub Copilot or your own API key (Anthropic / OpenAI / Gemini / xAI / DeepSeek / OpenRouter / Ollama).
 
-> ⚠️ **Experimental — v0.4.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
+> ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.5.0
+**Current version:** v0.5.1
 
-> 🆕 **What's new in v0.5.0**:
-> - **🖼️ Background image (workbench) with a real control panel** — put an image behind your editor, sidebar, and panel. Like the "Background" extension it patches VS Code's workbench, but the whole point here is a **visual control panel** instead of fiddly JSON: pick an image per region, tune opacity / blur / sizing / position with a live preview, then **Apply** (reloads the window). One-click **Disable & Restore**, automatic re-apply after a VS Code update, and a clean `vscode:uninstall` cleanup so it never leaves your install patched.
-> - ⚠️ The background appears after a **window reload**, must be **re-applied after VS Code updates**, and on a Program Files install may need running VS Code as Administrator once — the panel explains all of this inline. Opt-in toggle to silence the "installation corrupt" warning.
+> 🆕 **What's new in v0.5.1**:
+> - **🌸 Markdown WYSIWYG editor in its own window** — open any `.md` file in a full-size, cute editor and edit it visually (written straight back to the file). A **🌸 flower** button on the editor title bar (and a pulsing **🌸** status-bar item) opens it; edit the rendered document like a rich-text editor (à la CKEditor), with a **🌗 Dark / Light** toggle and full Anime Companion styling. **Safe by design** — it only writes the file when you actually edit, so previewing never reformats it.
 >
-> Builds on **v0.4.3**'s working Claude account swap, **v0.4.2**'s Claude team/SSO save + 🐙 GitHub account swap, and **v0.4.0**'s Agent Accounts and 💬 Pet Quick Chat.
+> Builds on **v0.5.0**'s 🖼️ Background Image control panel, **v0.4.3**'s Claude account swap, and **v0.4.0**'s Agent Accounts + 💬 Pet Quick Chat.
 
 ![Anime Companion hero](docs/images/01-hero-companion-panel.png)
 
@@ -36,6 +35,17 @@ Or download the `.vsix` from the [Open VSX page](https://open-vsx.org/extension/
 ---
 
 ## ✨ Features
+
+### 🌸 Markdown editor (WYSIWYG) — in its own window
+
+- **Edit `.md` files visually, like a rich-text editor** (à la CKEditor) — no split preview, no wrestling with raw syntax. Click the **🌸 flower** on the editor title bar (or the pulsing **🌸** status-bar item) to open the current Markdown file in a **full-size tab** of its own (not a split).
+- **Writes straight back to the file** on Save (`Ctrl/Cmd+S` works too), kept in sync with any normal editor tab. **Safe by design:** it only writes when you actually edit, so just previewing never touches the file — with a one-time heads-up that saving normalizes Markdown formatting.
+- **🌗 Dark / Light** toggle in the header, remembered across files and windows.
+- **Anime Companion look** — sakura-pink header with a bobbing 🌸, a candy Save button, themed toolbar, and cute fonts.
+
+**Quick start:** open any `.md` file → click the **🌸** button (top-right of the editor) or run `Open in Anime Markdown Editor` from the Command Palette.
+
+> ⚠️ Editing through a WYSIWYG editor normalizes Markdown formatting on save (list markers, emphasis, spacing, raw HTML). That's exactly why the editor never writes unless you actually make a change.
 
 ### 🖼️ Background Image (workbench) — with a real control panel
 

@@ -330,6 +330,19 @@
       "saved": "✓ Đã lưu",
       "saveFailed": "Lưu thất bại: "
     },
+    "markdownEditor": {
+      "title": "Trình sửa Markdown",
+      "save": "Lưu",
+      "saving": "Đang lưu…",
+      "saved": "Đã lưu ✨",
+      "unsaved": "Có thay đổi chưa lưu",
+      "reformatWarning": "Lưu ý: khi lưu, toàn bộ file sẽ được ghi lại theo định dạng Markdown chuẩn hoá.",
+      "saveFailed": "Không áp dụng được thay đổi markdown.",
+      "darkMode": "Chuyển sang nền tối",
+      "lightMode": "Chuyển sang nền sáng",
+      "statusBar": "Markdown",
+      "statusBarTooltip": "Mở file Markdown này trong trình sửa Anime"
+    },
     "backgroundPanel": {
       "title": "Ảnh nền",
       "subtitle": "Đặt ảnh phía sau editor, sidebar và panel.",

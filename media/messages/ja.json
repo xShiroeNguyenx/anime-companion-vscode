@@ -330,6 +330,19 @@
       "saved": "✓ 保存しました",
       "saveFailed": "保存失敗: "
     },
+    "markdownEditor": {
+      "title": "Markdown エディター",
+      "save": "保存",
+      "saving": "保存中…",
+      "saved": "保存しました ✨",
+      "unsaved": "未保存の変更があります",
+      "reformatWarning": "ご注意：保存するとファイル全体が正規化された Markdown で書き換えられます。",
+      "saveFailed": "Markdown の変更を適用できませんでした。",
+      "darkMode": "ダークモードに切り替え",
+      "lightMode": "ライトモードに切り替え",
+      "statusBar": "Markdown",
+      "statusBarTooltip": "この Markdown ファイルを Anime エディターで開く"
+    },
     "backgroundPanel": {
       "title": "背景画像",
       "subtitle": "エディター・サイドバー・パネルの背景に画像を表示します。",

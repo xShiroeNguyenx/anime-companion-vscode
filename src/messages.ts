@@ -49,6 +49,7 @@ export interface WebviewStrings {
   menu?: Record<string, string>;
   panels?: Record<string, string>;
   backgroundPanel?: Record<string, string>;
+  markdownEditor?: Record<string, string>;
 }
 
 interface MessageDict {

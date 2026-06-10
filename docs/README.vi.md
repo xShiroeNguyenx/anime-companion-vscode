@@ -6,15 +6,14 @@
 
 > Một bạn đồng hành Live2D dễ thương ngự ngay trong VS Code, phản ứng theo lúc bạn code: lỗi, save, commit, build, debug, Pomodoro… **và giờ có thể chat với bạn** qua GitHub Copilot hoặc API key của bạn (Anthropic / OpenAI / Gemini / xAI / DeepSeek / OpenRouter / Ollama).
 
-> ⚠️ **Experimental — v0.4.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
+> ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.5.0
+**Phiên bản hiện tại:** v0.5.1
 
-> 🆕 **Có gì mới ở v0.5.0**:
-> - **🖼️ Ảnh nền (workbench) kèm bảng điều khiển thật sự** — đặt ảnh phía sau editor, sidebar và panel. Giống extension "Background", nó vá file workbench của VS Code, nhưng điểm nhấn ở đây là **bảng điều khiển trực quan** thay vì chỉnh JSON rối rắm: chọn ảnh từng vùng, tinh chỉnh độ mờ / blur / kích thước / vị trí với preview trực tiếp, rồi **Áp dụng** (reload cửa sổ). Một nút **Tắt & Khôi phục**, tự vá lại sau khi VS Code cập nhật, và dọn sạch qua hook `vscode:uninstall` nên không bao giờ để lại bản cài bị vá.
-> - ⚠️ Ảnh nền xuất hiện sau khi **reload cửa sổ**, phải **vá lại sau mỗi lần VS Code update**, và nếu cài ở Program Files có thể cần chạy VS Code bằng quyền Administrator một lần — bảng điều khiển có giải thích đầy đủ. Có toggle tùy chọn để tắt cảnh báo "installation corrupt".
+> 🆕 **Có gì mới ở v0.5.1**:
+> - **🌸 Trình sửa Markdown WYSIWYG trong cửa sổ riêng** — mở file `.md` bất kỳ trong một trình sửa full-size dễ thương và chỉnh trực quan (ghi thẳng vào file). Nút **🌸 bông hoa** trên thanh tiêu đề editor (và item **🌸** nhấp nháy ở status bar) để mở; sửa ngay trên bản render như một rich-text editor (kiểu CKEditor), có nút **🌗 Dark / Light** và phối màu Anime Companion. **An toàn theo thiết kế** — chỉ ghi vào file khi bạn thực sự sửa, nên chỉ xem thì không bao giờ làm xáo trộn định dạng.
 >
-> Kế thừa từ **v0.4.3** (swap tài khoản Claude chạy đúng), **v0.4.2** (lưu tài khoản Claude team/SSO + 🐙 swap tài khoản GitHub) và **v0.4.0** (Agent Accounts, 💬 Pet Quick Chat).
+> Kế thừa từ **v0.5.0** (🖼️ bảng điều khiển Ảnh nền), **v0.4.3** (swap tài khoản Claude) và **v0.4.0** (Agent Accounts, 💬 Pet Quick Chat).
 
 ![Anime Companion hero](images/01-hero-companion-panel.png)
 
@@ -38,6 +37,17 @@ Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroen
 ---
 
 ## ✨ Tính năng nổi bật
+
+### 🌸 Trình sửa Markdown (WYSIWYG) — trong cửa sổ riêng
+
+- **Sửa file `.md` trực quan như rich-text editor** (kiểu CKEditor) — không chia đôi preview, không phải vật lộn với cú pháp thô. Bấm nút **🌸 bông hoa** trên thanh tiêu đề editor (hoặc item **🌸** nhấp nháy ở status bar) để mở file Markdown đang xem trong một **tab full-size riêng** (không split).
+- **Ghi thẳng vào file** khi Save (`Ctrl/Cmd+S` cũng được), đồng bộ với tab editor thường. **An toàn theo thiết kế:** chỉ ghi khi bạn thực sự sửa, nên chỉ xem thì không đụng tới file — kèm cảnh báo một lần rằng khi lưu sẽ chuẩn hoá lại định dạng Markdown.
+- **🌗 Dark / Light** toggle ở header, nhớ lựa chọn cho mọi file và cửa sổ.
+- **Phong cách Anime Companion** — header hồng sakura với 🌸 lắc lư, nút Save dạng viên kẹo, toolbar đồng bộ tông, font dễ thương.
+
+**Bắt đầu nhanh:** mở file `.md` bất kỳ → bấm nút **🌸** (góc trên-phải editor) hoặc chạy `Open in Anime Markdown Editor` từ Command Palette.
+
+> ⚠️ Sửa qua editor WYSIWYG sẽ chuẩn hoá lại định dạng Markdown khi lưu (list marker, nhấn mạnh, spacing, HTML thô). Đó chính là lý do editor không bao giờ ghi nếu bạn chưa thực sự thay đổi gì.
 
 ### 🖼️ Ảnh nền (workbench) — kèm bảng điều khiển thật sự
 

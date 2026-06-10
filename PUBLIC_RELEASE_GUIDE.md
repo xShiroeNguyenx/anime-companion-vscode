@@ -1,6 +1,60 @@
 # Public Release Guide
 
-> Bản hiện tại đang publish: **v0.5.0** (release notes ngay bên dưới). Các phần cũ giữ làm reference cho flow chung.
+> Bản hiện tại đang publish: **v0.5.1** (release notes ngay bên dưới). Các phần cũ giữ làm reference cho flow chung.
+
+---
+
+## 📦 v0.5.1 Release (2026-06-10)
+
+### Scope
+
+- Extension version public: `0.5.1`
+- Headline user-facing: **🌸 Trình sửa Markdown WYSIWYG trong cửa sổ riêng**
+  - Mở file `.md` bất kỳ bằng nút **🌸** trên thanh tiêu đề editor (hoặc item **🌸** nhấp nháy ở status bar) → mở **tab full-size riêng** (`ViewColumn.Active`, không split).
+  - Sửa trực quan kiểu **CKEditor** (Toast UI Editor), **ghi thẳng vào file** khi Save (`Ctrl/Cmd+S`), đồng bộ 2 chiều với tab editor thường.
+  - **An toàn theo thiết kế:** chỉ ghi khi user thực sự sửa → chỉ xem thì không bao giờ làm xáo trộn định dạng; cảnh báo reformat một lần.
+  - **🌗 Dark / Light** toggle ở header, nhớ qua `globalState`. Phối màu Anime Companion (header hồng sakura, nút Save viên kẹo, font Mochiy/Nunito).
+  - i18n đầy đủ vi / en / ja (`webview.markdownEditor.*`).
+- Library: **Toast UI Editor** vendor dạng UMD bundle tự chứa (`media/vendor/toastui/`), không cần bundler.
+
+### Marketplace / Release notes pitch
+
+- Sửa Markdown trực quan như rich-text editor ngay trong VS Code — không chia đôi preview, không vật lộn cú pháp thô.
+- Mở bằng nút 🌸 ở góc editor, mở thành **cửa sổ riêng full-size**, ghi thẳng vào file.
+- An toàn: chỉ ghi khi bạn thực sự sửa; có **Dark / Light** và giao diện đậm chất Anime Companion.
+
+### Pre-publish checklist v0.5.1
+
+- [x] `package.json` ở `0.5.1`
+- [x] `README.md` (EN) + `docs/README.vi.md` + `docs/README.ja.md` — "What's new" + section feature 🌸 Markdown editor
+- [x] `CHANGELOG.md` có entry `## [0.5.1] - 2026-06-10`
+- [x] `files` whitelist có `media/vendor/toastui/**` + `media/icons/**`
+- [x] Local `npm run compile` + lint + smoke test pass
+- [ ] **Smoke test** trên VS Code thật: nút 🌸 hiện với `.md` → mở editor render đúng → sửa + Save (file đổi đúng phần) → round-trip README không sửa thì file sạch → toggle Dark/Light (nhớ lựa chọn)
+- [ ] (Optional) Review tiếng Nhật section mới trong `docs/README.ja.md`
+
+### Publish flow
+
+```bash
+# 1. Bump version đã xong (package.json = 0.5.1)
+# 2. Build VSIX final
+npm run package
+
+# 3. (Optional) Local install test — DÙNG ĐÚNG CLI VS Code (lệnh `code` máy này trỏ Cursor)
+& "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd" --install-extension .\anime-companion-vscode-0.5.1.vsix --force
+
+# 4. Tag + push để trigger release workflow (.github/workflows/release.yml)
+git add -A
+git commit -m "release: v0.5.1 — Markdown WYSIWYG editor (flower button, own window, dark/light)"
+git push origin main
+git tag -a v0.5.1 -m "v0.5.1 — Markdown WYSIWYG editor"
+git push origin v0.5.1
+
+# 5. (Nếu workflow không tự publish Open VSX) publish thủ công
+npm run publish:ovsx
+```
+
+> ⚠️ Tag phải khớp `package.json` version (`0.5.1`), nếu lệch workflow fail ở bước verify.
 
 ---
 

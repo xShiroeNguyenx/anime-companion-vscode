@@ -330,6 +330,19 @@
       "saved": "✓ Saved",
       "saveFailed": "Save failed: "
     },
+    "markdownEditor": {
+      "title": "Markdown Editor",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved ✨",
+      "unsaved": "Unsaved changes",
+      "reformatWarning": "Heads up: saving rewrites the whole file in normalized Markdown.",
+      "saveFailed": "Could not apply markdown changes.",
+      "darkMode": "Switch to dark mode",
+      "lightMode": "Switch to light mode",
+      "statusBar": "Markdown",
+      "statusBarTooltip": "Open this Markdown file in the Anime editor"
+    },
     "backgroundPanel": {
       "title": "Background Image",
       "subtitle": "Put an image behind your editor, sidebar, and panel.",

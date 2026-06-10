@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -54,6 +54,8 @@
     "media/character.png",
     "media/companion.css",
     "media/icon.png",
+    "media/icons/**",
+    "media/vendor/toastui/**",
     "media/lib/**",
     "media/live2d/Hiyori/**",
     "media/messages/**",
@@ -83,6 +85,12 @@
       {
         "command": "animeCompanion.toggle",
         "title": "Anime Companion: Toggle"
+      },
+      {
+        "command": "animeCompanion.openMarkdownEditor",
+        "title": "Open in Anime Markdown Editor",
+        "category": "Anime Companion",
+        "icon": "media/icons/flower.svg"
       },
       {
         "command": "animeCompanion.changeModel",
@@ -285,6 +293,13 @@
           "command": "animeCompanion.chat.askSelection",
           "when": "editorHasSelection",
           "group": "1_modification@99"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "animeCompanion.openMarkdownEditor",
+          "when": "resourceExtname == .md",
+          "group": "navigation@-100"
         }
       ]
     },

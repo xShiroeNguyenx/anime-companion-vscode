@@ -1,0 +1,265 @@
+@import url('https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Nunito:wght@600;700;800&display=swap');
+
+:root {
+  --ac-pink-1: #ff9ec7;
+  --ac-pink-2: #ffd0e2;
+  --ac-pink-3: #6b2547;
+  --ac-pink-glow: rgba(255, 158, 199, 0.45);
+}
+
+/* ---- Theme palettes (toggled via body class) ----------------------------- */
+body,
+body.theme-dark {
+  --ac-page-bg:
+    radial-gradient(1200px 400px at 100% -10%, rgba(255, 158, 199, 0.10), transparent 60%),
+    linear-gradient(160deg, #241b26 0%, #1f1820 55%, #1a141c 100%);
+  --ac-bg: #1f1820;
+  --ac-bg-soft: #29202b;
+  --ac-editor-bg: #1f1820;
+  --ac-text: #f6e9f0;
+  --ac-line: rgba(255, 158, 199, 0.18);
+  --ac-heading: #ffd9ea;
+  --ac-code-bg: rgba(255, 158, 199, 0.16);
+  --ac-code-fg: #ffd0e2;
+  --ac-pre-bg: #181219;
+  --ac-table-th: #29202b;
+}
+
+body.theme-light {
+  --ac-page-bg:
+    radial-gradient(1200px 400px at 100% -10%, rgba(255, 158, 199, 0.20), transparent 60%),
+    linear-gradient(160deg, #fff6fb 0%, #fff0f6 55%, #ffe9f2 100%);
+  --ac-bg: #fffafc;
+  --ac-bg-soft: #ffe9f2;
+  --ac-editor-bg: #fffafc;
+  --ac-text: #4a2233;
+  --ac-line: rgba(255, 120, 170, 0.30);
+  --ac-heading: #6b2547;
+  --ac-code-bg: rgba(255, 120, 170, 0.16);
+  --ac-code-fg: #b5396b;
+  --ac-pre-bg: #fff0f6;
+  --ac-table-th: #ffe1ee;
+}
+
+html { background: #1f1820; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  /* Opaque themed backdrop so the workbench background-image patch can't bleed
+     through and wash out the editor. */
+  background: var(--ac-page-bg);
+  color: var(--ac-text);
+  font-family: 'Nunito', var(--vscode-font-family), system-ui, sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Header / toolbar ---------------------------------------------------- */
+#md-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, rgba(255, 158, 199, 0.95), rgba(255, 183, 213, 0.92));
+  border-bottom: 2px solid rgba(255, 150, 190, 0.5);
+  box-shadow: 0 4px 18px rgba(255, 126, 179, 0.25);
+}
+
+.md-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.md-flower {
+  font-size: 18px;
+  filter: drop-shadow(0 1px 2px rgba(107, 37, 71, 0.4));
+  animation: md-bob 2.4s ease-in-out infinite;
+}
+
+@keyframes md-bob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-2px) rotate(4deg); }
+}
+
+.md-title {
+  font-family: 'Mochiy Pop One', 'Nunito', sans-serif;
+  font-size: 14px;
+  color: var(--ac-pink-3);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ac-pink-3);
+  opacity: 0.9;
+}
+
+.theme-btn {
+  appearance: none;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.25);
+  color: var(--ac-pink-3);
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease;
+}
+
+.theme-btn:hover {
+  transform: scale(1.1) rotate(-8deg);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  appearance: none;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 800;
+  font-size: 12px;
+  color: #fff;
+  background: linear-gradient(135deg, #ff7fb3, var(--ac-pink-1));
+  box-shadow: 0 3px 12px rgba(255, 126, 179, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease, opacity 0.15s ease;
+}
+
+.save-btn .save-ico { font-size: 13px; }
+
+.save-btn:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.04);
+  filter: brightness(1.06);
+}
+
+.save-btn:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+
+.save-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+  box-shadow: none;
+  background: linear-gradient(135deg, #b98aa0, #c79cb1);
+}
+
+/* ---- Editor area --------------------------------------------------------- */
+#editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--ac-editor-bg);
+}
+
+#editor .toastui-editor-defaultUI {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Toolbar of the Toast UI editor, themed plum/cream + pink. */
+.toastui-editor-defaultUI-toolbar {
+  background: var(--ac-bg-soft) !important;
+  border-bottom: 1px solid var(--ac-line) !important;
+}
+
+.toastui-editor-toolbar-group { border-color: var(--ac-line) !important; }
+
+.toastui-editor-defaultUI-toolbar .toastui-editor-toolbar-icons:hover,
+.toastui-editor-defaultUI-toolbar .toastui-editor-toolbar-icons.active {
+  border-color: var(--ac-pink-1) !important;
+  background-color: rgba(255, 158, 199, 0.16) !important;
+}
+
+/* Editor panes background + text. */
+.toastui-editor-md-container,
+.toastui-editor-ww-container,
+.toastui-editor-md-preview,
+.toastui-editor .ProseMirror {
+  background: var(--ac-editor-bg) !important;
+  color: var(--ac-text);
+}
+
+.toastui-editor .ProseMirror { caret-color: var(--ac-pink-1); }
+
+/* Bottom mode switch (Markdown / WYSIWYG tabs). */
+.toastui-editor-mode-switch {
+  background: var(--ac-bg-soft) !important;
+  border-top: 1px solid var(--ac-line) !important;
+}
+
+.toastui-editor-mode-switch .tab-item.active {
+  color: var(--ac-pink-1) !important;
+  border-bottom: 2px solid var(--ac-pink-1) !important;
+  background: transparent !important;
+}
+
+/* Rendered content accents. */
+.toastui-editor-contents { color: var(--ac-text); }
+.toastui-editor-contents a { color: var(--ac-pink-1); }
+.toastui-editor-contents h1,
+.toastui-editor-contents h2 { border-bottom-color: var(--ac-line) !important; }
+.toastui-editor-contents h1,
+.toastui-editor-contents h2,
+.toastui-editor-contents h3,
+.toastui-editor-contents h4,
+.toastui-editor-contents h5,
+.toastui-editor-contents h6 { color: var(--ac-heading); }
+.toastui-editor-contents blockquote {
+  border-left: 4px solid var(--ac-pink-1) !important;
+  color: var(--ac-pink-3);
+}
+.toastui-editor-contents code {
+  background: var(--ac-code-bg) !important;
+  color: var(--ac-code-fg) !important;
+}
+.toastui-editor-contents pre { background: var(--ac-pre-bg) !important; }
+.toastui-editor-contents table th { background: var(--ac-table-th) !important; }
+
+::selection { background: var(--ac-pink-glow); }
+
+/* Cute pink scrollbars. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 158, 199, 0.35);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 158, 199, 0.55); background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---- Error fallback ------------------------------------------------------ */
+.md-error {
+  padding: 18px;
+  color: var(--ac-pink-3);
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+.md-error strong { color: var(--ac-pink-1); }
+.md-error pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-top: 8px;
+  opacity: 0.85;
+}

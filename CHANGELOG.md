@@ -3,6 +3,19 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-06-10
+
+### Added — 🌸 Markdown WYSIWYG editor in its own window
+
+- **Open any `.md` file in a full-size, cute WYSIWYG editor and edit it in place — written straight back to the file.** A 🌸 flower button on the editor title bar (and a pulsing 🌸 status-bar item) shows whenever a Markdown file is active; clicking it opens the file in a dedicated Toast UI Editor tab (`ViewColumn.Active` — a full tab, not a split) where you both see the rendered document and edit it like a rich-text editor (à la CKEditor).
+  - **Editor panel** ([src/markdown/markdown-editor-panel.ts](src/markdown/markdown-editor-panel.ts), [media/webview/markdown-editor.js](media/webview/markdown-editor.js), [media/webview/markdown-editor.css](media/webview/markdown-editor.css)) — one window per file URI (re-opening reveals the existing one). Saves through a `WorkspaceEdit` + `document.save()` so a normal editor tab for the same file stays in sync, and pulls in external edits when the panel has no pending changes.
+  - **Safe by construction** — the WYSIWYG round-trip normalizes Markdown on save, so the editor **only writes when you actually edit**: merely previewing a file leaves it byte-for-byte, with a one-time reformat warning the first time you type.
+  - **🌗 Dark / Light toggle** — a theme button in the header flips the editor between a plum-dark and a pink-cream light theme; the choice is remembered across files and windows (`globalState`).
+  - **Anime Companion styling** — pink/sakura gradient header with a bobbing 🌸, a candy Save button, themed Toast UI chrome (toolbar/links/headings/code/selection in pink), and Mochiy Pop One / Nunito fonts.
+  - **Status bar** ([src/markdown/markdown-status-bar.ts](src/markdown/markdown-status-bar.ts)) — gentle 🌸/💮 pulse only while a `.md` editor is active; hides and stops its timer otherwise.
+  - **Library** — Toast UI Editor vendored as a self-contained UMD bundle ([media/vendor/toastui/](media/vendor/toastui/)), no bundler required.
+- **i18n** — new `webview.markdownEditor.*` strings across en/vi/ja.
+
 ## [0.5.0] - 2026-06-09
 
 ### Added — 🖼️ Background Image (workbench) with a friendly control panel
