@@ -4,6 +4,9 @@ import { getMessageBank } from '../messages';
 
 // Remembered across all markdown editor windows so the dark/light choice sticks.
 const THEME_KEY = 'animeCompanion.markdownEditor.theme';
+// Optional custom accent (brand) colour (#rrggbb) that recolours the editor
+// chrome. Empty string = use the default sakura pink.
+const ACCENT_KEY = 'animeCompanion.markdownEditor.accentColor';
 
 function nonce(): string {
   let s = '';
@@ -113,6 +116,7 @@ export class MarkdownEditorPanel {
       fileName: MarkdownEditorPanel._titleFor(this._uri).replace(/^🌸 /, ''),
       strings: this._strings(),
       theme: this._context.globalState.get<string>(THEME_KEY, 'dark'),
+      accentColor: this._context.globalState.get<string>(ACCENT_KEY, ''),
     });
   }
 
@@ -134,6 +138,16 @@ export class MarkdownEditorPanel {
             msg.theme === 'light' ? 'light' : 'dark',
           );
           return;
+        case 'md:setAccent': {
+          // Store only a valid hex colour; anything else (incl. the reset
+          // signal) clears the override so the default accent takes over again.
+          const color = typeof msg.color === 'string' ? msg.color.trim() : '';
+          await this._context.globalState.update(
+            ACCENT_KEY,
+            /^#[0-9a-fA-F]{6}$/.test(color) ? color.toLowerCase() : '',
+          );
+          return;
+        }
       }
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
@@ -212,6 +226,10 @@ export class MarkdownEditorPanel {
     <span class="md-title">${strings.title || 'Markdown Editor'}</span>
   </div>
   <span id="status" class="status"></span>
+  <input id="accentColor" class="accent-color" type="color" value="#ff9ec7"
+    title="${strings.accentColor || 'Theme color'}"
+    aria-label="${strings.accentColor || 'Theme color'}" />
+  <button id="accentResetBtn" class="theme-btn" title="${strings.accentReset || 'Reset theme color'}">↺</button>
   <button id="themeBtn" class="theme-btn" title="${strings.darkMode || 'Toggle theme'}">🌙</button>
   <button id="saveBtn" class="save-btn" disabled>
     <span class="save-ico">✿</span><span class="save-label">${strings.save || 'Save'}</span>

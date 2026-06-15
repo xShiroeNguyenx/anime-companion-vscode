@@ -340,6 +340,8 @@
       "saveFailed": "Could not apply markdown changes.",
       "darkMode": "Switch to dark mode",
       "lightMode": "Switch to light mode",
+      "accentColor": "Theme color",
+      "accentReset": "Reset to default color",
       "statusBar": "Markdown",
       "statusBarTooltip": "Open this Markdown file in the Anime editor"
     },

@@ -1,25 +1,41 @@
 @import url('https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Nunito:wght@600;700;800&display=swap');
 
 :root {
-  --ac-pink-1: #ff9ec7;
-  --ac-pink-2: #ffd0e2;
-  --ac-pink-3: #6b2547;
-  --ac-pink-glow: rgba(255, 158, 199, 0.45);
+  /* Accent (brand) colour — user-customisable from the header swatch. Every
+     pink surface (header, buttons, borders, links, scrollbar…) derives from
+     these, so changing the accent recolours the whole editor chrome. The page
+     background still follows dark/light mode and is intentionally NOT touched. */
+  --ac-accent: #ff9ec7;            /* base accent */
+  --ac-accent-rgb: 255, 158, 199;  /* same colour for rgba() tints */
+  --ac-accent-strong: #ff7fb3;     /* deeper — button gradients / shadows */
+  --ac-accent-soft: #ffb7d5;       /* lighter — gradient ends */
+  --ac-accent-ink: #6b2547;        /* readable text/icon colour over the accent */
+
+  --ac-pink-1: var(--ac-accent);
+  --ac-pink-2: var(--ac-accent-soft);
+  --ac-pink-3: var(--ac-accent-ink);
+  --ac-pink-glow: rgba(var(--ac-accent-rgb), 0.45);
+
+  /* Scrollbars track the accent so the live/Markdown panes never show a black
+     bar and recolour together with the accent. */
+  --ac-scroll-thumb: rgba(var(--ac-accent-rgb), 0.55);
+  --ac-scroll-thumb-hover: rgba(var(--ac-accent-rgb), 0.85);
+  --ac-scroll-track: rgba(var(--ac-accent-rgb), 0.12);
 }
 
 /* ---- Theme palettes (toggled via body class) ----------------------------- */
 body,
 body.theme-dark {
   --ac-page-bg:
-    radial-gradient(1200px 400px at 100% -10%, rgba(255, 158, 199, 0.10), transparent 60%),
+    radial-gradient(1200px 400px at 100% -10%, rgba(var(--ac-accent-rgb), 0.10), transparent 60%),
     linear-gradient(160deg, #241b26 0%, #1f1820 55%, #1a141c 100%);
   --ac-bg: #1f1820;
   --ac-bg-soft: #29202b;
   --ac-editor-bg: #1f1820;
   --ac-text: #f6e9f0;
-  --ac-line: rgba(255, 158, 199, 0.18);
+  --ac-line: rgba(var(--ac-accent-rgb), 0.18);
   --ac-heading: #ffd9ea;
-  --ac-code-bg: rgba(255, 158, 199, 0.16);
+  --ac-code-bg: rgba(var(--ac-accent-rgb), 0.16);
   --ac-code-fg: #ffd0e2;
   --ac-pre-bg: #181219;
   --ac-table-th: #29202b;
@@ -27,15 +43,15 @@ body.theme-dark {
 
 body.theme-light {
   --ac-page-bg:
-    radial-gradient(1200px 400px at 100% -10%, rgba(255, 158, 199, 0.20), transparent 60%),
+    radial-gradient(1200px 400px at 100% -10%, rgba(var(--ac-accent-rgb), 0.20), transparent 60%),
     linear-gradient(160deg, #fff6fb 0%, #fff0f6 55%, #ffe9f2 100%);
   --ac-bg: #fffafc;
   --ac-bg-soft: #ffe9f2;
   --ac-editor-bg: #fffafc;
   --ac-text: #4a2233;
-  --ac-line: rgba(255, 120, 170, 0.30);
+  --ac-line: rgba(var(--ac-accent-rgb), 0.30);
   --ac-heading: #6b2547;
-  --ac-code-bg: rgba(255, 120, 170, 0.16);
+  --ac-code-bg: rgba(var(--ac-accent-rgb), 0.16);
   --ac-code-fg: #b5396b;
   --ac-pre-bg: #fff0f6;
   --ac-table-th: #ffe1ee;
@@ -47,11 +63,24 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
+  /* The webview shell itself must never scroll — only the Toast UI panes do
+     (they carry the styled ::-webkit-scrollbar). This kills the document-root
+     scrollbar, which in VS Code's nested-iframe webview is drawn by the host
+     frame with native arrow buttons we can't restyle. */
+  overflow: hidden;
   /* Opaque themed backdrop so the workbench background-image patch can't bleed
      through and wash out the editor. */
   background: var(--ac-page-bg);
   color: var(--ac-text);
   font-family: 'Nunito', var(--vscode-font-family), system-ui, sans-serif;
+}
+
+/* Standard (non-webkit) thin scrollbars — a belt-and-suspenders fallback for any
+   scroller the ::-webkit-scrollbar rules don't reach. `thin` also drops the
+   native arrow buttons. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ac-scroll-thumb) transparent;
 }
 
 body {
@@ -66,9 +95,9 @@ body {
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  background: linear-gradient(135deg, rgba(255, 158, 199, 0.95), rgba(255, 183, 213, 0.92));
-  border-bottom: 2px solid rgba(255, 150, 190, 0.5);
-  box-shadow: 0 4px 18px rgba(255, 126, 179, 0.25);
+  background: linear-gradient(135deg, rgba(var(--ac-accent-rgb), 0.95), var(--ac-accent-soft));
+  border-bottom: 2px solid rgba(var(--ac-accent-rgb), 0.5);
+  box-shadow: 0 4px 18px rgba(var(--ac-accent-rgb), 0.28);
 }
 
 .md-brand {
@@ -129,6 +158,24 @@ body {
   background: rgba(255, 255, 255, 0.45);
 }
 
+/* Accent-colour swatch — a round well showing the current theme accent. */
+.accent-color {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: transparent;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.accent-color:hover { transform: scale(1.1) rotate(8deg); }
+.accent-color::-webkit-color-swatch-wrapper { padding: 0; }
+.accent-color::-webkit-color-swatch { border: none; border-radius: 999px; }
+
 .save-btn {
   display: inline-flex;
   align-items: center;
@@ -142,8 +189,8 @@ body {
   font-weight: 800;
   font-size: 12px;
   color: #fff;
-  background: linear-gradient(135deg, #ff7fb3, var(--ac-pink-1));
-  box-shadow: 0 3px 12px rgba(255, 126, 179, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  background: linear-gradient(135deg, var(--ac-accent-strong), var(--ac-accent));
+  box-shadow: 0 3px 12px rgba(var(--ac-accent-rgb), 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease, opacity 0.15s ease;
 }
 
@@ -189,7 +236,7 @@ body {
 .toastui-editor-defaultUI-toolbar .toastui-editor-toolbar-icons:hover,
 .toastui-editor-defaultUI-toolbar .toastui-editor-toolbar-icons.active {
   border-color: var(--ac-pink-1) !important;
-  background-color: rgba(255, 158, 199, 0.16) !important;
+  background-color: rgba(var(--ac-accent-rgb), 0.16) !important;
 }
 
 /* Editor panes background + text. */
@@ -239,16 +286,46 @@ body {
 
 ::selection { background: var(--ac-pink-glow); }
 
-/* Cute pink scrollbars. */
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 158, 199, 0.35);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+/* Thin, auto-hiding scrollbars. The universal `::-webkit-scrollbar*` rules
+   cover every scroller — including the live-preview / Markdown / WYSIWYG panes.
+   `!important` is needed because VS Code injects its own webview scrollbar
+   styles (chunky, with arrow buttons) that would otherwise win. At rest the
+   thumb is invisible; it only fades in while actively scrolling
+   (body.ac-scrolling, toggled from JS) or while hovering the editor. */
+::-webkit-scrollbar { width: 7px !important; height: 7px !important; }
+
+/* Kill the up/down (and left/right) arrow buttons. */
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 158, 199, 0.55); background-clip: padding-box; }
-::-webkit-scrollbar-track { background: transparent; }
+
+/* No track, no corner — just the slim thumb. */
+::-webkit-scrollbar-track { background: transparent !important; }
+::-webkit-scrollbar-corner { background: transparent !important; }
+
+/* Thumb invisible at rest. */
+::-webkit-scrollbar-thumb {
+  background: transparent !important;
+  border-radius: 999px !important;
+  border: 1px solid transparent !important;
+  background-clip: padding-box !important;
+}
+
+/* Reveal the thumb while scrolling, or when hovering the editor area. */
+body.ac-scrolling::-webkit-scrollbar-thumb,
+body.ac-scrolling ::-webkit-scrollbar-thumb,
+#editor:hover ::-webkit-scrollbar-thumb {
+  background: var(--ac-scroll-thumb) !important;
+  background-clip: padding-box !important;
+}
+
+body.ac-scrolling ::-webkit-scrollbar-thumb:hover,
+#editor:hover ::-webkit-scrollbar-thumb:hover {
+  background: var(--ac-scroll-thumb-hover) !important;
+  background-clip: padding-box !important;
+}
 
 /* ---- Error fallback ------------------------------------------------------ */
 .md-error {

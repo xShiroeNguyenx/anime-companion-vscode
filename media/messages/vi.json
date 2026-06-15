@@ -340,6 +340,8 @@
       "saveFailed": "Không áp dụng được thay đổi markdown.",
       "darkMode": "Chuyển sang nền tối",
       "lightMode": "Chuyển sang nền sáng",
+      "accentColor": "Màu giao diện",
+      "accentReset": "Khôi phục màu mặc định",
       "statusBar": "Markdown",
       "statusBarTooltip": "Mở file Markdown này trong trình sửa Anime"
     },

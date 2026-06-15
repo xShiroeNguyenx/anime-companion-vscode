@@ -2,5 +2,5 @@
   "files.encoding": "utf8",
 "files.autoGuessEncoding": false,
 "animeCompanion.chat.provider": "gemini",
-"animeCompanion.chat.model": "claude-haiku-4.5"
+"animeCompanion.chat.model": "gemini-2.5-flash"
 }

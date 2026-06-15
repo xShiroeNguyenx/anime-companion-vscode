@@ -1,6 +1,61 @@
 # Public Release Guide
 
-> Bản hiện tại đang publish: **v0.5.1** (release notes ngay bên dưới). Các phần cũ giữ làm reference cho flow chung.
+> Bản hiện tại đang publish: **v0.5.2** (release notes ngay bên dưới). Các phần cũ giữ làm reference cho flow chung.
+
+---
+
+## 📦 v0.5.2 Release (2026-06-13)
+
+### Scope
+
+- Extension version public: `0.5.2`
+- Headline user-facing: **🎨 Tuỳ chỉnh giao diện cho Trình sửa Markdown** (polish tiếp nối editor v0.5.1)
+  - **Đổi màu giao diện (accent):** ô chọn màu trên header đổi toàn bộ tông hồng (header / nút / viền / link / thanh cuộn) sang màu bất kỳ; nút **↺** trả về hồng sakura mặc định. Nhớ qua `globalState` (`animeCompanion.markdownEditor.accentColor`). **Màu nền KHÔNG đổi** — vẫn đi theo Dark / Light.
+  - **Thanh cuộn mảnh:** shell webview không scroll (`html, body { overflow: hidden }`), scroll dồn vào pane Toast dùng `scrollbar-width: thin` + `scrollbar-color` theo accent (kèm `::-webkit-scrollbar` tự ẩn ở nền hỗ trợ). Sửa luôn thanh cuộn đen ở pane live-preview trước đây. *(Lưu ý: trên Windows, OS có thể vẫn vẽ nút mũi tên ▲▼ trên thanh mảnh — đây là style scrollbar cấp OS, không bỏ được từ trong webview.)*
+  - i18n: thêm `webview.markdownEditor.accentColor` / `accentReset` (vi / en / ja); đã đổi từ bộ key `bgColor` tạm thời.
+
+### Marketplace / Release notes pitch
+
+- Cá nhân hoá Trình sửa Markdown: đổi cả tông màu giao diện sang màu bạn thích chỉ bằng một ô chọn màu, reset về mặc định một chạm.
+- Thanh cuộn giờ mảnh và tự ẩn — gọn gàng, không mũi tên, chỉ hiện khi đang cuộn.
+- Màu nền vẫn theo Dark / Light như cũ.
+
+### Pre-publish checklist v0.5.2
+
+- [x] `package.json` ở `0.5.2`
+- [x] `CHANGELOG.md` có entry `## [0.5.2] - 2026-06-13`
+- [x] `README.md` (EN) + `docs/README.vi.md` + `docs/README.ja.md` — "What's new v0.5.2" + bổ sung vào section 🌸 Markdown editor
+- [x] i18n `webview.markdownEditor.accentColor` / `accentReset` ở en / vi / ja
+- [x] Local `npm run compile` (tsc) + `node --check` JS + `npm run package` pass
+- [ ] **Smoke test** trên VS Code thật: mở `.md` → ô màu đổi accent live + nhớ qua reload → ↺ về hồng → cuộn ở cả Markdown & WYSIWYG thấy thanh mảnh hiện-rồi-ẩn, không mũi tên → toggle Dark/Light vẫn đúng
+- [ ] (Không bắt buộc) Bỏ thay đổi local `.vscode/settings.json` (đổi chat provider sang gemini) khỏi commit release nếu không muốn public
+
+### Publish flow
+
+```bash
+# 1. Bump version đã xong (package.json = 0.5.2)
+# 2. Build VSIX final
+npm run package
+
+# 3. (Optional) Local install test — DÙNG ĐÚNG CLI VS Code (lệnh `code` máy này có thể trỏ Cursor)
+& "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd" --install-extension .\anime-companion-vscode-0.5.2.vsix --force
+
+# 4. Commit + tag + push để trigger release workflow (.github/workflows/release.yml)
+#    (KHÔNG add .vscode/settings.json nếu không muốn public đổi chat provider)
+git add package.json CHANGELOG.md README.md PUBLIC_RELEASE_GUIDE.md docs/README.vi.md docs/README.ja.md \
+        media/messages/en.json media/messages/vi.json media/messages/ja.json \
+        media/webview/markdown-editor.css media/webview/markdown-editor.js \
+        src/markdown/markdown-editor-panel.ts
+git commit -m "release: v0.5.2 — Markdown editor theme colour + slim auto-hiding scrollbar"
+git push origin main
+git tag -a v0.5.2 -m "v0.5.2 — Markdown editor theme colour + slim auto-hiding scrollbar"
+git push origin v0.5.2
+
+# 5. (Nếu workflow không tự publish Open VSX) publish thủ công
+npm run publish:ovsx
+```
+
+> ⚠️ Tag phải khớp `package.json` version (`0.5.2`), nếu lệch workflow fail ở bước verify.
 
 ---
 

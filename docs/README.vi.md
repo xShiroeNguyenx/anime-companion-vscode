@@ -8,12 +8,13 @@
 
 > ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.5.1
+**Phiên bản hiện tại:** v0.5.2
 
-> 🆕 **Có gì mới ở v0.5.1**:
-> - **🌸 Trình sửa Markdown WYSIWYG trong cửa sổ riêng** — mở file `.md` bất kỳ trong một trình sửa full-size dễ thương và chỉnh trực quan (ghi thẳng vào file). Nút **🌸 bông hoa** trên thanh tiêu đề editor (và item **🌸** nhấp nháy ở status bar) để mở; sửa ngay trên bản render như một rich-text editor (kiểu CKEditor), có nút **🌗 Dark / Light** và phối màu Anime Companion. **An toàn theo thiết kế** — chỉ ghi vào file khi bạn thực sự sửa, nên chỉ xem thì không bao giờ làm xáo trộn định dạng.
+> 🆕 **Có gì mới ở v0.5.2**:
+> - **🎨 Đổi màu giao diện cho trình sửa Markdown** — ô chọn màu trên header đổi luôn toàn bộ tông màu hồng (header, nút, viền, link, thanh cuộn) sang màu bạn thích, kèm nút **↺** để trả về hồng sakura mặc định. Lựa chọn được nhớ qua các file và cửa sổ. Màu nền vẫn đi theo chế độ **🌗 Dark / Light**.
+> - **Thanh cuộn mảnh** — thanh cuộn giờ mỏng và ăn theo màu giao diện (tự ẩn ở nền hỗ trợ), thay cho thanh mặc định dày ở chế độ live/Markdown và WYSIWYG.
 >
-> Kế thừa từ **v0.5.0** (🖼️ bảng điều khiển Ảnh nền), **v0.4.3** (swap tài khoản Claude) và **v0.4.0** (Agent Accounts, 💬 Pet Quick Chat).
+> Kế thừa từ **v0.5.1** (🌸 Trình sửa Markdown WYSIWYG), **v0.5.0** (🖼️ bảng điều khiển Ảnh nền), **v0.4.3** (swap tài khoản Claude) và **v0.4.0** (Agent Accounts, 💬 Pet Quick Chat).
 
 ![Anime Companion hero](images/01-hero-companion-panel.png)
 

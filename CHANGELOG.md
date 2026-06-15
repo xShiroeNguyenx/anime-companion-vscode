@@ -3,6 +3,18 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-06-13
+
+### Added — 🎨 Custom theme (accent) colour for the Markdown editor
+
+- **Recolour the 🌸 Markdown editor's pink chrome to any colour you like.** A round colour swatch + a **↺ reset** button now sit in the editor header next to the theme toggle ([src/markdown/markdown-editor-panel.ts](src/markdown/markdown-editor-panel.ts), [media/webview/markdown-editor.js](media/webview/markdown-editor.js), [media/webview/markdown-editor.css](media/webview/markdown-editor.css)). The choice is remembered across files and windows (`globalState` key `animeCompanion.markdownEditor.accentColor`); reset clears it so the default sakura pink comes back.
+  - **One colour drives the whole accent.** The editor chrome is now refactored onto a single accent variable (`--ac-accent` / `--ac-accent-rgb`) — the header gradient, Save button, theme buttons, toolbar hover/active, borders, links, blockquote, caret, selection, and the scrollbar all derive from it. The deeper/lighter shades and a readable ink colour are derived automatically from the picked colour so text on the accent stays legible. **The page background is intentionally left alone — it keeps following dark/light mode.**
+- **i18n** — new `webview.markdownEditor.accentColor` / `accentReset` strings across en/vi/ja.
+
+### Changed — Slim scrollbars in the Markdown editor
+
+- **The Markdown editor now uses a slim, accent-coloured scrollbar instead of the chunky default bar.** The webview shell no longer scrolls (`html, body { overflow: hidden }`) so scrolling happens inside the Toast UI panes, which use a thin scrollbar (`scrollbar-width: thin` + accent `scrollbar-color`, plus auto-hiding `::-webkit-scrollbar` rules where the platform honours them) ([media/webview/markdown-editor.css](media/webview/markdown-editor.css), [media/webview/markdown-editor.js](media/webview/markdown-editor.js)). This also resolves the earlier near-black scrollbar in the live-preview pane. (Note: on Windows, the OS may still draw native up/down arrow buttons on the thin bar — that's an OS-level scrollbar style, not removable from inside the webview.)
+
 ## [0.5.1] - 2026-06-10
 
 ### Added — 🌸 Markdown WYSIWYG editor in its own window

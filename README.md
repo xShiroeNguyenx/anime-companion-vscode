@@ -6,12 +6,13 @@
 
 > ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.5.1
+**Current version:** v0.5.2
 
-> 🆕 **What's new in v0.5.1**:
-> - **🌸 Markdown WYSIWYG editor in its own window** — open any `.md` file in a full-size, cute editor and edit it visually (written straight back to the file). A **🌸 flower** button on the editor title bar (and a pulsing **🌸** status-bar item) opens it; edit the rendered document like a rich-text editor (à la CKEditor), with a **🌗 Dark / Light** toggle and full Anime Companion styling. **Safe by design** — it only writes the file when you actually edit, so previewing never reformats it.
+> 🆕 **What's new in v0.5.2**:
+> - **🎨 Custom theme colour for the Markdown editor** — a colour swatch in the editor header recolours the whole pink chrome (header, buttons, borders, links, scrollbar) to any colour you like, with a **↺ reset** back to the default sakura pink. Your choice is remembered across files and windows. The page background still follows **🌗 Dark / Light** mode.
+> - **Slim scrollbar** — the editor now uses a thin, accent-coloured scrollbar (auto-hiding where the platform supports it) instead of the chunky default bar in the live/Markdown and WYSIWYG panes.
 >
-> Builds on **v0.5.0**'s 🖼️ Background Image control panel, **v0.4.3**'s Claude account swap, and **v0.4.0**'s Agent Accounts + 💬 Pet Quick Chat.
+> Builds on **v0.5.1**'s 🌸 Markdown WYSIWYG editor, **v0.5.0**'s 🖼️ Background Image control panel, **v0.4.3**'s Claude account swap, and **v0.4.0**'s Agent Accounts + 💬 Pet Quick Chat.
 
 ![Anime Companion hero](docs/images/01-hero-companion-panel.png)
 
@@ -41,6 +42,8 @@ Or download the `.vsix` from the [Open VSX page](https://open-vsx.org/extension/
 - **Edit `.md` files visually, like a rich-text editor** (à la CKEditor) — no split preview, no wrestling with raw syntax. Click the **🌸 flower** on the editor title bar (or the pulsing **🌸** status-bar item) to open the current Markdown file in a **full-size tab** of its own (not a split).
 - **Writes straight back to the file** on Save (`Ctrl/Cmd+S` works too), kept in sync with any normal editor tab. **Safe by design:** it only writes when you actually edit, so just previewing never touches the file — with a one-time heads-up that saving normalizes Markdown formatting.
 - **🌗 Dark / Light** toggle in the header, remembered across files and windows.
+- **🎨 Custom theme colour** — a colour swatch in the header recolours the whole accent (header, buttons, borders, links, scrollbar) to any colour, with a **↺ reset** to the default sakura pink; remembered across files and windows. The page background keeps following Dark / Light mode.
+- **Slim scrollbar** — a thin, accent-coloured bar (auto-hiding where the platform supports it) instead of the chunky default.
 - **Anime Companion look** — sakura-pink header with a bobbing 🌸, a candy Save button, themed toolbar, and cute fonts.
 
 **Quick start:** open any `.md` file → click the **🌸** button (top-right of the editor) or run `Open in Anime Markdown Editor` from the Command Palette.

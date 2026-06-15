@@ -340,6 +340,8 @@
       "saveFailed": "Markdown の変更を適用できませんでした。",
       "darkMode": "ダークモードに切り替え",
       "lightMode": "ライトモードに切り替え",
+      "accentColor": "テーマカラー",
+      "accentReset": "デフォルトの色に戻す",
       "statusBar": "Markdown",
       "statusBarTooltip": "この Markdown ファイルを Anime エディターで開く"
     },

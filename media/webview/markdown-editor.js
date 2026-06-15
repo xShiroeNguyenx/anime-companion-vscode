@@ -8,6 +8,12 @@
   const saveBtn = document.getElementById('saveBtn');
   const statusEl = document.getElementById('status');
   const themeBtn = document.getElementById('themeBtn');
+  const accentInput = document.getElementById('accentColor');
+  const accentResetBtn = document.getElementById('accentResetBtn');
+
+  // The CSS default accent (the sakura pink). Must match :root --ac-accent in
+  // markdown-editor.css so the swatch shows the real colour when no override.
+  const DEFAULT_ACCENT = '#ff9ec7';
 
   let editor = null;
   let dirty = false;
@@ -16,6 +22,8 @@
   let applyingRemote = false;
   let warnedReformat = false;
   let currentTheme = 'dark';
+  // Custom accent (brand) colour (#rrggbb), or '' to use the CSS default.
+  let currentAccent = '';
 
   function setStatus(text) {
     statusEl.textContent = text || '';
@@ -45,6 +53,99 @@
       vscode.postMessage({ command: 'md:setTheme', theme: currentTheme });
     });
   }
+
+  // ---- Custom accent (theme) colour ---------------------------------------
+  // Recolours the pink chrome (header, buttons, borders, links, scrollbar). The
+  // page background is intentionally left to follow dark/light mode.
+  function hexToRgb(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+    if (!m) return null;
+    const int = parseInt(m[1], 16);
+    return { r: (int >> 16) & 255, g: (int >> 8) & 255, b: int & 255 };
+  }
+
+  function rgbToHex(rgb) {
+    return '#' + [rgb.r, rgb.g, rgb.b]
+      .map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  // Perceived luminance (0..1).
+  function luminance(rgb) {
+    return (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+  }
+
+  // Blend toward black (f<0) or white (f>0) keeping the hue — used to derive the
+  // deeper/lighter accent shades from the single picked colour.
+  function shade(rgb, f) {
+    const t = f < 0 ? 0 : 255;
+    const a = Math.abs(f);
+    return { r: rgb.r + (t - rgb.r) * a, g: rgb.g + (t - rgb.g) * a, b: rgb.b + (t - rgb.b) * a };
+  }
+
+  function syncAccentSwatch() {
+    if (accentInput) accentInput.value = currentAccent || DEFAULT_ACCENT;
+  }
+
+  // Apply (or clear, when color is falsy) the custom accent by setting the
+  // accent CSS vars on <body>; every pink surface derives from them.
+  function applyAccent(color) {
+    const style = document.body.style;
+    const vars = [
+      '--ac-accent', '--ac-accent-rgb', '--ac-accent-strong',
+      '--ac-accent-soft', '--ac-accent-ink',
+    ];
+    const rgb = color ? hexToRgb(color) : null;
+    if (!rgb) {
+      currentAccent = '';
+      vars.forEach((p) => style.removeProperty(p));
+      syncAccentSwatch();
+      return;
+    }
+    currentAccent = rgbToHex(rgb);
+    style.setProperty('--ac-accent', currentAccent);
+    style.setProperty('--ac-accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+    style.setProperty('--ac-accent-strong', rgbToHex(shade(rgb, -0.14)));
+    style.setProperty('--ac-accent-soft', rgbToHex(shade(rgb, 0.32)));
+    // Ink must read against the accent-tinted header: dark plum on a bright
+    // accent, near-white on a dark one.
+    style.setProperty(
+      '--ac-accent-ink',
+      luminance(rgb) > 0.55 ? rgbToHex(shade(rgb, -0.68)) : '#fff6fb',
+    );
+    syncAccentSwatch();
+  }
+
+  if (accentInput) {
+    // 'input' fires continuously while dragging — live preview only. 'change'
+    // fires once the colour is committed — that's when we persist it.
+    accentInput.addEventListener('input', () => applyAccent(accentInput.value));
+    accentInput.addEventListener('change', () => {
+      applyAccent(accentInput.value);
+      vscode.postMessage({ command: 'md:setAccent', color: currentAccent });
+    });
+  }
+
+  if (accentResetBtn) {
+    accentResetBtn.addEventListener('click', () => {
+      applyAccent('');
+      vscode.postMessage({ command: 'md:setAccent', color: '' });
+    });
+  }
+
+  // ---- Auto-hiding scrollbars ---------------------------------------------
+  // The thin scrollbar thumb is invisible at rest (see markdown-editor.css);
+  // flag `body.ac-scrolling` while the user is actively scrolling so only the
+  // moving thumb shows, then fade it back out shortly after scrolling stops.
+  let scrollHideTimer = null;
+  function flagScrolling() {
+    document.body.classList.add('ac-scrolling');
+    if (scrollHideTimer) clearTimeout(scrollHideTimer);
+    scrollHideTimer = setTimeout(() => document.body.classList.remove('ac-scrolling'), 900);
+  }
+  // Capture phase: scroll events don't bubble, and the real scrollers live deep
+  // inside the Toast UI panes, so listen on the way down to catch them all.
+  document.addEventListener('scroll', flagScrolling, true);
 
   // Surface any failure right in the panel so a blank editor is never a mystery.
   function showError(message) {
@@ -121,6 +222,7 @@
     }
     if (!editor) return;
     applyTheme(currentTheme);
+    applyAccent(currentAccent);
     setDirty(false);
     warnedReformat = false;
     setStatus('');
@@ -148,6 +250,7 @@
       case 'md:setContent':
         if (msg.strings) Object.assign(strings, msg.strings);
         if (msg.theme) currentTheme = msg.theme === 'light' ? 'light' : 'dark';
+        if (typeof msg.accentColor === 'string') currentAccent = msg.accentColor;
         applyContent(msg.content);
         break;
       case 'md:externalChange':
