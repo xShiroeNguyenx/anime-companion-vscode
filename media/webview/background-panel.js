@@ -36,6 +36,24 @@
   const root = document.getElementById('root');
   let state = null;
 
+  // Per-region URL box state, kept OUTSIDE `state` so it survives the full
+  // re-render that every background:state broadcast triggers (e.g. dragging a
+  // slider). Holds the in-progress text, loading flag, and last error.
+  const urlStates = {};
+  function urlState(region) {
+    if (!urlStates[region]) urlStates[region] = { value: '', loading: false, error: '' };
+    return urlStates[region];
+  }
+  function submitUrl(region) {
+    const st = urlState(region);
+    const value = (st.value || '').trim();
+    if (!value || st.loading) return;
+    st.loading = true;
+    st.error = '';
+    post('background:addUrl', { region, url: value });
+    render();
+  }
+
   function el(tag, attrs, children) {
     const e = document.createElement(tag);
     if (attrs) for (const k in attrs) {
@@ -82,9 +100,33 @@
       el('button', { class: 'btn', text: t('clear', 'Clear'), disabled: !r.imageUri, onclick: () => post('background:clearImage', { region }) }),
     ]);
 
+    // URL box — paste a Google Drive / Dropbox / direct image link. The
+    // extension downloads it, saves it like a picked file, and updates config.
+    const ust = urlState(region);
+    const urlInput = el('input', {
+      type: 'url', class: 'url-input', value: ust.value, disabled: ust.loading,
+      placeholder: t('urlPlaceholder', 'Paste image link (Google Drive, Dropbox, direct URL)…'),
+    });
+    const urlAddBtn = el('button', {
+      class: 'btn', disabled: ust.loading || !ust.value.trim(),
+      text: ust.loading ? t('urlLoading', 'Loading…') : t('urlAdd', 'Add URL'),
+      onclick: () => submitUrl(region),
+    });
+    urlInput.addEventListener('input', (e) => {
+      ust.value = e.target.value;
+      urlAddBtn.disabled = ust.loading || !ust.value.trim();
+    });
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); submitUrl(region); }
+    });
+    const urlRow = el('div', { class: 'url-row' }, [urlInput, urlAddBtn]);
+    const urlError = ust.error ? el('div', { class: 'url-error', text: ust.error }) : null;
+
     const picker = el('div', { class: 'picker' }, [
       thumb,
       pickBtns,
+      urlRow,
+      urlError,
       el('div', { class: 'filename', text: r.imageName || '' }),
     ]);
 
@@ -222,6 +264,16 @@
     if (msg && msg.command === 'background:state') {
       if (msg.strings) S = msg.strings;
       state = msg.state;
+      render();
+    } else if (msg && msg.command === 'background:urlResult') {
+      const st = urlState(msg.region);
+      st.loading = false;
+      if (msg.ok) {
+        st.value = '';
+        st.error = '';
+      } else {
+        st.error = msg.error || t('urlError', 'Could not load image from URL');
+      }
       render();
     }
   });

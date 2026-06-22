@@ -11,6 +11,9 @@ dist/
 .claude/
 .vscode-test/
 
+# Temp npm cache (created by local installs/packaging) — never commit
+.tmp-npm-cache/
+
 # Local secrets — OVSX_PAT, VSCE_PAT, etc. Never commit.
 .env
 .env.*

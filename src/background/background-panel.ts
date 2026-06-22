@@ -11,6 +11,7 @@ import {
   RegionConfig,
 } from './types';
 import { encodeImageToDataUri } from './image-encoder';
+import { downloadImage } from './image-url';
 
 const fsp = fs.promises;
 
@@ -178,6 +179,9 @@ export class BackgroundPanel {
         case 'background:pickImage':
           await this._pickImage(msg.region);
           return;
+        case 'background:addUrl':
+          await this._addImageFromUrl(msg.region, msg.url);
+          return;
         case 'background:clearImage':
           await this._setConfig(`background.${this._region(msg.region)}.image`, '');
           return;
@@ -260,6 +264,34 @@ export class BackgroundPanel {
       return;
     }
     await this._setConfig(`background.${r}.image`, dest);
+  }
+
+  // Download an image from a URL (Google Drive / Dropbox share links are
+  // normalized to direct-download links) and save it like a picked file, so the
+  // rest of the apply/encode pipeline is unchanged. Always reports back to the
+  // webview so its per-region "loading" state clears on success or failure.
+  private async _addImageFromUrl(region: any, url: any): Promise<void> {
+    const r = this._region(region);
+    const raw = typeof url === 'string' ? url.trim() : '';
+    if (!raw) {
+      this._postUrlResult(r, false, 'URL trống.');
+      return;
+    }
+    try {
+      const img = await downloadImage(raw);
+      const dest = path.join(this._imageDir, `${r}-${Date.now()}${img.ext}`);
+      await fsp.writeFile(dest, img.buf);
+      await this._setConfig(`background.${r}.image`, dest);
+      this._postUrlResult(r, true);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      log(`BackgroundPanel addUrl failed: ${detail}`);
+      this._postUrlResult(r, false, detail);
+    }
+  }
+
+  private _postUrlResult(region: BackgroundRegion, ok: boolean, error?: string): void {
+    this._panel.webview.postMessage({ command: 'background:urlResult', region, ok, error });
   }
 
   // ---- html ----------------------------------------------------------------

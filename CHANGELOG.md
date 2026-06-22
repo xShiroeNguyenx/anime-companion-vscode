@@ -3,6 +3,16 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-06-22
+
+### Added — 🔗 Add a background image straight from a URL (Google Drive / Dropbox)
+
+- **You can now paste an image link into the Background control panel instead of only picking a local file.** Each region card (Fullscreen / Editor / Sidebar / Panel) gets a URL box + **Add URL** button next to the existing picker ([media/webview/background-panel.js](media/webview/background-panel.js), [media/webview/background-panel.css](media/webview/background-panel.css)). The extension downloads the image, saves it into global storage exactly like a picked file, and updates `animeCompanion.background.{region}.image` — so the existing apply/encode/patch pipeline is unchanged and **Apply (reload window)** works the same.
+  - **Share-link normalization** ([src/background/image-url.ts](src/background/image-url.ts)) — Google Drive share links (`/file/d/<id>/view`, `open?id=<id>`, `uc?id=<id>`) and Dropbox links are rewritten to direct-download URLs automatically, so you can paste the link you get from the *Share* dialog (set it to **Anyone with the link**).
+  - **Safe download** — fetched over the built-in `https`/`http` client with redirect-following (Google Drive → `googleusercontent`), a 20s timeout, and a ~2.4 MB cap (the image is embedded into a VS Code startup file, so it must stay small). The real image type is sniffed from magic bytes (png/jpg/webp/gif/bmp/svg) rather than trusting `Content-Type`, and an HTML response (a not-publicly-shared Drive file) is reported as a clear error instead of being saved.
+  - **Inline feedback** — per-region loading state and error text live in the panel and survive its live re-renders (e.g. while dragging a slider).
+- **i18n** — new `webview.backgroundPanel.url*` strings across en/vi/ja.
+
 ## [0.5.2] - 2026-06-13
 
 ### Added — 🎨 Custom theme (accent) colour for the Markdown editor

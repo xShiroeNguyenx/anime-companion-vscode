@@ -85,6 +85,21 @@ h1 { font-size: 18px; margin: 0 0 2px; }
 }
 .picker-buttons { display: flex; gap: 6px; }
 
+/* URL box: stacked (input over button) to fit the narrow picker column. */
+.url-row { display: flex; flex-direction: column; gap: 6px; }
+.url-input {
+  width: 100%;
+  font: inherit;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+}
+.url-input::placeholder { color: var(--vscode-input-placeholderForeground); }
+.url-input:disabled { opacity: 0.6; }
+.url-error { font-size: 11px; color: var(--vscode-errorForeground); }
+
 .controls { display: flex; flex-direction: column; gap: 10px; }
 .control-row { display: flex; align-items: center; gap: 8px; }
 .control-row label { width: 64px; font-size: 12px; color: var(--vscode-descriptionForeground); }
