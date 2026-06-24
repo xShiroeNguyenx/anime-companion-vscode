@@ -3,6 +3,23 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.4] - 2026-06-24
+
+### Added — 🔄 Alt + drag to rotate the Live2D model (pseudo-3D head/body turn)
+
+- **Hold Alt and drag the model with the left mouse button to turn its head and body toward where you drag** — a 2.5D "look toward" gesture, not a flat image spin. New [media/webview/rotation.js](media/webview/rotation.js) steers pixi-live2d-display's **focus controller** from the drag delta: drag right → look right, drag down → look down. The controller turns the head (`ParamAngleX/Y/Z`), body (`ParamBodyAngleX`) and eyes (`ParamEyeBallX/Y`). Releasing the mouse (or Alt) eases the pose smoothly back to idle.
+  - **Survives the idle motion** — the focus controller applies its angles *inside the model's own update loop, right after the motion and expression managers run* (`…afterMotionUpdate → expression → updateFocus()…`), layering the turn on top of the idle head-sway instead of being overwritten by it. (An earlier attempt that wrote the angle params on `app.ticker` got clobbered every frame by the idle motion — the head/body wouldn't turn.)
+  - **Separated from the existing gestures** — Alt+drag never triggers headpat (long-press), poke/click, or the move-drag (window/panel reposition); the trailing `pointerup` is suppressed so a rotate never registers as a poke ([media/webview/interaction.js](media/webview/interaction.js)). Works on the model and from transparent canvas areas, in both Panel and Desktop modes.
+  - **Cursor feedback** — the pointer becomes a "grabbing" hand while rotating ([media/companion.css](media/companion.css)).
+  - **Note** — this is a head/body turn bounded by each model's rig (~±30°), inherent to Live2D; it is not a true 360° 3D rotation.
+
+### Added — 👀 "Auto look-at cursor" toggle (hands-free follow)
+
+- **A new right-click menu toggle (Appearance › Auto look-at cursor) makes the companion's head and eyes follow your mouse automatically while it hovers over the companion — no Alt needed.** It steers the same focus controller (eased, hover-driven); the icon shows ✅ when on, and moving the cursor off the companion recenters the gaze ([media/webview/rotation.js](media/webview/rotation.js), [media/webview/interaction.js](media/webview/interaction.js)). Manual **Alt + drag** still works and takes precedence while held.
+- **Persisted** — backed by the new `animeCompanion.focusFollow.enabled` setting, written from the menu and re-injected on reload so the choice sticks ([src/companion-message-dispatcher.ts](src/companion-message-dispatcher.ts), [src/companion-view.ts](src/companion-view.ts)); also flows through the Desktop Companion init payload ([src/desktop-pet-bridge.ts](src/desktop-pet-bridge.ts)).
+- **"You're making me dizzy" reaction** — whipping the cursor back and forth fast while following (4 quick horizontal reversals in a row) makes the model complain, hold its gaze forward for a beat, and react (bubble + surprised face + sound), with a 6s cooldown so it can't spam — interacting more, not just a passive follow ([media/webview/rotation.js](media/webview/rotation.js)).
+- **i18n** — new `menu.focusFollow` + `bubbles.focusFollow*` / `bubbles.followDizzy` strings across en/vi/ja.
+
 ## [0.5.3] - 2026-06-22
 
 ### Added — 🔗 Add a background image straight from a URL (Google Drive / Dropbox)

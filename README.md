@@ -6,13 +6,13 @@
 
 > ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.5.2
+**Current version:** v0.5.4
 
-> 🆕 **What's new in v0.5.2**:
-> - **🎨 Custom theme colour for the Markdown editor** — a colour swatch in the editor header recolours the whole pink chrome (header, buttons, borders, links, scrollbar) to any colour you like, with a **↺ reset** back to the default sakura pink. Your choice is remembered across files and windows. The page background still follows **🌗 Dark / Light** mode.
-> - **Slim scrollbar** — the editor now uses a thin, accent-coloured scrollbar (auto-hiding where the platform supports it) instead of the chunky default bar in the live/Markdown and WYSIWYG panes.
+> 🆕 **What's new in v0.5.4**:
+> - **🔄 Rotate the model by hand** — hold **Alt + left-drag** to turn the companion's head and body toward where you drag (a bounded 2.5D look-toward via the Live2D focus controller; eases back to idle on release).
+> - **👀 Auto look-at cursor** — a new right-click toggle (**Appearance › Auto look-at cursor**) makes the head and eyes follow your mouse hands-free while it hovers; the choice is remembered. Whip the cursor back and forth too fast and the companion gets "dizzy" and asks you to slow down.
 >
-> Builds on **v0.5.1**'s 🌸 Markdown WYSIWYG editor, **v0.5.0**'s 🖼️ Background Image control panel, **v0.4.3**'s Claude account swap, and **v0.4.0**'s Agent Accounts + 💬 Pet Quick Chat.
+> Builds on **v0.5.3**'s 🔗 background image from a URL, **v0.5.1**'s 🌸 Markdown WYSIWYG editor, **v0.5.0**'s 🖼️ Background Image control panel, **v0.4.3**'s Claude account swap, and **v0.4.0**'s Agent Accounts + 💬 Pet Quick Chat.
 
 ![Anime Companion hero](docs/images/01-hero-companion-panel.png)
 
@@ -118,6 +118,7 @@ Or download the `.vsix` from the [Open VSX page](https://open-vsx.org/extension/
 - **Live panel resize**: drag the VS Code panel taller/shorter/wider and the character refits in real time. Works both in default flex layout and after you've dragged the companion to a custom spot — feet never clip thanks to a small bottom breathing margin for animation sway.
 - Falls back to a static image if Live2D fails to load.
 - Smooth expression blending through PIXI ticker — mood transitions don't jitter.
+- **Hands-on interaction**: **Alt + left-drag** turns the head/body toward the cursor (bounded ~±30° — Live2D is 2.5D, not a true 360° spin), and an **Auto look-at cursor** toggle (right-click → **Appearance**) makes the gaze follow your mouse hands-free. Wiggle the cursor back and forth too fast and the companion gets dizzy and asks you to slow down. Click/double-click still poke, long-press still headpats.
 - Add your own local models via `animeCompanion.customModelRoots` or `animeCompanion.customModels` (see [MODEL_LICENSE_AUDIT.md](MODEL_LICENSE_AUDIT.md)).
 - When you have a workspace open, the model is remembered per-workspace; there's a command to reset back to your global model.
 

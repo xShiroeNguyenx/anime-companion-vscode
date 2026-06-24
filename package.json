@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -344,6 +344,11 @@
           ],
           "default": "medium",
           "description": "Size of the companion character."
+        },
+        "animeCompanion.focusFollow.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "When on, the companion's head and eyes follow your mouse cursor while it hovers over the companion (auto look-at). Toggle it live from the companion right-click menu (Appearance › Auto look-at cursor). Alt + left-drag still rotates the head/body manually regardless of this setting."
         },
         "animeCompanion.model": {
           "type": "string",

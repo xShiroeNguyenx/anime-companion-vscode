@@ -539,6 +539,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       : mediaUri('audio', voiceLanguage);
     const messageLanguage = config.get<string>('messageLanguage', 'vi');
     const muted = config.get<boolean>('muted', false);
+    const focusFollow = config.get<boolean>('focusFollow.enabled', false);
     const customAmbientTracks = this._getCustomAmbientTracks();
     const ambientPreset = getAmbientPreset(config.get<string>('ambientPreset', 'off'), customAmbientTracks);
     const ambientVolume = config.get<number>('ambientVolume', 30);
@@ -757,6 +758,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__VOICE_LANGUAGE__ = "${voiceLanguage}";
     window.__MESSAGE_LANGUAGE__ = "${messageLanguage}";
     window.__AUDIO_MUTED__ = ${muted ? 'true' : 'false'};
+    window.__FOCUS_FOLLOW__ = ${focusFollow ? 'true' : 'false'};
     window.__AMBIENT_PRESET__ = "${ambientPreset.id}";
     window.__AMBIENT_VOLUME__ = ${ambientVolume};
     window.__AMBIENT_TRACKS__ = ${JSON.stringify(ambientTracks)};

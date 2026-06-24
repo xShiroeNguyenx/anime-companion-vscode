@@ -188,6 +188,9 @@ User override hoàn toàn bằng `chat.systemPrompt` setting (nếu non-empty th
 - **Double / Triple Click:** Bấm nhanh 2–3 lần → vui vẻ (Happy), khen ngợi.
 - **Long Press (Headpat):** Giữ chuột > 0.8s → Shy → Love kèm hiệu ứng trái tim, "Dễ chịu quá nha~".
 - **Spam Click (>5 clicks ngắn):** Cáu (Angry), "Đừng bấm nữa, chóng mặt quá đi!".
+- **Alt + kéo chuột trái (Xoay tay):** Giữ Alt rồi kéo → quay đầu/thân model theo hướng kéo (giả-3D qua focus controller của Live2D, giới hạn ~±30°), thả ra ease về tư thế cũ. Tách biệt hẳn với poke / headpat / di chuyển.
+- **Tự nhìn theo con trỏ (toggle ở menu chuột phải):** Bật ở **Diện mạo › Tự nhìn theo con trỏ** → đầu/mắt tự dõi theo con trỏ khi rê gần model (rảnh tay, chuyển động mượt), rê ra ngoài → nhìn thẳng lại. Trạng thái lưu qua `animeCompanion.focusFollow.enabled`.
+- **Chóng mặt (khi follow):** Rê con trỏ qua lại quá nhanh (4 lần đảo chiều ngang liên tiếp ≤ 450ms) → model than "chậm lại đi, chóng mặt quá", giữ nhìn thẳng một nhịp; cooldown 6s chống spam.
 
 ### Animation & Expression
 - **Motion Groups Live2D:** gọi trực tiếp `TapBody`, `TapHead`, `Idle`… tương ứng với hành động.

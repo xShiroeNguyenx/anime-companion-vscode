@@ -8,6 +8,17 @@ import {
   startBubbleStream,
   startQuickChatHistoryTurn,
 } from './ui.js';
+import {
+  startModelRotation,
+  updateModelRotation,
+  endModelRotation,
+  isModelRotating,
+  setFollowCursor,
+  isFollowEnabled,
+  applyFollowFocus,
+  recenterFollow,
+  setDizzyHandler,
+} from './rotation.js';
 
 const HEART_CURSOR_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 48 48">
@@ -105,6 +116,12 @@ export function setupModel() {
   let pendingDrag = null;
   let panelDragState = null;
 
+  // Alt+left-drag = rotate (turn head/body), handled separately from the
+  // move-drag above. Stays true from mousedown until ~50ms after mouseup so the
+  // model's own pointerup (which would otherwise count a poke) is suppressed —
+  // mirrors the isWindowDragging pattern.
+  let isRotatingGesture = false;
+
   const canvas = document.getElementById('live2dCanvas');
   const isDesktopPet = document.body.classList.contains('desktop-pet-mode');
   const tauriWindow = isDesktopPet ? (
@@ -183,6 +200,18 @@ export function setupModel() {
     debugLog('recordPotentialDragStart: x=' + clientX + ', y=' + clientY);
   }
 
+  // Enter rotate mode. Cancels any pending click/longpress so Alt+drag never
+  // fires a poke/headpat, pins the gesture flag (suppresses the trailing
+  // pointerup poke) and shows the grabbing cursor.
+  function beginRotateGesture(clientX, clientY) {
+    cancelClickBookkeeping();
+    pendingDrag = null;
+    isRotatingGesture = true;
+    document.body.classList.add('model-rotating');
+    startModelRotation(clientX, clientY);
+    debugLog('Rotate gesture begin: x=' + clientX + ', y=' + clientY);
+  }
+
   state.model.on('pointerdown', (e) => {
     const btn = e?.data?.button ?? e?.data?.originalEvent?.button;
     const altKey = !!(e?.data?.originalEvent?.altKey ?? e?.altKey);
@@ -192,6 +221,12 @@ export function setupModel() {
     if (isWindowDragging) return;
 
     const oe = e?.data?.originalEvent;
+    if (altKey && typeof oe?.clientX === 'number') {
+      // Alt + left-drag rotates the model instead of moving/poking it.
+      oe.preventDefault?.();
+      beginRotateGesture(oe.clientX, oe.clientY);
+      return;
+    }
     if (oe && typeof oe.clientX === 'number') {
       recordPotentialDragStart(oe.clientX, oe.clientY);
     }
@@ -228,6 +263,8 @@ export function setupModel() {
       isWindowDragging = false;
       return;
     }
+    // A just-finished Alt rotate must not be counted as a poke/click.
+    if (isRotatingGesture) return;
     clearTimeout(longPressTimer);
 
     if (isLongPress) {
@@ -291,6 +328,12 @@ export function setupModel() {
       debugLog('canvas mousedown: btn=' + event.button + ', alt=' + event.altKey + ', x=' + event.clientX + ', y=' + event.clientY);
       if (event.button !== 0) return;
       if (isCooldown || isWindowDragging) return;
+      if (event.altKey) {
+        // Alt + drag from a transparent canvas area also rotates.
+        event.preventDefault();
+        beginRotateGesture(event.clientX, event.clientY);
+        return;
+      }
       recordPotentialDragStart(event.clientX, event.clientY);
     }, true);
   }
@@ -299,6 +342,10 @@ export function setupModel() {
   // drag once the cursor crosses the threshold; live-updates panel mode
   // until mouseup.
   window.addEventListener('mousemove', (event) => {
+    if (isModelRotating()) {
+      updateModelRotation(event.clientX, event.clientY);
+      return;
+    }
     if (panelDragState) {
       const c = panelDragState.container;
       const newLeft = event.clientX - panelDragState.offsetX;
@@ -328,8 +375,21 @@ export function setupModel() {
     debugLog(
       'mouseup: panelDrag=' + Boolean(panelDragState) +
       ', pendingDrag=' + Boolean(pendingDrag) +
-      ', isWindowDragging=' + isWindowDragging
+      ', isWindowDragging=' + isWindowDragging +
+      ', rotating=' + isRotatingGesture
     );
+    if (isRotatingGesture) {
+      // End the rotate (unless Alt was already released, which ended it via
+      // keyup). Defer clearing the flag so the model's pointerup from the same
+      // release is still suppressed.
+      if (isModelRotating()) endModelRotation();
+      pendingDrag = null;
+      setTimeout(() => {
+        isRotatingGesture = false;
+        document.body.classList.remove('model-rotating');
+      }, 50);
+      return;
+    }
     if (panelDragState) {
       const c = panelDragState.container;
       c.classList.remove('companion-container--dragging');
@@ -346,6 +406,32 @@ export function setupModel() {
     // by the existing isWindowDragging guards in pointerup.
     setTimeout(() => { isWindowDragging = false; }, 50);
   }, true);
+
+  // Releasing Alt mid-drag ends rotate mode too (the mouse may still be held).
+  // The gesture flag stays set until mouseup so the trailing poke is suppressed.
+  window.addEventListener('keyup', (event) => {
+    if (event.key === 'Alt' && isModelRotating()) endModelRotation();
+  }, true);
+
+  // Follow-cursor mode (toggled from the right-click menu): the head tracks the
+  // mouse while it hovers the companion. Alt-drag takes precedence; when the
+  // cursor leaves the webview, recenter so the model looks forward again.
+  window.addEventListener('mousemove', (event) => {
+    if (!isFollowEnabled() || isModelRotating()) return;
+    applyFollowFocus(event.clientX, event.clientY);
+  });
+  document.documentElement.addEventListener('mouseleave', () => {
+    if (isFollowEnabled()) recenterFollow();
+  });
+  // Whipping the cursor back and forth too fast while following → the model
+  // complains and holds its gaze forward for a beat (rotation.js drives timing).
+  setDizzyHandler(() => {
+    showBubble(t('bubbles.followDizzy', 'Chậm lại chút đi Onii-chan~ rê nhanh vậy em chóng mặt mất! 😵‍💫'));
+    setExpression('surprised', 1800);
+    playAudio('spam.mp3');
+    createSparkle();
+  });
+  if (window.__FOCUS_FOLLOW__) setFollowCursor(true);
 
   // Apply any persisted position right away so the user's chosen spot
   // survives reloads. Bridge mode injects this via the init payload; panel
@@ -748,6 +834,7 @@ function setupCompactContextMenu() {
         { icon: '📸', label: t('menu.captureChibi', 'Capture Chibi'),           action: 'capture-chibi' },
         { icon: '🐾', label: t('menu.toggleCursorChibi', 'Toggle Cursor Chibi'),action: 'toggle-cursor-chibi' },
         { icon: '🎯', label: t('menu.tuneCursorChibi', 'Tune Cursor Chibi'),    action: 'tune-cursor-chibi' },
+        { icon: '👀', label: t('menu.focusFollow', 'Auto look-at cursor'),      action: 'toggle-focus-follow', focus: true },
         { icon: '🖼️', label: t('menu.background', 'Background Image'),           action: 'open-background' },
         { icon: '📍', label: t('menu.resetPosition', 'Reset Position'),         action: 'reset-position' },
         { icon: '🎬', label: t('menu.motion', 'Motion'),                        action: 'play-motion' },
@@ -841,7 +928,7 @@ function setupCompactContextMenu() {
     const submenu = document.createElement('div');
     submenu.className = 'companion-context-menu companion-context-submenu';
     submenu.innerHTML = cat.items.map((item) => {
-      const iconClass = item.mute ? 'companion-mute-icon' : '';
+      const iconClass = item.mute ? 'companion-mute-icon' : (item.focus ? 'companion-focus-icon' : '');
       const labelClass = item.mute ? 'companion-mute-label' : '';
       return `
         <div class="companion-menu-item" data-action="${item.action}">
@@ -878,6 +965,7 @@ function setupCompactContextMenu() {
     const submenu = submenus[categoryId];
     if (!submenu) return;
     syncMuteMenuLabel(submenu);
+    syncFocusMenuLabel(submenu);
     const trigger = mainMenu.querySelector(`[data-category="${categoryId}"]`);
     const mainRect = mainMenu.getBoundingClientRect();
     const itemRect = trigger ? trigger.getBoundingClientRect() : mainRect;
@@ -995,6 +1083,14 @@ function setupCompactContextMenu() {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.toggleCursorChase' });
     } else if (action === 'tune-cursor-chibi') {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.tuneCursorChibi' });
+    } else if (action === 'toggle-focus-follow') {
+      const next = !window.__FOCUS_FOLLOW__;
+      window.__FOCUS_FOLLOW__ = next;
+      setFollowCursor(next);
+      showBubble(next
+        ? t('bubbles.focusFollowOn', 'Em sẽ dõi theo con trỏ của Onii-chan nha~ 👀')
+        : t('bubbles.focusFollowOff', 'Em nhìn thẳng lại đây rồi nè~ 🙂'));
+      vscode.postMessage({ command: 'setFocusFollow', value: next });
     } else if (action === 'open-background') {
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.openBackgroundSettings' });
     } else if (action === 'reset-position') {
@@ -1028,7 +1124,10 @@ function setupCompactContextMenu() {
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     syncMuteMenuLabel(mainMenu);
-    for (const id of Object.keys(submenus)) syncMuteMenuLabel(submenus[id]);
+    for (const id of Object.keys(submenus)) {
+      syncMuteMenuLabel(submenus[id]);
+      syncFocusMenuLabel(submenus[id]);
+    }
     closeContextMenus();
     mainMenu.classList.add('show');
     positionMenu(mainMenu, e.clientX, e.clientY);
@@ -1073,6 +1172,14 @@ function syncMuteMenuLabel(menu) {
   label.textContent = window.__AUDIO_MUTED__
     ? t('menu.unmute', 'Unmute')
     : t('menu.mute', 'Mute');
+}
+
+// Swap the focus-follow menu icon to a check when the mode is on, so the menu
+// reflects the current state at a glance (label stays constant).
+function syncFocusMenuLabel(menu) {
+  const icon = menu.querySelector('.companion-focus-icon');
+  if (!icon) return;
+  icon.textContent = window.__FOCUS_FOLLOW__ ? '✅' : '👀';
 }
 
 function openQuickChatOverlay() {

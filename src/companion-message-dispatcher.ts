@@ -44,6 +44,7 @@ const INTERACTION_COMMANDS = new Set([
   'setModel',
   'setMuted',
   'setClickThrough',
+  'setFocusFollow',
   'setAmbientPreset',
   'confirmDialogResult',
   'inputDialogResult',
@@ -133,6 +134,15 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
         vscode.workspace
           .getConfiguration('animeCompanion')
           .update('desktopCompanion.clickThrough', message.value, vscode.ConfigurationTarget.Global);
+      }
+      break;
+    case 'setFocusFollow':
+      // Persist the auto look-at toggle. Webview applies it live; this just
+      // makes the choice survive reloads (re-injected as window.__FOCUS_FOLLOW__).
+      if (typeof message.value === 'boolean') {
+        vscode.workspace
+          .getConfiguration('animeCompanion')
+          .update('focusFollow.enabled', message.value, vscode.ConfigurationTarget.Global);
       }
       break;
     case 'setAmbientPreset':

@@ -521,6 +521,7 @@ export class DesktopPetBridge implements vscode.Disposable {
     const voiceLanguage = configuredVoiceLanguage === 'ja-vi' ? 'en' : configuredVoiceLanguage;
     const messageLanguage = config.get<string>('messageLanguage', 'vi');
     const muted = config.get<boolean>('muted', false);
+    const focusFollow = config.get<boolean>('focusFollow.enabled', false);
 
     const customAmbientTracks = this._getCustomAmbientTracks();
     const ambientPreset = getAmbientPreset(config.get<string>('ambientPreset', 'off'), customAmbientTracks);
@@ -548,6 +549,7 @@ export class DesktopPetBridge implements vscode.Disposable {
       voiceLanguage,
       messageLanguage,
       muted,
+      focusFollow,
       clickThrough: this._getDesktopCompanionSetting('clickThrough', false),
       ambientPreset: ambientPreset.id,
       ambientVolume,

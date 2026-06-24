@@ -8,13 +8,13 @@
 
 > ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.5.2
+**Phiên bản hiện tại:** v0.5.4
 
-> 🆕 **Có gì mới ở v0.5.2**:
-> - **🎨 Đổi màu giao diện cho trình sửa Markdown** — ô chọn màu trên header đổi luôn toàn bộ tông màu hồng (header, nút, viền, link, thanh cuộn) sang màu bạn thích, kèm nút **↺** để trả về hồng sakura mặc định. Lựa chọn được nhớ qua các file và cửa sổ. Màu nền vẫn đi theo chế độ **🌗 Dark / Light**.
-> - **Thanh cuộn mảnh** — thanh cuộn giờ mỏng và ăn theo màu giao diện (tự ẩn ở nền hỗ trợ), thay cho thanh mặc định dày ở chế độ live/Markdown và WYSIWYG.
+> 🆕 **Có gì mới ở v0.5.4**:
+> - **🔄 Tự tay xoay model** — giữ **Alt + kéo chuột trái** để quay đầu/thân companion theo hướng kéo (xoay giả-3D có giới hạn qua focus controller của Live2D; thả ra tự ease về tư thế cũ).
+> - **👀 Tự nhìn theo con trỏ** — nút bật/tắt mới trong menu chuột phải (**Diện mạo › Tự nhìn theo con trỏ**) cho đầu và mắt tự dõi theo chuột khi rê gần model, rảnh tay; lựa chọn được ghi nhớ. Rê chuột qua lại quá nhanh → companion "chóng mặt" và xin bạn chậm lại.
 >
-> Kế thừa từ **v0.5.1** (🌸 Trình sửa Markdown WYSIWYG), **v0.5.0** (🖼️ bảng điều khiển Ảnh nền), **v0.4.3** (swap tài khoản Claude) và **v0.4.0** (Agent Accounts, 💬 Pet Quick Chat).
+> Kế thừa từ **v0.5.3** (🔗 ảnh nền từ URL), **v0.5.1** (🌸 Trình sửa Markdown WYSIWYG), **v0.5.0** (🖼️ bảng điều khiển Ảnh nền), **v0.4.3** (swap tài khoản Claude) và **v0.4.0** (Agent Accounts, 💬 Pet Quick Chat).
 
 ![Anime Companion hero](images/01-hero-companion-panel.png)
 

@@ -163,6 +163,13 @@ body {
   cursor: var(--model-heart-cursor);
 }
 
+/* Alt+drag rotate mode — !important beats PIXI's inline heart cursor on the canvas. */
+body.model-rotating,
+body.model-rotating #live2dCanvas,
+body.model-rotating .character-wrapper {
+  cursor: grabbing !important;
+}
+
 /* ── Fallback Static Image ───────────────────────────────────────────────── */
 
 .character-img {
