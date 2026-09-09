@@ -1,5 +1,7 @@
 ﻿import { state, vscode, debugLog } from './core.js';
 import { setExpression } from './expression.js';
+import { loadOutfits } from './outfit.js';
+import { initMotions } from './motions.js';
 import { updateMoodIndicator } from './expression.js';
 import { initAmbientAudio, playAudio, setAmbientPreset, setGlobalAudioMuted, speakText } from './audio.js';
 import {
@@ -108,7 +110,16 @@ async function initLive2D() {
     });
     debugLog('Model loaded successfully!');
 
+    // Before the first frame: this is what points the library's idle loop at
+    // the model's own idle group when it isn't called `Idle`.
+    initMotions();
+
     setupModel();
+
+    // Not awaited: the outfit list is a menu the user may never open, and
+    // blocking the reveal of a loaded model on a second fetch would show a
+    // blank panel for no reason.
+    void loadOutfits(modelUrl);
 
     canvas.style.display = 'block';
     hideLoading();
@@ -171,13 +182,7 @@ window.addEventListener('message', (event) => {
       showBubble('🍅 Xong một phiên rồi nè~ nghỉ tay và uống nước chút nha!');
       // Different sound cue for break vs work ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â break uses headpat (gentler)
       playAudio('headpat.mp3');
-      if (state.model) {
-        try {
-          state.model.motion('TapBody');
-        } catch (_) {
-          // ignore
-        }
-      }
+      playMotion('TapBody');
       break;
     case 'pomodoroStop':
       setExpression('neutral', null);

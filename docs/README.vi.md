@@ -8,13 +8,15 @@
 
 > ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.5.4
+**Phiên bản hiện tại:** v0.5.5
 
-> 🆕 **Có gì mới ở v0.5.4**:
-> - **🔄 Tự tay xoay model** — giữ **Alt + kéo chuột trái** để quay đầu/thân companion theo hướng kéo (xoay giả-3D có giới hạn qua focus controller của Live2D; thả ra tự ease về tư thế cũ).
-> - **👀 Tự nhìn theo con trỏ** — nút bật/tắt mới trong menu chuột phải (**Diện mạo › Tự nhìn theo con trỏ**) cho đầu và mắt tự dõi theo chuột khi rê gần model, rảnh tay; lựa chọn được ghi nhớ. Rê chuột qua lại quá nhanh → companion "chóng mặt" và xin bạn chậm lại.
+> 🆕 **Có gì mới ở v0.5.5**:
+> - **👗 Trang phục lấy thẳng từ file của model** — companion đọc mọi file `.exp3.json` mà model Live2D khai báo; file nào đổi quần áo (không phải đổi mặt) sẽ được liệt kê ở **chuột phải › Diện mạo › Trang phục**. Chọn một bộ là mặc luôn cho tới khi đổi; **Mặc định** trả về diện mạo gốc của model. Không cần cấu hình gì.
+> - **😊 Biểu cảm của model** — những khuôn mặt mà tác giả đã vẽ sẵn cho nhân vật hiện ở **Diện mạo › Biểu cảm**, bấm một cái là xem ngay. Setting mới `animeCompanion.expressionMap` cho phép *mood* của companion (vui, ngại, giận…) dùng chính các khuôn mặt vẽ sẵn đó thay cho bộ preset tham số có sẵn.
+> - **🎬 Motion của mọi model** — danh sách motion group giờ đọc thẳng từ model, nên model có group không tên `Idle` / `TapBody` / `TapHead` (ví dụ `待机`, `摸头`, `打哈欠`) cuối cùng cũng cử động được: idle của chính model tự lặp, xoa đầu/chọc map sang group tương ứng, và **Diện mạo › Motion** liệt kê đủ mọi group theo tên thật.
+> - **☝️ Nhấn giữ** — giữ model qua mốc xoa đầu: giữ ở **thân** mở popup **Trang phục**, giữ ở **đầu** mở bảng **Biểu cảm & Motion** của riêng model. Không cần chuột phải.
 >
-> Kế thừa từ **v0.5.3** (🔗 ảnh nền từ URL), **v0.5.1** (🌸 Trình sửa Markdown WYSIWYG), **v0.5.0** (🖼️ bảng điều khiển Ảnh nền), **v0.4.3** (swap tài khoản Claude) và **v0.4.0** (Agent Accounts, 💬 Pet Quick Chat).
+> Kế thừa từ **v0.5.4** (🔄 Alt + kéo để xoay, 👀 tự nhìn theo con trỏ), **v0.5.3** (🔗 ảnh nền từ URL), **v0.5.1** (🌸 Trình sửa Markdown WYSIWYG), **v0.5.0** (🖼️ bảng điều khiển Ảnh nền) và **v0.4.0** (Agent Accounts, 💬 Pet Quick Chat).
 
 ![Anime Companion hero](images/01-hero-companion-panel.png)
 
@@ -118,6 +120,9 @@ Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroen
 - **Live panel resize**: kéo panel VS Code cao/thấp/rộng thì character tự refit realtime. Works cả ở default flex layout lẫn sau khi đã drag companion sang chỗ khác — không bao giờ cắt chân nhờ bottom breathing margin nhỏ cho animation sway.
 - Có fallback ảnh tĩnh nếu Live2D load lỗi.
 - Expression blending mượt qua PIXI ticker — chuyển trạng thái cảm xúc không bị giật.
+- **Tương tác trực tiếp**: **Alt + kéo chuột trái** quay đầu/thân về phía con trỏ (giới hạn ~±30° — Live2D là 2.5D, không xoay 360° thật), và nút **Dõi chuột** (chuột phải → **Diện mạo**) cho mắt tự dõi theo chuột. Rê chuột qua lại quá nhanh là companion chóng mặt, xin bạn chậm lại. Click/double-click vẫn là chọc, giữ lâu vẫn là xoa đầu.
+- **Trang phục & biểu cảm từ chính model**: mọi file `.exp3.json` model khai báo được đọc ngay khi load và phân loại theo tham số nó điều khiển — file đổi quần áo vào **Diện mạo › Trang phục**, khuôn mặt vẽ sẵn vào **Diện mạo › Biểu cảm**. Trang phục giữ nguyên cho tới khi đổi; biểu cảm có thể xem trực tiếp hoặc nối vào mood của companion qua `animeCompanion.expressionMap` (xem mục [Trang phục & Biểu cảm](#-trang-phục---biểu-cảm-từ-model-của-bạn)).
+- **Motion nhận diện theo từng model**: vòng idle và phản ứng chọc / xoa đầu tự tìm đúng motion group thật của model dù tên là gì (`Idle` hay `待机`, `TapHead` hay `摸头`…), và **Diện mạo › Motion** liệt kê đủ theo tên. Group có tên gợi nội dung gắn với "độ thiện cảm" chỉ chạy khi bạn tự chọn trong popup, không bao giờ bị phản ứng tự kích.
 - Có thể thêm model local do chính user tự tải về qua setting `animeCompanion.customModelRoots` hoặc `animeCompanion.customModels` (xem [MODEL_LICENSE_AUDIT.md](../MODEL_LICENSE_AUDIT.md)).
 - Nếu đang mở workspace, model được lưu theo từng workspace; có command reset về global model.
 
@@ -169,6 +174,7 @@ Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroen
 - **Single Click** — chạm nhẹ (Surprised).
 - **Double / Triple Click** — vui vẻ (Happy).
 - **Long Press > 0.8s** — Headpat → Shy → Love kèm hiệu ứng trái tim.
+- **Giữ tiếp ≈ 1,6 s** — popup mở theo chỗ bạn nhấn: ở **thân** là **Trang phục**, ở **đầu** là bảng **Biểu cảm & Motion** của riêng model. Mọi thứ menu chuột phải có, gói trong một ngón tay — nhả ra rồi bấm chọn (cú nhả tay không bao giờ chọn nhầm mục).
 - **Spam Click** — companion sẽ cáu (Angry) "Đừng bấm nữa!".
 
 ### 🔊 Audio + Lip-sync 3 ngôn ngữ
@@ -242,7 +248,7 @@ Click chuột phải lên companion để mở menu inline — không phải m�
 - 🚀 **Run** — restart hoặc start debug session
 - 🔧 **Git** — `Commit`, `Pull`, `Push`
 - 💬 **Chat AI** — `Quick Chat`; ở panel mode có thêm `Open Chat`, `New Conversation`, `Ask About Selection`, `Configure Provider`, `Clear All`
-- 🌸 **Diện mạo** — `Model`, `Capture Chibi`, `Toggle Cursor Chibi`, `Tune Cursor Chibi`, `Reset Position`, `Motion`, `Poke`
+- 🌸 **Diện mạo** — `Đổi Model`, `Trang phục`, `Biểu cảm`, `Chụp Chibi`, `Chibi Cursor`, `Chỉnh Chibi`, `Dõi chuột`, `Ảnh nền`, `Reset vị trí`, `Motion`, `Chọc nhẹ`
 - 🔊 **Âm thanh** — `Voice`, `Messages`, `Ambient`, `Mute` / `Unmute`
 - 🍅 **Quy trình** — `Start Pomodoro`, `Stop Pomodoro`, `Stats`, `Achievements`, `Quests`, `Profile`, `Share Card`
 - 🪪 **Agent** — `Quản lý tài khoản…`, `Đổi nhanh…`, `Lưu tài khoản hiện tại…`, `Tài khoản GitHub…` (swap tài khoản Claude · Codex · GitHub; popup gắn ngay tại pet)
@@ -319,6 +325,38 @@ Nếu muốn chỉnh riêng tên hiển thị, mô tả, hoặc chỉ định fi
 }
 ```
 
+### 👗 Trang phục & 😊 Biểu cảm từ model của bạn
+
+Nếu `model3.json` của model có khai báo file biểu cảm (`FileReferences.Expressions`), companion sẽ tải hết ngay sau khi model hiện ra và tự phân loại theo tham số mỗi file điều khiển:
+
+- File chủ yếu điều khiển tham số khuôn mặt (`ParamEye*`, `ParamBrow*`, `ParamMouth*`, `ParamCheek*`, …) hiện ở **chuột phải › Diện mạo › Biểu cảm**. Chọn để xem khuôn mặt đó; **Mặc định** trả quyền lại cho hệ thống mood.
+- Phần còn lại — các công tắc quần áo với tham số do tác giả tự đặt tên như `ParamC1`, `ParamSkirtTr` — hiện ở **Diện mạo › Trang phục**. Trang phục giữ nguyên cho tới khi bạn đổi; đổi biểu cảm hay mood không bao giờ làm model "cởi đồ". **Mặc định** trả về đúng những gì `.moc3` quy định.
+
+Không có file trang phục? Nếu model giữ bộ đồ dưới dạng **tham số** — mỗi bộ một công tắc như `ParamC0` 常服, `ParamC1` 睡衣, `ParamC2` 毛衣, rất phổ biến ở model xuất từ game — chúng vẫn được đưa lên popup tự động (đọc từ `cdi3.json` của model), tên quen thuộc được dịch sẵn (Đồ ngủ, Đồ len, …) và tên gốc của tác giả hiện ở tooltip. Các công tắc chỉ khác nhau số đuôi được coi là một tủ đồ, chọn bộ này thì các bộ kia tắt. **Mặc định** trả lại đúng diện mạo gốc của moc.
+
+Model không có cả file biểu cảm lẫn công tắc trang phục (ví dụ Hiyori) sẽ thấy một dòng giải thích ngắn trong popup thay vì danh sách trống.
+
+Để **mood** của companion dùng chính khuôn mặt vẽ sẵn của model thay cho preset có sẵn, map theo tên. Model thường đặt tên `exp_01`, `exp_02`… nên hãy xem trước từng mục trong popup Biểu cảm. Một map dùng chung cho mọi model:
+
+```json
+"animeCompanion.expressionMap": {
+  "happy": "exp_02",
+  "shy": "exp_03",
+  "angry": "exp_05"
+}
+```
+
+Hoặc map riêng theo id model (mục riêng của model sẽ thay thế hoàn toàn map chung đối với model đó):
+
+```json
+"animeCompanion.expressionMap": {
+  "mao": { "happy": "exp_02", "surprised": "exp_06" },
+  "my-model": { "happy": "smile" }
+}
+```
+
+Các mood: `neutral`, `happy`, `shy`, `angry`, `surprised`, `sleepy`, `love`, `focus`. Chỉ mục được phân loại là khuôn mặt mới được nhận (không thể map trang phục vào mood); mood không map vẫn dùng preset có sẵn.
+
 ---
 
 ## ⚙️ Cấu hình
@@ -332,6 +370,7 @@ Mở Settings (`Ctrl+,`) → tìm `Anime Companion`, hoặc click **Settings** t
 | `animeCompanion.model` | `hiyori` | Chọn model hiện tại. |
 | `animeCompanion.customModelRoots` | `[]` | Danh sách thư mục gốc để tự quét model local. |
 | `animeCompanion.customModels` | `{}` | Khai báo thêm model local do user tự tải về. |
+| `animeCompanion.expressionMap` | `{}` | Map mood (`happy`, `shy`, `angry`, …) sang tên biểu cảm model khai báo — một map chung, hoặc theo id model. Mood không map vẫn dùng preset có sẵn. |
 | `animeCompanion.modelDownloadBaseUrl` | GitHub Releases URL | Base URL để lazy-download model zip. |
 | `animeCompanion.voiceLanguage` | `ja` | `ja` / `vi` / `en` cho audio. |
 | `animeCompanion.messageLanguage` | `vi` | `vi` / `en` / `ja` cho bubble text. |

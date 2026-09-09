@@ -542,6 +542,16 @@ export class DesktopPetBridge implements vscode.Disposable {
       description: m.description,
     }));
 
+    // Mood -> model expression name, resolved the same way companion-view.ts
+    // does for the panel (per-model map wins over a shared flat map), so the
+    // setting behaves identically in both host modes.
+    const expressionMapSetting = config.get<Record<string, unknown>>('expressionMap', {});
+    const perModelExpressionMap = expressionMapSetting?.[this._resolvedModel.id];
+    const expressionMap =
+      perModelExpressionMap && typeof perModelExpressionMap === 'object'
+        ? perModelExpressionMap
+        : expressionMapSetting;
+
     return {
       modelUrl: `http://127.0.0.1:${port}/${this._resolvedModel.folder}/${this._resolvedModel.file}`,
       modelId: this._resolvedModel.id,
@@ -555,6 +565,7 @@ export class DesktopPetBridge implements vscode.Disposable {
       ambientVolume,
       ambientTracks,
       visibleModels,
+      expressionMap,
       webviewStrings: getMessageBank().getWebviewStrings(),
     };
   }

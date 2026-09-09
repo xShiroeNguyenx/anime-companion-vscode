@@ -661,6 +661,9 @@ body[data-message-language="vi"] .companion-context-menu {
 }
 
 .companion-model-panel,
+.companion-outfit-panel,
+.companion-expression-panel,
+.companion-hold-panel,
 .companion-achievements-panel {
   position: absolute;
   left: 50%;
@@ -693,6 +696,9 @@ body[data-message-language="vi"] .companion-context-menu {
 }
 
 .companion-model-panel.show,
+.companion-outfit-panel.show,
+.companion-expression-panel.show,
+.companion-hold-panel.show,
 .companion-achievements-panel.show {
   opacity: 1;
   pointer-events: auto;
@@ -700,6 +706,9 @@ body[data-message-language="vi"] .companion-context-menu {
 }
 
 .companion-model-title,
+.companion-outfit-title,
+.companion-expression-title,
+.companion-hold-title,
 .companion-achievements-title {
   font-family: 'Mochiy Pop One', 'Segoe UI', sans-serif;
   font-size: 12px;
@@ -707,7 +716,9 @@ body[data-message-language="vi"] .companion-context-menu {
   text-align: center;
 }
 
-.companion-model-option {
+.companion-model-option,
+.companion-outfit-option,
+.companion-expression-option {
   width: 100%;
   border: 1px solid rgba(84, 122, 194, 0.2);
   border-radius: 14px;
@@ -719,14 +730,19 @@ body[data-message-language="vi"] .companion-context-menu {
 }
 
 .companion-model-option:hover,
-.companion-model-option.active {
+.companion-model-option.active,
+.companion-outfit-option:hover,
+.companion-outfit-option.active,
+.companion-expression-option:hover,
+.companion-expression-option.active {
   transform: translateY(-1px);
   border-color: rgba(84, 122, 194, 0.4);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(227, 237, 255, 0.92));
   box-shadow: 0 10px 24px rgba(84, 122, 194, 0.14);
 }
 
-.companion-model-label {
+.companion-model-label,
+.companion-outfit-label {
   display: block;
   color: #233d63;
   font-size: 12px;
@@ -2234,4 +2250,35 @@ body.desktop-pet-mode .companion-quickchat-history {
 .companion-achievement-node.showcased,
 .companion-achievement-option.showcased {
   box-shadow: 0 0 0 2px rgba(120, 130, 220, 0.45), 0 10px 22px rgba(84, 122, 194, 0.18);
+}
+
+/* Shown when a model ships no expression files to use as outfits. */
+.companion-outfit-empty {
+  color: #4a6591;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+  padding: 4px 6px;
+}
+
+/* Subtitle on the outfit popup, explaining what the listed entries are. */
+.companion-outfit-note {
+  color: #4a6591;
+  font-size: 10px;
+  text-align: center;
+  margin-top: -4px;
+}
+
+/* Press-and-hold panel: the model's expressions and motions in one place. */
+.companion-hold-panel {
+  width: min(280px, calc(100% - 24px));
+}
+
+.companion-hold-section {
+  margin-top: 4px;
+  color: #284e82;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }

@@ -1,6 +1,76 @@
 # Public Release Guide
 
-> Bản hiện tại đang publish: **v0.5.2** (release notes ngay bên dưới). Các phần cũ giữ làm reference cho flow chung.
+> Bản hiện tại đang chuẩn bị publish: **v0.5.5** (release notes ngay bên dưới). Các phần cũ giữ làm reference cho flow chung.
+
+---
+
+## 📦 v0.5.5 Release (2026-09-09)
+
+### Scope
+
+- Extension version public: `0.5.5`
+- Headline user-facing: **👗 Trang phục & 😊 Biểu cảm tự load từ file của model**
+  - **Tự đọc `.exp3.json`:** ngay sau khi model load, [media/webview/model-expressions.js](media/webview/model-expressions.js) fetch toàn bộ file biểu cảm khai báo trong `model3.json` (không await, không chặn model hiện ra) và **phân loại theo tham số file điều khiển**: >50% là `ParamEye*/Brow*/Mouth*/Cheek*…` → **biểu cảm khuôn mặt**; còn lại (công tắc quần áo do tác giả tự đặt tên như `ParamC1`, `ParamSkirtTr`) → **trang phục**. Live2D không phân biệt 2 loại này, nên đây là thứ giữ cho "bộ pyjama" không lọt vào danh sách biểu cảm.
+  - **Popup 👗 Trang phục** (chuột phải › Diện mạo › Trang phục): liệt kê các bộ mặc được + hàng **Mặc định** (về đúng `.moc3` quy định). Mặc là giữ nguyên cho tới khi đổi — đổi biểu cảm/mood không làm model "cởi đồ" ([media/webview/outfit.js](media/webview/outfit.js)).
+  - **Trang phục từ tham số** khi model không có exp3 outfit: đọc `cdi3.json`, lấy tham số có id `ParamC<n>` hoặc tên gợi quần áo (bỏ công tắc chỉnh/tư thế như `裙子切换`, `毛衣挤压`), mỗi tham số = 1 bộ (Overwrite = max, các bộ cùng "họ" = min). Bộ đang mặc mặc định không liệt kê (hàng **Mặc định** chính là nó). Tên dịch qua glossary `outfits.*` (睡衣 → Đồ ngủ, 毛衣 → Đồ len, 内衣 → Nội y…), tên gốc ở tooltip. **Mặc định** ghi lại giá trị gốc của moc cho các tham số đã Overwrite (trước đây chỉ ngừng ghi → bộ cũ vẫn dính).
+  - **Popup 😊 Biểu cảm** (Diện mạo › Biểu cảm): hiện trực tiếp một khuôn mặt tác giả đã vẽ, bỏ qua hệ thống mood; **Mặc định** trả quyền lại cho mood. Model không có file / toàn file là trang phục → hiện 1 dòng giải thích thay vì panel trống.
+  - **2 slot áp mỗi frame**: outfit và face nằm 2 slot riêng, ghi từ PIXI ticker *sau* preset mood, tôn trọng blend mode (`Add`/`Multiply` cho mặt, `Overwrite` cho quần áo). Cố ý **không** dùng `ExpressionManager` của Cubism để tránh flicker với mood blending hiện có.
+  - **Setting mới `animeCompanion.expressionMap`:** map mood (`neutral, happy, shy, angry, surprised, sleepy, love, focus`) → tên biểu cảm của model; map phẳng dùng chung hoặc theo id model (`{ "mao": { "happy": "exp_02" } }`, mục riêng thay thế map chung). Chỉ nhận mục là khuôn mặt; mood không map giữ preset. Đi qua cả init payload của Desktop Companion ([src/desktop-pet-bridge.ts](src/desktop-pet-bridge.ts), [desktop-pet/web/index.html](desktop-pet/web/index.html)) để 2 host mode giống nhau.
+  - **Dev harness:** `npx electron scripts/outfit-harness.js <model dir> <model3 file>` chạy webview thật trong Electron, báo phân loại / slot / blend / mood map / menu; output vào `.harness/` (đã gitignore).
+  - i18n: `menu.outfit/expression`, `bubbles.changeOutfit/outfit*/changeExpression/expression*`, `panels.outfit*/expression*` (vi / en / ja).
+- Headline thứ ba: **☝️ Nhấn giữ model: thân → Trang phục, đầu → Biểu cảm & Motion**
+  - Giữ qua mốc xoa đầu 0,8 s, tới **≈ 1,6 s** popup mở theo chỗ nhấn: **thân** → Trang phục; **đầu** → bảng gộp **Biểu cảm & Motion** (2 danh sách y như popup Diện mạo). Vùng đầu/thân lấy từ HitAreas của model nếu có (`Head`/`Body` ở model mẫu), không có thì 35 % trên của khung model = đầu. Xoa đầu / chọc / kéo không đổi; kéo hoặc Alt-xoay hủy popup chờ; nhả tay trong cooldown xoa đầu cũng hủy.
+  - Cú nhả tay kết thúc nhấn giữ **không** tác động lên popup: nhả được bắt ở cấp `window` (không chỉ qua PIXI — nhả lên DOM popup PIXI báo `pointerupoutside`), và trong 300 ms sau đó các panel bỏ qua click (không tự đóng, không chọn nhầm hàng dưới ngón tay); sau đó bấm chọn bình thường.
+  - i18n: `panels.holdTitle` (vi / en / ja).
+- Headline thứ hai: **🎬 Motion đọc từ model, không còn 3 tên cứng**
+  - Trước đây webview chỉ gọi `Idle` / `TapBody` / `TapHead`; model có group tên khác (vd `a_001`: `待机`, `摸头`, `打哈欠`…) → mọi lệnh no-op, **idle không bao giờ chạy**, model đứng chết ở tư thế gốc của moc (tay duỗi). [media/webview/motions.js](media/webview/motions.js) đọc `motionManager.definitions`, nhận diện idle theo tên (`Idle`, `idle`, `standby`, `loop`, `default`, `待机`, `待機`, `常态`, `アイドル`…) và gán `motionManager.groups.idle` → idle của model tự lặp lại.
+  - Phản ứng map sang group thật: `TapHead` → group tên kiểu head/hair/pat (`摸头`…); `TapBody` → group body/touch/poke, không có thì random trong phần còn lại. Group có tên gợi nội dung gắn "độ thiện cảm" (skirt/chest/裙/胸/诱惑/好感) hoặc gợi đổi đồ (衣/服/outfit/dress — vd `拖拽毛衣` đổi sang áo len và dính luôn vì idle không ghi lại tham số đồ) **không bao giờ** bị tự kích — chỉ chạy từ popup Motion. Group model thật sự có dưới đúng tên yêu cầu luôn được dùng nguyên, nên model mẫu giữ hành vi cũ với các group nó có; khác biệt duy nhất: xoa đầu trên model **không có** `TapHead` (Hiyori chỉ có `Idle` + `TapBody`) giờ chạy `TapBody` thay vì không làm gì.
+  - Popup Motion build lại khi mở từ group thật (đánh dấu idle); model không có motion → 1 dòng thông báo. Popup Biểu cảm khi model không có exp3 nhưng có motion → gợi ý sang Motion kèm số group.
+  - i18n: `panels.motionEmpty`, `panels.motionCount`, `panels.expressionMotionsHint` (vi / en / ja).
+
+### Marketplace / Release notes pitch
+
+- Model của bạn có sẵn bộ đồ hay biểu cảm trong `model3.json`? Giờ companion tự đọc hết và đưa thẳng lên menu chuột phải — không cần cấu hình.
+- Đổi trang phục là mặc luôn, đổi mood hay biểu cảm không bao giờ làm model "cởi đồ".
+- Muốn companion vui/ngại/giận bằng đúng khuôn mặt tác giả vẽ? Một setting `expressionMap` là xong; mood chưa map vẫn chạy preset cũ.
+- Model có motion group tên riêng (待机, 摸头, 打哈欠…) giờ cử động thật sự: idle tự lặp, xoa đầu/chọc chạy đúng động tác, popup Motion liệt kê đủ.
+- Model giữ bộ đồ dưới dạng tham số (`ParamC0..C3`) không cần file exp3: popup Trang phục tự liệt kê Đồ ngủ / Đồ len / Nội y…, Mặc định trả về đúng diện mạo gốc.
+- Nhấn giữ thân model là tới thẳng tủ đồ, nhấn giữ đầu là biểu cảm & motion của riêng model — không cần chuột phải, hợp cả cảm ứng.
+
+### Pre-publish checklist v0.5.5
+
+- [x] `package.json` ở `0.5.5`
+- [x] `CHANGELOG.md` có entry `## [0.5.5] - 2026-09-09`
+- [x] `README.md` (EN) + `docs/README.vi.md` + `docs/README.ja.md` — "What's new v0.5.5" + bullet trong 🎭 Live2D Companion + mục Appearance của menu chuột phải + section "👗 Outfits & 😊 Expressions" + hàng `expressionMap` trong bảng setting
+- [x] i18n `menu.outfit/expression`, `bubbles.*outfit*/*expression*`, `panels.outfit*/expression*`, `panels.motionEmpty/motionCount/expressionMotionsHint` ở en / vi / ja
+- [x] `.gitignore` thêm `.harness/`
+- [x] Local `npm test` (tsc + smoke test) + `npm run package` pass
+- [ ] **Smoke test** trên VS Code thật: (1) model **Mao** → chuột phải › Diện mạo › Biểu cảm thấy `exp_01…exp_08`, chọn 1 mục là đổi mặt, Mặc định về mood; › Trang phục thấy dòng "file exp3 là biểu cảm…" (Mao không có outfit); › Motion vẫn đúng 3 mục Idle/TapBody/TapHead — (2) model **Hiyori** (không có exp3) → Biểu cảm/Trang phục hiện dòng giải thích, không panel trống — (3) model local có outfit `.exp3.json` → chọn bộ, rồi chọc/xoa đầu cho mood đổi → vẫn mặc bộ đó; Mặc định → về moc — (4) set `"animeCompanion.expressionMap": { "mao": { "happy": "exp_02" } }` → reload → chọc model → mặt happy dùng `exp_02`, hết thời gian về neutral; mood khác vẫn preset — (5) bật Desktop Companion → lặp lại (1) và (4) — (6) đổi `messageLanguage` en/ja → nhãn menu/popup/bubble đúng ngôn ngữ, không còn tiếng Việt fallback — (7) model **`a_001`** (group tiếng Trung): sau reload model tự chạy idle `待机` (tay về tư thế tự nhiên, tay phải đung đưa); giữ chuột lâu (xoa đầu) → `摸头`; click → 1 trong `打哈欠` / `揉眼睛` / `拖拽毛衣`, **không bao giờ** `掀裙子` / `摸胸` / `诱惑`; Diện mạo › Motion liệt kê 11 group (待机 có ghi "Default idle"), bấm `诱惑` từ popup thì chạy; Diện mạo › Biểu cảm báo "không có exp3 nhưng có 11 động tác" — (8) vẫn `a_001`: Diện mạo › Trang phục thấy 4 hàng **Mặc định / Đồ ngủ / Đồ len / Nội y** (tooltip 睡衣 / 毛衣 / 内衣); chọn Đồ ngủ → đổi đồ ngay; chọc/xoa đầu cho motion chạy → vẫn mặc đồ ngủ; Mặc định → về thường phục (常服) — (9) menu Diện mạo tiếng Việt: 3 nhãn `Chibi Cursor` / `Chỉnh Chibi` / `Dõi chuột` không còn xuống dòng — (10) **nhấn giữ** model: giữ ở **thân** 0,8 s xoa đầu như cũ → ~1,6 s popup Trang phục hiện, nhả tay popup **vẫn mở** (kể cả khi nhả lên chính popup), bấm 1 bộ → đổi đồ; giữ ở **đầu** → ~1,6 s bảng Biểu cảm & Motion, nhả tay vẫn mở, bấm 1 motion chạy được; nhả tay ở 1,0 s (sau xoa đầu, trước 1,6 s) → **không** popup nào hiện; kéo model / Alt+kéo → không popup; thử với Hiyori (HitAreas chỉ có Body → đầu suy theo 35 % trên) và `a_001` (không HitAreas); thử cả Desktop Companion
+- [ ] Không stage `docs/images/Screenshot_1.png` (ảnh app khác, có hostname/IP nội bộ — không thuộc repo này)
+
+### Publish flow
+
+```bash
+# 1. Bump version đã xong (package.json = 0.5.5)
+# 2. Build VSIX final
+npm run package
+
+# 3. (Optional) Local install test — DÙNG ĐÚNG CLI VS Code (lệnh `code` máy này có thể trỏ Cursor)
+& "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd" --install-extension .\anime-companion-vscode-0.5.5.vsix --force
+
+# 4. Commit + tag + push để trigger release workflow (.github/workflows/release.yml)
+git add -u
+git add media/webview/model-expressions.js media/webview/outfit.js media/webview/motions.js scripts/outfit-harness.js
+git commit -m "release: v0.5.5 — Outfits & expressions from model exp3 files, expressionMap, motions discovered per model"
+git push origin main
+git tag -a v0.5.5 -m "v0.5.5 — Outfits & expressions from model exp3 files, expressionMap, motions discovered per model"
+git push origin v0.5.5
+
+# 5. (Nếu workflow không tự publish Open VSX) publish thủ công
+npm run publish:ovsx
+```
+
+> ⚠️ Tag phải khớp `package.json` version (`0.5.5`), nếu lệch workflow fail ở bước verify.
 
 ---
 

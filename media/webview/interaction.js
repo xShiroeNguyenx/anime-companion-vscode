@@ -1,9 +1,13 @@
 ﻿import { state, vscode, debugLog } from './core.js';
-import { setExpression, updateExpressionTick } from './expression.js';
+import { activeModelExpression, setExpression, setModelExpression, updateExpressionTick } from './expression.js';
+import { activeOutfit, clearOutfit, outfitGlossaryKey, outfitNames, setOutfit } from './outfit.js';
+import { expressionNames, faceNames, updateModelExpressionTick } from './model-expressions.js';
+import { idleMotionGroup, motionGroups } from './motions.js';
 import { playAudio, setAmbientPreset, setGlobalAudioMuted } from './audio.js';
 import {
   showBubble,
   createSparkle,
+  playMotion,
   showQuickChatPanel,
   startBubbleStream,
   startQuickChatHistoryTurn,
@@ -75,11 +79,28 @@ function tList(path, fallback) {
   return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : fallback;
 }
 
+/**
+ * Press-and-hold panels.
+ *
+ * A hold ends with a pointerup, and the click that follows it would land in
+ * the outside-click handlers and close the very panel the hold just opened —
+ * or, if the panel came up under the finger, pick whatever row is there. So
+ * for a short moment after such a release the panels ignore clicks.
+ */
+let swallowPanelClicksUntil = 0;
+
+function releasedFromHoldJustNow() {
+  return Date.now() < swallowPanelClicksUntil;
+}
+
 function hideCompanionPanels() {
   document.querySelector('.companion-voice-panel')?.classList.remove('show');
   document.querySelector('.companion-message-panel')?.classList.remove('show');
   document.querySelector('.companion-ambient-panel')?.classList.remove('show');
   document.querySelector('.companion-model-panel')?.classList.remove('show');
+  document.querySelector('.companion-outfit-panel')?.classList.remove('show');
+  document.querySelector('.companion-expression-panel')?.classList.remove('show');
+  document.querySelector('.companion-hold-panel')?.classList.remove('show');
   document.querySelector('.companion-achievements-panel')?.classList.remove('show');
   document.querySelector('.companion-motion-panel')?.classList.remove('show');
   document.querySelector('.companion-agent-panel')?.classList.remove('show');
@@ -106,6 +127,14 @@ export function setupModel() {
   let clickTimer = null;
   let longPressTimer = null;
   let isLongPress = false;
+  // Past the headpat, a hold opens a panel chosen by where the press landed:
+  // on the head, the model's own expressions and motions; on the body, its
+  // wardrobe. One gesture reaches everything without a right-click, which is
+  // what a touch user has.
+  const HOLD_PANEL_MS = 1600;
+  const HEAD_RATIO = 0.35;
+  let holdPanelTimer = null;
+  let holdOpenedPanel = false;
   let isCooldown = false;
   let isWindowDragging = false;
 
@@ -136,10 +165,57 @@ export function setupModel() {
     ', startDragging=' + Boolean(tauriWindow?.startDragging)
   );
 
+  function clearHoldTimers() {
+    clearTimeout(holdPanelTimer);
+    holdPanelTimer = null;
+    window.removeEventListener('pointerup', onHoldRelease, true);
+    window.removeEventListener('pointercancel', onHoldRelease, true);
+  }
+
+  // The release is listened for on the window, not only through PIXI: once
+  // the panel is up under the pointer, the release lands on the panel's DOM
+  // and PIXI reports it as `pointerupoutside` — or, should its hit test
+  // disagree, not at all. Either way the panel must be told to stay.
+  function onHoldRelease() {
+    finishHold();
+  }
+
+  /**
+   * Head or body, from the model's own hit areas when it declares them (the
+   * Cubism samples name them "Head" / "Body"), else from where in the model's
+   * box the press landed — the top third is the head on a full-body rig.
+   */
+  function holdRegionAt(point) {
+    if (!point || !state.model) return 'body';
+    try {
+      const hits = state.model.hitTest?.(point.x, point.y) ?? [];
+      if (hits.some((name) => /head|face|头|頭|顔/i.test(name))) return 'head';
+      if (hits.some((name) => /body|身体|体/i.test(name))) return 'body';
+    } catch {
+      // No hit areas on this model — fall through to the box.
+    }
+    try {
+      const bounds = state.model.getBounds();
+      return point.y < bounds.y + bounds.height * HEAD_RATIO ? 'head' : 'body';
+    } catch {
+      return 'body';
+    }
+  }
+
+  // The release that ends a hold must not act on the panel the hold opened.
+  function finishHold() {
+    clearHoldTimers();
+    if (holdOpenedPanel) {
+      holdOpenedPanel = false;
+      swallowPanelClicksUntil = Date.now() + 300;
+    }
+  }
+
   // Cancel the pending-click bookkeeping when a drag actually starts so we
   // don't fire a poke / longpress / spam reaction on mouseup.
   function cancelClickBookkeeping() {
     clearTimeout(longPressTimer);
+    clearHoldTimers();
     clearTimeout(clickTimer);
     clickCount = 0;
     isLongPress = false;
@@ -240,9 +316,7 @@ export function setupModel() {
       setTimeout(() => { isCooldown = false; }, 4000);
 
       debugLog('Long press detected!');
-      try { state.model.motion('TapHead'); } catch (err) {
-        try { state.model.motion('Idle'); } catch (_) { /* ignore */ }
-      }
+      playMotion('TapHead');
 
       setExpression('shy', 2000);
       setTimeout(() => setExpression('love', 3000), 2000);
@@ -253,11 +327,34 @@ export function setupModel() {
       createSparkle();
       createSparkle();
     }, 800);
+
+    // Keep holding past the headpat and a panel opens where the press landed:
+    // head → the model's own expressions and motions, body → its wardrobe.
+    holdOpenedPanel = false;
+    clearHoldTimers();
+    const pressPoint = e?.data?.global ? { x: e.data.global.x, y: e.data.global.y } : null;
+    holdPanelTimer = setTimeout(() => {
+      holdOpenedPanel = true;
+      const region = holdRegionAt(pressPoint);
+      debugLog('Hold: ' + region + ' panel');
+      if (region === 'head') {
+        showBubble(t('bubbles.changeExpression', 'Chọn biểu cảm cho em nha~ 😊'));
+        showHoldPanel();
+      } else {
+        showBubble(t('bubbles.changeOutfit', 'Chọn bộ đồ cho em nha~ 👗'));
+        showOutfitPanel();
+      }
+    }, HOLD_PANEL_MS);
+    window.addEventListener('pointerup', onHoldRelease, true);
+    window.addEventListener('pointercancel', onHoldRelease, true);
   });
 
   state.model.on('pointerup', (e) => {
     const btn = e?.data?.button ?? e?.data?.originalEvent?.button;
     if (btn === 2) return;
+    // Before every early return below: the headpat put us in cooldown, and a
+    // release during cooldown must still stop the later stages from opening.
+    finishHold();
     if (isCooldown) return;
     if (isWindowDragging) {
       isWindowDragging = false;
@@ -281,7 +378,7 @@ export function setupModel() {
 
       if (clickCount >= 5) {
         debugLog('Spam click: ' + clickCount);
-        try { state.model.motion('TapBody'); } catch (_) { /* ignore */ }
+        playMotion('TapBody');
         setExpression('angry', 3000);
         showBubble(t('bubbles.spamClick', 'Eee đừng chọc liên tục nữa mà~ em chóng mặt mất! 😵'));
         playAudio('spam.mp3');
@@ -291,9 +388,7 @@ export function setupModel() {
         createSparkle();
       } else if (clickCount >= 2) {
         debugLog('Multi-click: ' + clickCount);
-        try { state.model.motion('TapBody'); } catch (_) {
-          try { state.model.motion('Idle'); } catch (__) { /* ignore */ }
-        }
+        playMotion('TapBody');
         setExpression('happy', 2500);
         showBubble(DBLCLICK_MESSAGES[Math.floor(Math.random() * DBLCLICK_MESSAGES.length)]);
         vscode.postMessage({ command: 'multiClick', count: clickCount });
@@ -301,9 +396,7 @@ export function setupModel() {
         createSparkle();
       } else {
         debugLog('Single click');
-        try { state.model.motion('TapBody'); } catch (_) {
-          try { state.model.motion('Idle'); } catch (__) { /* ignore */ }
-        }
+        playMotion('TapBody');
         setExpression('surprised', 2000);
         showBubble(t('bubbles.singleClick', 'Eh~ chạm nhẹ vậy làm em giật mình đó nha! 🥺'));
         playAudio('poke.mp3');
@@ -462,7 +555,13 @@ export function setupModel() {
     bodyObserver.observe(document.body);
   }
 
-  state.app.ticker.add(() => updateExpressionTick());
+  state.app.ticker.add(() => {
+    updateExpressionTick();
+    // After the mood preset, deliberately: a file the model's author drew is a
+    // more specific statement than our guess at parameters every model might
+    // have, so where both claim one it should win.
+    updateModelExpressionTick();
+  });
   debugLog('Expression system started');
 
   setupCompactContextMenu();
@@ -470,8 +569,11 @@ export function setupModel() {
   setupMessagePanel();
   setupAmbientPanel();
   setupModelPanel();
+  setupOutfitPanel();
+  setupExpressionPanel();
   setupAchievementsPanel();
   setupMotionPanel();
+  setupHoldPanel();
   setupAgentPanel();
 }
 
@@ -538,7 +640,10 @@ function applyModelHoverCursor() {
   setHover(false);
   state.model.on('pointerover', () => setHover(true));
   state.model.on('pointerout', () => setHover(false));
-  state.model.on('pointerupoutside', () => setHover(false));
+  state.model.on('pointerupoutside', () => {
+    setHover(false);
+    finishHold();
+  });
 }
 
 export function fitModel() {
@@ -623,6 +728,12 @@ function setupContextMenu() {
     <div class="companion-menu-item" data-action="change-model">
       <span style="font-size: 11px;">🌸</span> ${t('menu.model', 'Model')}
     </div>
+    <div class="companion-menu-item" data-action="change-outfit">
+      <span style="font-size: 11px;">👗</span> ${t('menu.outfit', 'Outfit')}
+    </div>
+    <div class="companion-menu-item" data-action="change-expression">
+      <span style="font-size: 11px;">😊</span> ${t('menu.expression', 'Biểu cảm')}
+    </div>
     <div class="companion-menu-item" data-action="play-motion">
       <span style="font-size: 11px;">🎬</span> ${t('menu.motion', 'Motion')}
     </div>
@@ -682,11 +793,7 @@ function setupContextMenu() {
     showBubble(t('bubbles.contextHint', 'Onii-chan cần em giúp gì hả~ em luôn sẵn sàng nè! 💕'));
     try { playAudio('help.mp3'); } catch (err) { console.error('[AnimeCompanion] playAudio err', err); }
     setExpression('shy', 2500);
-    if (state.model) {
-      try { state.model.motion('TapBody'); } catch (_) {
-        try { state.model.motion('Idle'); } catch (__) { /* ignore */ }
-      }
-    }
+    playMotion('TapBody');
     createSparkle();
   }, true);
 
@@ -736,11 +843,17 @@ function setupContextMenu() {
       showBubble(t('bubbles.pomodoro', 'Bắt đầu Pomodoro nha~ em canh giờ giúp Onii-chan! 🍅'));
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.startPomodoro' });
     } else if (action === 'poke') {
-      if (state.model) { try { state.model.motion('TapBody'); } catch (_) { /* ignore */ } }
+      playMotion('TapBody');
       vscode.postMessage({ command: 'poke' });
     } else if (action === 'change-model') {
       showBubble(t('bubbles.changeModel', 'Đổi model ngay trên companion luôn nha~ 🌸'));
       showModelPanel();
+    } else if (action === 'change-outfit') {
+      showBubble(t('bubbles.changeOutfit', 'Chọn bộ đồ cho em nha~ 👗'));
+      showOutfitPanel();
+    } else if (action === 'change-expression') {
+      showBubble(t('bubbles.changeExpression', 'Chọn biểu cảm cho em nha~ 😊'));
+      showExpressionPanel();
     } else if (action === 'switch-host-mode') {
       if (window.__DESKTOP_PET_MODE__) {
         showBubble(t('bubbles.switchToPanel', 'Chuyển về Panel nha~ 🪟'));
@@ -831,6 +944,8 @@ function setupCompactContextMenu() {
       label: t('menu.appearanceCategory', 'Appearance'),
       items: [
         { icon: '🌸', label: t('menu.model', 'Model'),                          action: 'change-model' },
+        { icon: '👗', label: t('menu.outfit', 'Outfit'),                        action: 'change-outfit' },
+        { icon: '😊', label: t('menu.expression', 'Biểu cảm'),                   action: 'change-expression' },
         { icon: '📸', label: t('menu.captureChibi', 'Capture Chibi'),           action: 'capture-chibi' },
         { icon: '🐾', label: t('menu.toggleCursorChibi', 'Toggle Cursor Chibi'),action: 'toggle-cursor-chibi' },
         { icon: '🎯', label: t('menu.tuneCursorChibi', 'Tune Cursor Chibi'),    action: 'tune-cursor-chibi' },
@@ -1013,11 +1128,17 @@ function setupCompactContextMenu() {
       showBubble(t('bubbles.stopPomodoro', 'Dừng Pomodoro nha~ nghỉ tay một chút đi! ☕'));
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.stopPomodoro' });
     } else if (action === 'poke') {
-      if (state.model) { try { state.model.motion('TapBody'); } catch (_) { /* ignore */ } }
+      playMotion('TapBody');
       vscode.postMessage({ command: 'poke' });
     } else if (action === 'change-model') {
       showBubble(t('bubbles.changeModel', 'Đổi model ngay trên companion luôn nha~ 🌸'));
       showModelPanel();
+    } else if (action === 'change-outfit') {
+      showBubble(t('bubbles.changeOutfit', 'Chọn bộ đồ cho em nha~ 👗'));
+      showOutfitPanel();
+    } else if (action === 'change-expression') {
+      showBubble(t('bubbles.changeExpression', 'Chọn biểu cảm cho em nha~ 😊'));
+      showExpressionPanel();
     } else if (action === 'switch-host-mode') {
       if (window.__DESKTOP_PET_MODE__) {
         showBubble(t('bubbles.switchToPanel', 'Chuyển về Panel nha~ 🪟'));
@@ -1113,11 +1234,7 @@ function setupCompactContextMenu() {
     showBubble(t('bubbles.contextHint', 'Onii-chan cần em giúp gì hả~ em luôn sẵn sàng nè! 💕'));
     try { playAudio('help.mp3'); } catch (err) { console.error('[AnimeCompanion] playAudio err', err); }
     setExpression('shy', 2500);
-    if (state.model) {
-      try { state.model.motion('TapBody'); } catch (_) {
-        try { state.model.motion('Idle'); } catch (__) { /* ignore */ }
-      }
-    }
+    playMotion('TapBody');
     createSparkle();
   }, true);
 
@@ -1408,6 +1525,285 @@ function showModelPanel() {
   panel.querySelectorAll('.companion-model-option').forEach((option) => {
     option.classList.toggle('active', option.getAttribute('data-model') === current);
   });
+  panel.classList.add('show');
+}
+
+// ─── Outfit popup ────────────────────────────────────────────────────────
+
+/**
+ * Builds the outfit chooser.
+ *
+ * Rebuilt on open rather than at startup, because the list belongs to the
+ * loaded model: switching character replaces it wholesale, and a panel built
+ * once would keep offering the previous model's clothes.
+ */
+function setupOutfitPanel() {
+  const wrapper = document.getElementById('characterWrapper');
+  if (!wrapper) return;
+
+  const panel = document.createElement('div');
+  panel.className = 'companion-outfit-panel';
+  wrapper.appendChild(panel);
+
+  panel.addEventListener('click', (e) => {
+    if (releasedFromHoldJustNow()) return;
+    const option = e.target.closest('.companion-outfit-option');
+    if (!option) return;
+    const name = option.getAttribute('data-outfit');
+    panel.classList.remove('show');
+
+    // The empty name is the "default" row: it takes the model back to whatever
+    // the moc itself specifies rather than applying a file.
+    if (!name) {
+      clearOutfit();
+      showBubble(t('bubbles.outfitDefault', 'Về bộ mặc định nha~ 👗'));
+      return;
+    }
+
+    void setOutfit(name).then((applied) => {
+      showBubble(
+        applied
+          ? t('bubbles.outfitChanged', 'Thay đồ xong rồi nè~ ✨')
+          : t('bubbles.outfitFailed', 'Ơ, bộ này em mặc không được... 😢')
+      );
+    });
+  });
+
+  window.addEventListener('click', (e) => {
+    if (!panel.contains(e.target) && !releasedFromHoldJustNow()) {
+      panel.classList.remove('show');
+    }
+  }, true);
+}
+
+function showOutfitPanel() {
+  const panel = document.querySelector('.companion-outfit-panel');
+  if (!panel) return;
+  hideCompanionPanels();
+
+  const names = outfitNames();
+  if (names.length === 0) {
+    // Most models ship no expression files at all. Saying so beats an empty
+    // popup, and naming the tool that produces them makes the message useful.
+    panel.innerHTML = `
+      <div class="companion-outfit-title">${t('panels.outfitTitle', 'Outfit')}</div>
+      <div class="companion-outfit-empty">${
+        expressionNames().length > 0
+          ? t(
+              'panels.outfitAllFaces',
+              'File exp3 của model này là biểu cảm khuôn mặt, không phải trang phục — xem ở tab Biểu cảm.'
+            )
+          : t(
+              'panels.outfitEmpty',
+              'Model này chưa có bộ trang phục nào. Tạo bằng Live2D Companion Studio rồi thêm vào model3.json nha~'
+            )
+      }</div>
+    `;
+    panel.classList.add('show');
+    return;
+  }
+
+  const current = activeOutfit();
+  const rows = names
+    .map((name) => {
+      // Translate common garment names; the author's own name stays as the
+      // tooltip so the two can be matched up.
+      const key = outfitGlossaryKey(name);
+      const label = key ? t('outfits.' + key, name) : name;
+      return (
+        `<button class="companion-outfit-option${current === name ? ' active' : ''}" data-outfit="${escapeHtml(name)}" title="${escapeHtml(name)}">` +
+        `<span class="companion-outfit-label">${escapeHtml(label)}</span>` +
+        `</button>`
+      );
+    })
+    .join('');
+
+  panel.innerHTML = `
+    <div class="companion-outfit-title">${t('panels.outfitTitle', 'Outfit')}</div>
+    <div class="companion-outfit-note">${t(
+      'panels.outfitNote',
+      'Bộ trang phục model khai báo sẵn'
+    )}</div>
+    <button class="companion-outfit-option${current === null ? ' active' : ''}" data-outfit="">
+      <span class="companion-outfit-label">${t('panels.outfitDefault', 'Mặc định')}</span>
+    </button>
+    ${rows}
+  `;
+  panel.classList.add('show');
+}
+
+// ─── Model expression popup ──────────────────────────────────────────────
+
+/**
+ * Lets the user show one of the model's own expressions.
+ *
+ * Separate from the mood presets because the two answer different questions.
+ * A mood is the companion reacting to something; this is the user asking to
+ * see a specific face the character was drawn with. The mood system can also
+ * use these files, but only where the user has mapped them in
+ * `animeCompanion.expressionMap` — nothing in a file called `exp_04` says
+ * which mood it belongs to.
+ */
+function setupExpressionPanel() {
+  const wrapper = document.getElementById('characterWrapper');
+  if (!wrapper) return;
+
+  const panel = document.createElement('div');
+  panel.className = 'companion-expression-panel';
+  wrapper.appendChild(panel);
+
+  panel.addEventListener('click', (e) => {
+    const option = e.target.closest('.companion-expression-option');
+    if (!option) return;
+    panel.classList.remove('show');
+    chooseExpression(option.getAttribute('data-expression'));
+  });
+
+  window.addEventListener('click', (e) => {
+    if (!panel.contains(e.target)) {
+      panel.classList.remove('show');
+    }
+  }, true);
+}
+
+/** Applies a row from any panel that lists the model's expressions. */
+function chooseExpression(name) {
+  // The empty name is the "default" row: back to the mood system.
+  if (!name) {
+    void setModelExpression(null);
+    showBubble(t('bubbles.expressionDefault', 'Về mặt mặc định nha~ 😊'));
+    return;
+  }
+
+  void setModelExpression(name).then((applied) => {
+    showBubble(
+      applied
+        ? t('bubbles.expressionChanged', 'Đổi biểu cảm rồi nè~ ✨')
+        : t('bubbles.expressionFailed', 'Ơ, biểu cảm này em làm không được... 😢')
+    );
+  });
+}
+
+function showExpressionPanel() {
+  const panel = document.querySelector('.companion-expression-panel');
+  if (!panel) return;
+  hideCompanionPanels();
+
+  panel.innerHTML = `
+    <div class="companion-expression-title">${t('panels.expressionTitle', 'Biểu cảm')}</div>
+    ${expressionListHtml()}
+  `;
+  panel.classList.add('show');
+}
+
+/**
+ * The model's expressions as rows, or the reason there are none. Shared by
+ * the Expression popup and the press-and-hold panel.
+ */
+function expressionListHtml() {
+  const names = faceNames();
+  if (names.length === 0) {
+    // Three different situations, three different things worth telling the
+    // user: a model whose files all turned out to be costumes; one with no
+    // expression files but with motions (on many game-exported models the
+    // "expressions" — yawn, rub eyes — are motions, so point there); and one
+    // with nothing at all.
+    const motionCount = motionGroups().length;
+    let message;
+    if (expressionNames().length > 0) {
+      message = t(
+        'panels.expressionAllOutfits',
+        'File exp3 của model này là trang phục, không phải biểu cảm khuôn mặt — xem ở tab Outfit. Companion vẫn dùng bộ biểu cảm mặc định.'
+      );
+    } else if (motionCount > 0) {
+      message = t(
+        'panels.expressionMotionsHint',
+        'Model này không có file biểu cảm (exp3), nhưng có {count} động tác — mở Motion trong menu Diện mạo để xem nha~'
+      ).replace('{count}', String(motionCount));
+    } else {
+      message = t(
+        'panels.expressionEmpty',
+        'Model này không khai báo biểu cảm nào. Companion vẫn dùng bộ biểu cảm mặc định.'
+      );
+    }
+    return `<div class="companion-outfit-empty">${message}</div>`;
+  }
+
+  const current = activeModelExpression();
+  const rows = names
+    .map(
+      (name) =>
+        `<button class="companion-expression-option${current === name ? ' active' : ''}" data-expression="${escapeHtml(name)}">` +
+        `<span class="companion-outfit-label">${escapeHtml(name)}</span>` +
+        `</button>`
+    )
+    .join('');
+
+  return `
+    <div class="companion-outfit-note">${t(
+      'panels.expressionNote',
+      'Biểu cảm model khai báo sẵn'
+    )}</div>
+    <button class="companion-expression-option${current === null ? ' active' : ''}" data-expression="">
+      <span class="companion-outfit-label">${t('panels.expressionDefault', 'Mặc định')}</span>
+    </button>
+    ${rows}
+  `;
+}
+
+// ─── Press-and-hold panel: the model's expressions and motions together ───
+
+/**
+ * What a hold on the model's head opens: everything the model itself ships
+ * for its face and its movement, in one place. The two lists are the same
+ * ones the Expression and Motion popups show; this panel only puts them side
+ * by side for a gesture that has no room for a second menu level.
+ */
+function setupHoldPanel() {
+  const wrapper = document.getElementById('characterWrapper');
+  if (!wrapper) return;
+
+  const panel = document.createElement('div');
+  panel.className = 'companion-hold-panel';
+  wrapper.appendChild(panel);
+
+  panel.addEventListener('click', (e) => {
+    if (releasedFromHoldJustNow()) return;
+    const expression = e.target.closest('.companion-expression-option');
+    if (expression) {
+      panel.classList.remove('show');
+      chooseExpression(expression.getAttribute('data-expression'));
+      return;
+    }
+    const motion = e.target.closest('.companion-motion-option');
+    if (motion) {
+      const motionId = motion.getAttribute('data-motion');
+      if (!motionId) return;
+      panel.classList.remove('show');
+      playMotion(motionId);
+      createSparkle();
+    }
+  });
+
+  window.addEventListener('click', (e) => {
+    if (!panel.contains(e.target) && !releasedFromHoldJustNow()) {
+      panel.classList.remove('show');
+    }
+  }, true);
+}
+
+function showHoldPanel() {
+  const panel = document.querySelector('.companion-hold-panel');
+  if (!panel) return;
+  hideCompanionPanels();
+
+  panel.innerHTML = `
+    <div class="companion-hold-title">${t('panels.holdTitle', 'Biểu cảm & Motion')}</div>
+    <div class="companion-hold-section">${t('panels.expressionTitle', 'Biểu cảm')}</div>
+    ${expressionListHtml()}
+    <div class="companion-hold-section">${t('panels.motionTitle', 'Motion')}</div>
+    ${motionListHtml()}
+  `;
   panel.classList.add('show');
 }
 
@@ -2255,12 +2651,6 @@ function setupMotionPanel() {
 
   const panel = document.createElement('div');
   panel.className = 'companion-motion-panel';
-  panel.innerHTML = `
-    <div class="companion-motion-title">${t('panels.motionTitle', 'Motion')}</div>
-    <button class="companion-motion-option" data-motion="TapBody"><span class="companion-motion-label">TapBody</span><span class="companion-motion-desc">${t('panels.motionTapBodyDesc', 'Body tap')}</span></button>
-    <button class="companion-motion-option" data-motion="TapHead"><span class="companion-motion-label">TapHead</span><span class="companion-motion-desc">${t('panels.motionTapHeadDesc', 'Head pat')}</span></button>
-    <button class="companion-motion-option" data-motion="Idle"><span class="companion-motion-label">Idle</span><span class="companion-motion-desc">${t('panels.motionIdleDesc', 'Default idle')}</span></button>
-  `;
   wrapper.appendChild(panel);
 
   panel.addEventListener('click', (e) => {
@@ -2270,13 +2660,8 @@ function setupMotionPanel() {
     if (!motionId) return;
 
     panel.classList.remove('show');
-    if (state.model) {
-      try {
-        state.model.motion(motionId);
-      } catch (err) {
-        console.warn('[AnimeCompanion] motion failed:', err);
-      }
-    }
+    // The row carries a group the model really has, so this plays it by name.
+    playMotion(motionId);
     createSparkle();
   });
 
@@ -2287,9 +2672,54 @@ function setupMotionPanel() {
   }, true);
 }
 
+/**
+ * Rebuilt on open from the model's real motion groups.
+ *
+ * The list used to be three hard-coded names. A model whose groups are called
+ * `待机` or `摸头` showed three buttons that did nothing, and had no way to
+ * reach the eleven motions it actually shipped.
+ */
 function showMotionPanel() {
   const panel = document.querySelector('.companion-motion-panel');
   if (!panel) return;
   hideCompanionPanels();
+
+  panel.innerHTML = `<div class="companion-motion-title">${t('panels.motionTitle', 'Motion')}</div>${motionListHtml()}`;
   panel.classList.add('show');
+}
+
+/**
+ * The model's motion groups as rows, or a note that it has none. Shared by
+ * the Motion popup and the press-and-hold panel.
+ */
+function motionListHtml() {
+  const list = motionGroups();
+  const idle = idleMotionGroup();
+  const STANDARD_DESC = {
+    TapBody: t('panels.motionTapBodyDesc', 'Body tap'),
+    TapHead: t('panels.motionTapHeadDesc', 'Head pat'),
+    Idle: t('panels.motionIdleDesc', 'Default idle'),
+  };
+
+  if (list.length === 0) {
+    return `<div class="companion-outfit-empty">${t(
+      'panels.motionEmpty',
+      'Model này không khai báo motion nào.'
+    )}</div>`;
+  }
+  return list
+    .map(({ name, count }) => {
+      let desc = STANDARD_DESC[name] ?? '';
+      if (!desc && name === idle) desc = t('panels.motionIdleDesc', 'Default idle');
+      if (!desc && count > 1) {
+        desc = t('panels.motionCount', '{count} motion').replace('{count}', String(count));
+      }
+      return (
+        `<button class="companion-motion-option" data-motion="${escapeHtml(name)}">` +
+        `<span class="companion-motion-label">${escapeHtml(name)}</span>` +
+        (desc ? `<span class="companion-motion-desc">${escapeHtml(desc)}</span>` : '') +
+        `</button>`
+      );
+    })
+    .join('');
 }

@@ -8,6 +8,9 @@ dist-models/
 # Generated voice assets (ElevenLabs TTS output) — published as a release artifact
 dist/
 
+# Screenshots / reports written by `scripts/outfit-harness.js`
+.harness/
+
 .claude/
 .vscode-test/
 

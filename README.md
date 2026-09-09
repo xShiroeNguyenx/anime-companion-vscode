@@ -6,13 +6,15 @@
 
 > ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.5.4
+**Current version:** v0.5.5
 
-> 🆕 **What's new in v0.5.4**:
-> - **🔄 Rotate the model by hand** — hold **Alt + left-drag** to turn the companion's head and body toward where you drag (a bounded 2.5D look-toward via the Live2D focus controller; eases back to idle on release).
-> - **👀 Auto look-at cursor** — a new right-click toggle (**Appearance › Auto look-at cursor**) makes the head and eyes follow your mouse hands-free while it hovers; the choice is remembered. Whip the cursor back and forth too fast and the companion gets "dizzy" and asks you to slow down.
+> 🆕 **What's new in v0.5.5**:
+> - **👗 Outfits from the model's own files** — the companion reads every `.exp3.json` a Live2D model declares and, when a file switches clothes rather than faces, lists it under **right-click › Appearance › Outfit**. Pick one and it stays on; **Default** goes back to the model's own look. Nothing to configure.
+> - **😊 Model expressions** — the faces the character was actually drawn with show up under **Appearance › Expression**, previewable with one click. A new `animeCompanion.expressionMap` setting lets the companion's *moods* (happy, shy, angry…) use those drawn faces instead of the built-in parameter presets.
+> - **🎬 Motions from any model** — motion groups are now read from the model itself, so models whose groups aren't called `Idle` / `TapBody` / `TapHead` (e.g. `待机`, `摸头`, `打哈欠`) finally animate: their own idle loops, headpats and pokes map onto matching groups, and **Appearance › Motion** lists every group by its real name.
+> - **☝️ Press and hold** — hold the model past the headpat: on the **body** the **Outfit** popup opens, on the **head** the model's own **Expression & Motion** panel. No right-click needed.
 >
-> Builds on **v0.5.3**'s 🔗 background image from a URL, **v0.5.1**'s 🌸 Markdown WYSIWYG editor, **v0.5.0**'s 🖼️ Background Image control panel, **v0.4.3**'s Claude account swap, and **v0.4.0**'s Agent Accounts + 💬 Pet Quick Chat.
+> Builds on **v0.5.4**'s 🔄 Alt + drag rotate and 👀 auto look-at, **v0.5.3**'s 🔗 background image from a URL, **v0.5.1**'s 🌸 Markdown WYSIWYG editor, **v0.5.0**'s 🖼️ Background Image control panel, and **v0.4.0**'s Agent Accounts + 💬 Pet Quick Chat.
 
 ![Anime Companion hero](docs/images/01-hero-companion-panel.png)
 
@@ -119,6 +121,8 @@ Or download the `.vsix` from the [Open VSX page](https://open-vsx.org/extension/
 - Falls back to a static image if Live2D fails to load.
 - Smooth expression blending through PIXI ticker — mood transitions don't jitter.
 - **Hands-on interaction**: **Alt + left-drag** turns the head/body toward the cursor (bounded ~±30° — Live2D is 2.5D, not a true 360° spin), and an **Auto look-at cursor** toggle (right-click → **Appearance**) makes the gaze follow your mouse hands-free. Wiggle the cursor back and forth too fast and the companion gets dizzy and asks you to slow down. Click/double-click still poke, long-press still headpats.
+- **Outfits & expressions from the model itself**: every `.exp3.json` the model declares is read on load and sorted by what it drives — garment switches land in **Appearance › Outfit**, drawn faces in **Appearance › Expression**. An outfit persists until changed; a face can be shown directly or wired to the companion's moods via `animeCompanion.expressionMap` (see [Outfits & Expressions](#-outfits---expressions-from-your-model)).
+- **Motions discovered per model**: the idle loop and the poke / headpat reactions resolve onto the model's real motion groups whatever they're called (`Idle` or `待机`, `TapHead` or `摸头`…), and **Appearance › Motion** lists them all by name. Groups whose names suggest affection-gated content are only ever played from that popup, never by a reaction.
 - Add your own local models via `animeCompanion.customModelRoots` or `animeCompanion.customModels` (see [MODEL_LICENSE_AUDIT.md](MODEL_LICENSE_AUDIT.md)).
 - When you have a workspace open, the model is remembered per-workspace; there's a command to reset back to your global model.
 
@@ -170,6 +174,7 @@ Or download the `.vsix` from the [Open VSX page](https://open-vsx.org/extension/
 - **Single Click** — gentle touch (Surprised).
 - **Double / Triple Click** — happy (Happy).
 - **Long Press > 0.8s** — Headpat → Shy → Love with heart effects.
+- **Keep holding ≈ 1.6s** — a panel opens where you pressed: on the **body**, the **Outfit** popup; on the **head**, the model's own **Expression & Motion** panel. Everything a right-click reaches, on one finger — release, then tap a row (the release itself never picks one).
 - **Spam Click** — angry response ("Stop poking me!").
 
 ### 🔊 Audio + Lip-sync in 3 languages
@@ -243,7 +248,7 @@ Right-click on the companion to open an inline menu — no Command Palette neede
 - 🚀 **Run** — restart-or-start debug session
 - 🔧 **Git** — `Commit`, `Pull`, `Push`
 - 💬 **AI Chat** — `Quick Chat`; in panel mode also `Open Chat`, `New Conversation`, `Ask About Selection`, `Configure Provider`, `Clear All`
-- 🌸 **Appearance** — `Model`, `Capture Chibi`, `Toggle Cursor Chibi`, `Tune Cursor Chibi`, `Reset Position`, `Motion`, `Poke`
+- 🌸 **Appearance** — `Model`, `Outfit`, `Expression`, `Capture Chibi`, `Toggle Cursor Chibi`, `Tune Cursor Chibi`, `Auto look-at cursor`, `Background Image`, `Reset Position`, `Motion`, `Poke`
 - 🔊 **Voice & Sound** — `Voice`, `Messages`, `Ambient`, `Mute` / `Unmute`
 - 🍅 **Workflow** — `Start Pomodoro`, `Stop Pomodoro`, `Stats`, `Achievements`, `Quests`, `Profile`, `Share Card`
 - 🪪 **Agent** — `Manage Profiles…`, `Quick Switch…`, `Save Current as…`, `GitHub Account…` (swap Claude · Codex · GitHub accounts; popups attached to the pet)
@@ -324,6 +329,38 @@ For custom display name / description / specific model file, override via:
 }
 ```
 
+### 👗 Outfits & 😊 Expressions from your model
+
+If a model's `model3.json` lists expression files (`FileReferences.Expressions`), the companion loads them all right after the model appears and sorts them automatically by what each file drives:
+
+- Files that mostly move facial parameters (`ParamEye*`, `ParamBrow*`, `ParamMouth*`, `ParamCheek*`, …) show up under **right-click › Appearance › Expression**. Pick one to see that face; **Default** hands control back to the mood system.
+- Everything else — garment switches with author-named parameters such as `ParamC1` or `ParamSkirtTr` — shows up under **Appearance › Outfit**. An outfit stays on until you change it; changing expression or mood never undresses the model. **Default** returns to whatever the `.moc3` itself specifies.
+
+No outfit files? If the model carries its costumes as **parameters** instead — one switch per outfit such as `ParamC0` 常服, `ParamC1` 睡衣, `ParamC2` 毛衣, common in game-exported models — they are offered as outfits automatically (read from the model's `cdi3.json`), with common names translated (Pajamas, Sweater, …) and the author's name shown as a tooltip. Switches that differ only by a trailing number are treated as one wardrobe, so picking one turns the others off. **Default** puts the moc's default look back.
+
+Models with no expression files and no costume switches (e.g. Hiyori) get a short note in the popup instead of an empty list.
+
+To let the companion's **moods** use the model's own drawn faces instead of the built-in presets, map them by name. Models usually call these `exp_01`, `exp_02`… so preview each entry in the Expression popup first. One shared map for every model:
+
+```json
+"animeCompanion.expressionMap": {
+  "happy": "exp_02",
+  "shy": "exp_03",
+  "angry": "exp_05"
+}
+```
+
+Or a map per model id (a per-model entry replaces the shared map for that model):
+
+```json
+"animeCompanion.expressionMap": {
+  "mao": { "happy": "exp_02", "surprised": "exp_06" },
+  "my-model": { "happy": "smile" }
+}
+```
+
+Moods: `neutral`, `happy`, `shy`, `angry`, `surprised`, `sleepy`, `love`, `focus`. Only entries classified as faces are accepted (an outfit can never be mapped to a mood); unmapped moods keep the built-in preset.
+
 ---
 
 ## ⚙️ Configuration
@@ -337,6 +374,7 @@ Open Settings (`Ctrl+,`) → search `Anime Companion`, or click **Settings** in 
 | `animeCompanion.model` | `hiyori` | Active Live2D model. |
 | `animeCompanion.customModelRoots` | `[]` | Root folders to auto-scan for local Live2D models. |
 | `animeCompanion.customModels` | `{}` | Declare extra user-supplied local models. |
+| `animeCompanion.expressionMap` | `{}` | Map moods (`happy`, `shy`, `angry`, …) to expression names the model declares — one flat map, or keyed by model id. Unmapped moods keep the built-in preset. |
 | `animeCompanion.modelDownloadBaseUrl` | GitHub Releases URL | Base URL for lazy-downloading model zips. |
 | `animeCompanion.voiceLanguage` | `ja` | `ja` / `vi` / `en` for audio. |
 | `animeCompanion.messageLanguage` | `vi` | `vi` / `en` / `ja` for bubble text. |

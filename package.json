@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -524,6 +524,12 @@
           "type": "object",
           "default": {},
           "description": "User-provided local Live2D models. Each property key becomes the model id. Example: { \"my-model\": { \"name\": \"My Model\", \"path\": \"D:/Live2D/MyModel\", \"modelFile\": \"MyModel.model3.json\", \"description\": \"Custom local model\" } }"
+        },
+        "animeCompanion.expressionMap": {
+          "type": "object",
+          "default": {},
+          "description": "Map the companion's moods onto expressions the model declares in model3.json. Keys are moods (neutral, happy, shy, angry, surprised, sleepy, love, focus); values are expression names from the model. Models often name these exp_01, exp_02… so the mapping has to be made by eye — preview each one from the right-click menu (Appearance › Expression) first. Per-model: { \"mao\": { \"happy\": \"exp_02\" } }, or shared across models: { \"happy\": \"exp_02\" }. Only entries that are facial expressions (not outfits) are accepted; unmapped moods keep the built-in preset.",
+          "additionalProperties": true
         },
         "animeCompanion.customModelRoots": {
           "type": "array",

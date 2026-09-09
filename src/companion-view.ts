@@ -560,6 +560,16 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       name: m.name,
       description: m.description,
     }));
+    // Mood -> model expression name. Accepts either a flat map shared by every
+    // model or one keyed by model id, because a name like `exp_02` means
+    // something different in each model and a shared map would misfire.
+    const expressionMapSetting = vscode.workspace
+      .getConfiguration('animeCompanion')
+      .get<Record<string, unknown>>('expressionMap', {});
+    const perModel = expressionMapSetting?.[selectedModel.id];
+    const expressionMap =
+      perModel && typeof perModel === 'object' ? perModel : expressionMapSetting;
+
     const achievements = this._getAchievementPanelData();
 
     return /*html*/ `<!DOCTYPE html>
@@ -763,6 +773,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__AMBIENT_VOLUME__ = ${ambientVolume};
     window.__AMBIENT_TRACKS__ = ${JSON.stringify(ambientTracks)};
     window.__VISIBLE_MODELS__ = ${JSON.stringify(visibleModels)};
+    window.__EXPRESSION_MAP__ = ${JSON.stringify(expressionMap)};
     window.__ACHIEVEMENTS__ = ${JSON.stringify(achievements)};
     window.__SHOWCASE__ = ${JSON.stringify(achievements.showcase)};
     window.__WEBVIEW_STRINGS__ = ${JSON.stringify(webviewStrings)};

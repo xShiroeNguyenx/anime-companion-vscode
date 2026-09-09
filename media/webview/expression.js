@@ -1,4 +1,5 @@
 import { state, debugLog } from './core.js';
+import { activeIn, applyToSlot, clearSlot, faceNames } from './model-expressions.js';
 
 // Cubism parameter presets per emotional state. Missing params on a model are
 // silently ignored by setParameterValueById's catch.
@@ -69,19 +70,72 @@ let currentExpression = {};
 let targetExpression = {};
 let expressionResetTimer = null;
 
-export function setExpression(name, durationMs) {
-  const preset = EXPRESSIONS[name];
-  if (!preset) return;
-  debugLog('Expression: ' + name + (durationMs ? ' (' + durationMs + 'ms)' : ''));
+/**
+ * The model's own expression standing in for a mood, if the user mapped one.
+ *
+ * Model-authored faces beat the presets above whenever they exist: the presets
+ * are a guess at parameters every model might have, while an `.exp3.json` was
+ * drawn by the person who made the character. But the mapping has to be
+ * configured by hand — models name these `exp_01`…`exp_08`, so nothing in the
+ * file says which one is a smile.
+ *
+ * Only entries that read as faces are accepted. A map pointing a mood at a
+ * costume would put the character in pyjamas every time it felt happy, and the
+ * mistake is easy to make when both kinds sit in one list in model3.json.
+ */
+function mappedExpression(mood) {
+  const map = window.__EXPRESSION_MAP__;
+  if (!map || typeof map !== 'object') return null;
+  const name = map[mood];
+  return typeof name === 'string' && faceNames().includes(name) ? name : null;
+}
 
-  targetExpression = { ...EXPRESSIONS.neutral, ...preset };
+export function setExpression(name, durationMs) {
+  const mapped = mappedExpression(name);
+  if (mapped) {
+    debugLog('Expression (model): ' + name + ' -> ' + mapped);
+    void applyToSlot('face', mapped);
+    // The preset must be neutral underneath, or its parameters would still be
+    // blending toward a face the model file is also driving.
+    targetExpression = { ...EXPRESSIONS.neutral };
+  } else {
+    const preset = EXPRESSIONS[name];
+    if (!preset) return;
+    debugLog('Expression: ' + name + (durationMs ? ' (' + durationMs + 'ms)' : ''));
+    // Leaving a model expression applied under a preset would mix two faces.
+    if (activeIn('face')) clearSlot('face');
+    targetExpression = { ...EXPRESSIONS.neutral, ...preset };
+  }
 
   if (expressionResetTimer) clearTimeout(expressionResetTimer);
   if (durationMs) {
     expressionResetTimer = setTimeout(() => {
       targetExpression = { ...EXPRESSIONS.neutral };
+      clearSlot('face');
     }, durationMs);
   }
+}
+
+/**
+ * Shows one of the model's own expressions directly, bypassing the mood names.
+ *
+ * What the expression popup calls: the user picked a file by name, so there is
+ * no mood to map and no preset to fall back to.
+ */
+export async function setModelExpression(name) {
+  if (name === null) {
+    clearSlot('face');
+    targetExpression = { ...EXPRESSIONS.neutral };
+    return true;
+  }
+  const applied = await applyToSlot('face', name);
+  if (applied) targetExpression = { ...EXPRESSIONS.neutral };
+  return applied;
+}
+
+/** The model expression currently shown, or null when a preset is in use. */
+export function activeModelExpression() {
+  return activeIn('face');
 }
 
 // Called from PIXI ticker every frame to smoothly blend toward target.

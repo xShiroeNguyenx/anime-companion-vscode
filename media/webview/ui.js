@@ -1,4 +1,5 @@
 import { state, debugLog, vscode } from './core.js';
+import { playModelMotion } from './motions.js';
 
 function $bubble() { return document.getElementById('chatBubble'); }
 function $bubbleText() { return document.getElementById('bubbleText'); }
@@ -393,13 +394,11 @@ export function failQuickChatHistoryTurn(requestId, text) {
   }));
 }
 
+// Goes through motions.js so `Idle` / `TapBody` / `TapHead` land on whatever
+// the loaded model actually calls those groups.
 export function playMotion(group, index) {
   if (!state.model || !state.isLive2DReady) return;
-  try {
-    state.model.motion(group, index);
-  } catch (e) {
-    debugLog('Motion failed: ' + e.message);
-  }
+  playModelMotion(group, index);
 }
 
 const SPARKLE_EMOJIS = ['✨', '💖', '🌸', '⭐', '💫', '🎀'];
