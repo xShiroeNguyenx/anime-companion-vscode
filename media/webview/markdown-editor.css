@@ -93,22 +93,24 @@ body {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, rgba(var(--ac-accent-rgb), 0.95), var(--ac-accent-soft));
-  border-bottom: 2px solid rgba(var(--ac-accent-rgb), 0.5);
-  box-shadow: 0 4px 18px rgba(var(--ac-accent-rgb), 0.28);
+  gap: 8px;
+  /* Toolbar-sized: the header is chrome over the document, not a banner. */
+  min-height: 30px;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, rgba(var(--ac-accent-rgb), 0.92), var(--ac-accent-soft));
+  border-bottom: 1px solid rgba(var(--ac-accent-rgb), 0.45);
+  box-shadow: 0 2px 10px rgba(var(--ac-accent-rgb), 0.18);
 }
 
 .md-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
 .md-flower {
-  font-size: 18px;
+  font-size: 13px;
   filter: drop-shadow(0 1px 2px rgba(107, 37, 71, 0.4));
   animation: md-bob 2.4s ease-in-out infinite;
 }
@@ -120,7 +122,7 @@ body {
 
 .md-title {
   font-family: 'Mochiy Pop One', 'Nunito', sans-serif;
-  font-size: 14px;
+  font-size: 11.5px;
   color: var(--ac-pink-3);
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
   white-space: nowrap;
@@ -130,7 +132,7 @@ body {
 
 .status {
   margin-left: auto;
-  font-size: 12px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--ac-pink-3);
   opacity: 0.9;
@@ -139,13 +141,13 @@ body {
 .theme-btn {
   appearance: none;
   cursor: pointer;
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
   border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   background: rgba(255, 255, 255, 0.25);
   color: var(--ac-pink-3);
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -163,11 +165,11 @@ body {
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   background: transparent;
   transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -179,22 +181,22 @@ body {
 .save-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   appearance: none;
-  border: 2px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   cursor: pointer;
-  padding: 6px 16px;
+  padding: 3px 10px;
   border-radius: 999px;
   font-family: 'Nunito', sans-serif;
   font-weight: 800;
-  font-size: 12px;
+  font-size: 11px;
   color: #fff;
   background: linear-gradient(135deg, var(--ac-accent-strong), var(--ac-accent));
   box-shadow: 0 3px 12px rgba(var(--ac-accent-rgb), 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease, opacity 0.15s ease;
 }
 
-.save-btn .save-ico { font-size: 13px; }
+.save-btn .save-ico { font-size: 11px; }
 
 .save-btn:hover:not(:disabled) {
   transform: translateY(-1px) scale(1.04);
@@ -225,10 +227,24 @@ body {
   font-family: 'Nunito', sans-serif;
 }
 
-/* Toolbar of the Toast UI editor, themed plum/cream + pink. */
+/* Toolbar of the Toast UI editor, themed plum/cream + pink — and shrunk to
+   match the slim header. The icons are a fixed 32 px sprite, so `zoom` is
+   what scales bar, buttons and sprite together (Chromium-only, which a VS
+   Code webview is): 0.78 × 38 px = ~30 px tall, the same as the header. */
 .toastui-editor-defaultUI-toolbar {
+  zoom: 0.78;
+  height: 38px !important;
+  padding: 0 10px !important;
   background: var(--ac-bg-soft) !important;
   border-bottom: 1px solid var(--ac-line) !important;
+}
+
+.toastui-editor-defaultUI-toolbar .toastui-editor-toolbar-icons {
+  margin-top: 3px !important;
+}
+
+.toastui-editor-defaultUI-toolbar .toastui-editor-toolbar-divider {
+  margin: 10px 8px !important;
 }
 
 .toastui-editor-toolbar-group { border-color: var(--ac-line) !important; }

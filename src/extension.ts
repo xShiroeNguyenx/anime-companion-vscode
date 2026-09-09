@@ -32,6 +32,7 @@ import { codexBackend } from './agent-profiles/backends/codex-backend';
 import { GitHubAccountService } from './github-account-service';
 import { BackgroundPatchManager } from './background/background-patch-manager';
 import { BackgroundPanel } from './background/background-panel';
+import { SettingsPanel } from './settings-panel';
 import { MarkdownEditorPanel } from './markdown/markdown-editor-panel';
 import { MarkdownStatusBar } from './markdown/markdown-status-bar';
 
@@ -1102,10 +1103,9 @@ export async function activate(context: vscode.ExtensionContext) {
       pomodoroManager?.stop();
     }),
     vscode.commands.registerCommand('animeCompanion.openSettings', () => {
-      return vscode.commands.executeCommand(
-        'workbench.action.openSettings',
-        '@ext:shiroenguyen.anime-companion-vscode'
-      );
+      // The companion's own grouped settings page; it links back to the
+      // native Settings UI and settings.json for anything unusual.
+      SettingsPanel.reveal(context);
     }),
     vscode.commands.registerCommand('animeCompanion.resetPosition', async () => {
       if (desktopPetEnabled) {

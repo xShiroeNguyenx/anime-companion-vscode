@@ -660,7 +660,6 @@ body[data-message-language="vi"] .companion-context-menu {
   text-align: center;
 }
 
-.companion-model-panel,
 .companion-achievements-panel {
   position: absolute;
   left: 50%;
@@ -692,14 +691,12 @@ body[data-message-language="vi"] .companion-context-menu {
   width: min(340px, calc(100% - 20px));
 }
 
-.companion-model-panel.show,
 .companion-achievements-panel.show {
   opacity: 1;
   pointer-events: auto;
   transform: translate(-50%, 0) scale(1);
 }
 
-.companion-model-title,
 .companion-achievements-title {
   font-family: 'Mochiy Pop One', 'Segoe UI', sans-serif;
   font-size: 12px;
@@ -1520,7 +1517,6 @@ body.desktop-pet-mode .companion-quickchat-history {
     color: #d9a8be;
   }
 
-  .companion-model-panel,
   .companion-achievements-panel {
     border-color: rgba(144, 181, 221, 0.22);
     background:
@@ -1531,7 +1527,6 @@ body.desktop-pet-mode .companion-quickchat-history {
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
-  .companion-model-title,
   .companion-achievements-title {
     color: #dbe8ff;
   }
@@ -2248,10 +2243,7 @@ body.desktop-pet-mode .companion-quickchat-history {
   flex-direction: column;
   gap: 4px;
   padding: 6px;
-  overflow-y: auto;
-  /* Scrollable by wheel and drag, but no visible bar: the column is too
-     narrow for one to look like anything but clutter. */
-  scrollbar-width: none;
+  overflow: hidden;
   border-radius: 14px;
   /* Same sakura tint as the speech bubble, but mostly see-through: the
      columns sit beside the character, and an opaque card there reads as a
@@ -2267,11 +2259,6 @@ body.desktop-pet-mode .companion-quickchat-history {
   transition: transform 0.18s ease;
 }
 
-.companion-side-column::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-
 .companion-side-column--left {
   grid-column: 1;
 }
@@ -2285,31 +2272,54 @@ body.desktop-pet-mode .companion-quickchat-history {
   transform: none;
 }
 
-/* Spacer | title | close (or spacer): the title is centred in both columns
-   and the headers line up even though only the right one has a close. */
+/* Header / scrolling body / footer. Only the body scrolls, so the close in
+   the footer is always at the bottom of the column, never scrolled out of
+   reach; the left footer holds an equal spacer so both columns line up. */
 .companion-side-head {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) 16px;
-  align-items: center;
-  gap: 4px;
-  min-height: 18px;
   flex: 0 0 auto;
+  min-height: 14px;
+  text-align: center;
+}
+
+.companion-side-title {
+  display: block;
+  font-family: 'Mochiy Pop One', 'Segoe UI', sans-serif;
+  font-size: 9px;
+  line-height: 1.25;
+  color: rgba(255, 150, 190, 0.95);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  text-align: center;
+  /* The full title, wrapped when the column is narrow — never cut short. */
+  overflow-wrap: anywhere;
+}
+
+.companion-side-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  /* Scrollable by wheel and drag, but no visible bar: the column is too
+     narrow for one to look like anything but clutter. */
+  scrollbar-width: none;
+}
+
+.companion-side-body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.companion-side-foot {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  min-height: 16px;
 }
 
 .companion-side-spacer {
   width: 16px;
   height: 16px;
-}
-
-.companion-side-title {
-  font-family: 'Mochiy Pop One', 'Segoe UI', sans-serif;
-  font-size: 9px;
-  color: rgba(255, 150, 190, 0.95);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .companion-side-close {
@@ -2334,6 +2344,7 @@ body.desktop-pet-mode .companion-quickchat-history {
    to match the column, and small enough for a column of eleven to read as a
    list rather than a stack of cards. Text follows the editor theme so it
    stays legible on light and dark backgrounds alike. */
+.companion-side-column .companion-model-option,
 .companion-side-column .companion-outfit-option,
 .companion-side-column .companion-expression-option,
 .companion-side-column .companion-motion-option {
@@ -2344,6 +2355,7 @@ body.desktop-pet-mode .companion-quickchat-history {
   box-shadow: none;
 }
 
+.companion-side-column .companion-model-option:hover,
 .companion-side-column .companion-outfit-option:hover,
 .companion-side-column .companion-expression-option:hover,
 .companion-side-column .companion-motion-option:hover {
@@ -2353,14 +2365,17 @@ body.desktop-pet-mode .companion-quickchat-history {
   box-shadow: none;
 }
 
+.companion-side-column .companion-model-option.active,
 .companion-side-column .companion-outfit-option.active,
-.companion-side-column .companion-expression-option.active {
+.companion-side-column .companion-expression-option.active,
+.companion-side-column .companion-motion-option.active {
   transform: none;
   border-color: rgba(255, 150, 190, 0.8);
   background: rgba(255, 150, 190, 0.34);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
+.companion-side-column .companion-model-label,
 .companion-side-column .companion-outfit-label,
 .companion-side-column .companion-motion-label {
   font-size: 8px;
@@ -2369,6 +2384,7 @@ body.desktop-pet-mode .companion-quickchat-history {
   overflow-wrap: anywhere;
 }
 
+.companion-side-column .companion-model-desc,
 .companion-side-column .companion-motion-desc {
   margin-top: 1px;
   font-size: 6.5px;
@@ -2380,4 +2396,118 @@ body.desktop-pet-mode .companion-quickchat-history {
   line-height: 1.4;
   padding: 2px 0;
   color: var(--vscode-descriptionForeground, #d9b6c6);
+}
+
+/* A clicked motion row pulses twice so the click visibly landed; the .active
+   highlight then stays as "last motion played". */
+.companion-side-column .companion-motion-option.is-playing {
+  animation: side-row-pulse 0.7s ease-out 2;
+}
+
+@keyframes side-row-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 150, 190, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 6px rgba(255, 150, 190, 0);
+  }
+}
+
+/* ─── Radial right-click menu ──────────────────────────────────────────────
+   Entries fan out on a ring around the click; the hovered entry's name shows
+   in the centre pill, which doubles as the back button one level down. The
+   ring's centre and radius come from radial-menu.js as custom properties. */
+.companion-radial {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  pointer-events: none;
+}
+
+.companion-radial.show {
+  display: block;
+}
+
+.companion-radial-center {
+  position: absolute;
+  left: var(--radial-x);
+  top: var(--radial-y);
+  transform: translate(-50%, -50%);
+  min-width: 46px;
+  max-width: 124px;
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 150, 190, 0.6);
+  border-radius: 999px;
+  background: rgba(36, 22, 34, 0.8);
+  color: #ffe6f1;
+  font-family: 'Mochiy Pop One', 'Segoe UI', sans-serif;
+  font-size: 10px;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px rgba(255, 150, 190, 0.22);
+}
+
+body[data-message-language="vi"] .companion-radial-center {
+  font-family: 'Nunito', 'Segoe UI', 'Noto Sans', sans-serif;
+  font-weight: 700;
+}
+
+.companion-radial-center.is-back {
+  background: rgba(255, 150, 190, 0.32);
+}
+
+.companion-radial-center:hover {
+  border-color: rgba(255, 150, 190, 0.95);
+  background: rgba(255, 150, 190, 0.45);
+}
+
+.companion-radial-item {
+  position: absolute;
+  left: var(--radial-x);
+  top: var(--radial-y);
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 150, 190, 0.5);
+  border-radius: 50%;
+  background: linear-gradient(160deg, rgba(255, 183, 213, 0.36), rgba(255, 218, 233, 0.16));
+  backdrop-filter: blur(8px);
+  box-shadow:
+    0 6px 16px rgba(255, 150, 190, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  /* Collapsed at the centre until the ring is told to burst. */
+  opacity: 0;
+  transform: scale(0.3);
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.18s ease;
+  transition-delay: calc(var(--i) * 22ms);
+}
+
+/* rotate → push out → rotate back keeps the icon upright at its slot. */
+.companion-radial-ring.is-out .companion-radial-item {
+  opacity: 1;
+  transform: rotate(var(--angle)) translate(var(--radial-radius)) rotate(calc(-1 * var(--angle)));
+}
+
+.companion-radial-ring.is-out .companion-radial-item:hover {
+  transition-delay: 0ms;
+  border-color: rgba(255, 150, 190, 0.95);
+  background: linear-gradient(160deg, rgba(255, 150, 190, 0.6), rgba(255, 183, 213, 0.34));
+  transform: rotate(var(--angle)) translate(var(--radial-radius)) rotate(calc(-1 * var(--angle))) scale(1.14);
+}
+
+.companion-radial-icon {
+  display: block;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
 }

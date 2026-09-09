@@ -6,9 +6,15 @@
 
 > ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.5.6
+**Current version:** v0.5.7
 
-> 🆕 **What's new in v0.5.6**:
+> 🆕 **What's new in v0.5.7**:
+> - **⚙️ Settings, the companion's way** — right-click › **Settings** (or `Anime Companion: Open Settings`) now opens a themed settings page: every option grouped into Model, Sound, Messages, Pomodoro, Cursor Chibi, AI Chat and Desktop, with a search box, proper toggles / sliders / pickers, a ↺ per setting, and one-click links to the Background panel, VS Code's Settings UI and settings.json.
+> - **🎡 Radial right-click menu** — right-click and the menu fans out on a ring around the cursor: icons on the circle, the hovered name in the centre; a category swaps the ring for its entries with a ↩ in the middle. Right-click again, click outside, or Esc closes it. Prefer the old list? `animeCompanion.menuStyle: "list"`.
+> - **Side columns, refined** — **Change Model** now uses the same two side columns as Outfit / Expression / Motion; the close **×** sits at the bottom of the right column and stays put while the list scrolls; titles show in full. A clicked motion row lights up and pulses, so you can see the click landed.
+> - **Know your model** — switching models shows a one-time bubble with how many outfits, expressions and motions the model ships, and the panel header now reads **Anime Companion: <model name>**.
+>
+> 🆕 **New in v0.5.6**:
 > - **↔️ Side columns instead of a popup** — Outfit, Expression and Motion now open as two slim columns at the sides of the character, so you see the change on the model as you pick. The columns stay open while you compare; close with **×** or Esc.
 >
 > 🆕 **New in v0.5.5**:
@@ -246,7 +252,7 @@ Every channel can be toggled independently in settings.
 
 ![Right-click menu](docs/images/11-rightclick-menu.png)
 
-Right-click on the companion to open an inline menu — no Command Palette needed:
+Right-click on the companion and the menu fans out on a **ring** around the cursor: icons on the circle, the hovered name in the centre; a category swaps the ring for its entries, and ↩ in the middle goes back. Set `animeCompanion.menuStyle` to `list` for the classic vertical menu. Either way, no Command Palette needed:
 
 - 🚀 **Run** — restart-or-start debug session
 - 🔧 **Git** — `Commit`, `Pull`, `Push`
@@ -370,7 +376,7 @@ Moods: `neutral`, `happy`, `shy`, `angry`, `surprised`, `sleepy`, `love`, `focus
 
 ![Settings UI](docs/images/12-settings-ui.png)
 
-Open Settings (`Ctrl+,`) → search `Anime Companion`, or click **Settings** in the companion's right-click menu.
+Right-click the companion → **Settings** (or run `Anime Companion: Open Settings`) for the companion's own grouped, searchable settings page. The native view is one click away from its header, or open Settings (`Ctrl+,`) and search `Anime Companion`.
 
 | Setting | Default | Description |
 |---|---|---|
@@ -386,6 +392,7 @@ Open Settings (`Ctrl+,`) → search `Anime Companion`, or click **Settings** in 
 | `animeCompanion.ambientVolume` | `30` | Ambient volume `0`–`100`. |
 | `animeCompanion.customAmbientTracks` | `[]` | List of custom local ambient tracks. |
 | `animeCompanion.characterSize` | `medium` | `small` / `medium` / `large`. |
+| `animeCompanion.menuStyle` | `radial` | Right-click menu layout: `radial` (ring around the cursor) or `list` (classic vertical menu). |
 | `animeCompanion.showOnStartup` | `true` | Auto-show panel on VS Code startup. |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Idle bubble interval (seconds). |
 | `animeCompanion.pomodoroWorkTime` / `BreakTime` | `25` / `5` | Work / break duration (minutes). |

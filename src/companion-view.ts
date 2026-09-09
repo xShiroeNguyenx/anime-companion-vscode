@@ -142,8 +142,9 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       // Replace the view title outright with the showcased achievement.
       this._view.title = `${emoji} ${showcase.title}`;
     } else {
-      // Restore the default contributed title ("Anime Companion").
-      this._view.title = undefined;
+      // The header reads "<container>: <title>", and the contributed title is
+      // also "Anime Companion" — so show the model's name there instead.
+      this._view.title = this._resolvedModel?.name || undefined;
     }
     this._view.description = undefined;
     return showcase;
@@ -181,6 +182,9 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   // never serves a 404 to PIXI's loader.
   private async _renderWith(webviewView: vscode.WebviewView) {
     this._resolvedModel = await this._resolveModel();
+    // The header title follows the model, so refresh it on every render (a
+    // model switch re-renders).
+    this._applyShowcaseToNativeTitle();
     this._resolvedVoiceAssetDir = await this._resolveVoiceAssetDir();
     const customAmbientTracks = this._getCustomAmbientTracks();
     webviewView.webview.options = {
@@ -540,6 +544,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     const messageLanguage = config.get<string>('messageLanguage', 'vi');
     const muted = config.get<boolean>('muted', false);
     const focusFollow = config.get<boolean>('focusFollow.enabled', false);
+    const menuStyle = config.get<string>('menuStyle', 'radial');
     const customAmbientTracks = this._getCustomAmbientTracks();
     const ambientPreset = getAmbientPreset(config.get<string>('ambientPreset', 'off'), customAmbientTracks);
     const ambientVolume = config.get<number>('ambientVolume', 30);
@@ -769,6 +774,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__MESSAGE_LANGUAGE__ = "${messageLanguage}";
     window.__AUDIO_MUTED__ = ${muted ? 'true' : 'false'};
     window.__FOCUS_FOLLOW__ = ${focusFollow ? 'true' : 'false'};
+    window.__MENU_STYLE__ = ${JSON.stringify(menuStyle)};
     window.__AMBIENT_PRESET__ = "${ambientPreset.id}";
     window.__AMBIENT_VOLUME__ = ${ambientVolume};
     window.__AMBIENT_TRACKS__ = ${JSON.stringify(ambientTracks)};

@@ -50,6 +50,7 @@ export interface WebviewStrings {
   panels?: Record<string, string>;
   outfits?: Record<string, string>;
   backgroundPanel?: Record<string, string>;
+  settingsPanel?: Record<string, string>;
   markdownEditor?: Record<string, string>;
 }
 

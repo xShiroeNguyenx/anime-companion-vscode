@@ -3,6 +3,37 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.7] - 2026-09-09
+
+### Changed — 🌸 Markdown editor header slimmed down
+
+- The editor header is now toolbar-sized — 30 px tall instead of a banner: 4 px vertical padding, a 13 px flower, an 11.5 px title, 22 px round buttons and a compact Save, with a 1 px rule and a softer shadow. The Toast UI formatting toolbar under it is scaled to the same ~30 px (its icons are a fixed sprite, so the bar is zoomed as a whole). Same look, less of it, so the document gets the room ([media/webview/markdown-editor.css](media/webview/markdown-editor.css)).
+
+### Fixed
+
+- **A showcased achievement no longer crushes the chat panel.** In the split chat layout the companion container becomes a flex row; the bubble and status bar were hidden there but the showcase pill was not, and its non-shrinking content width ("Sovereign of Stamina · LEGENDARY") pushed the chat panel down to a sliver. The pill now hides while chat is open, like the bubble; the view header keeps showing the showcased title ([media/webview/chat.css](media/webview/chat.css)).
+
+### Added — ⚙️ A settings page of the companion's own
+
+- **Right-click › Settings (and `Anime Companion: Open Settings`) now opens a themed settings panel instead of the native Settings UI filtered to the extension.** The native list shows our ~80 keys alphabetically under one heading; the panel reads the very same schema from package.json — nothing is declared twice — and lays it out in sections (Model & Appearance, Voice & Sound, Messages & Reactions, Pomodoro, Cursor Chibi, AI Chat, Desktop Companion, Other) with a search box, a control per type (switch, segmented picker or dropdown for enums, slider + number, text, a JSON editor with validation for lists and maps), the default value and a ↺ reset on every item, and a note when a workspace overrides a value. Writes go to user settings exactly as the native UI would, values update in place as they change, and the page re-localizes live with `messageLanguage` ([src/settings-panel.ts](src/settings-panel.ts), [media/webview/settings-panel.js](media/webview/settings-panel.js), [media/webview/settings-panel.css](media/webview/settings-panel.css)).
+  - The Background Image section hands off to its own control panel; VS Code's Settings UI and `settings.json` stay one click away in the header for anything unusual.
+  - Setting titles are derived from the keys and descriptions come from package.json, so they read in English whatever the message language; the page chrome (sections, buttons, notes) is localized — `settingsPanel.*` across en/vi/ja.
+
+### Added — 🎡 Radial right-click menu
+
+- **Right-click now fans the menu out on a ring around the cursor** instead of dropping a vertical list: nine icons (Run, the seven categories, Settings) on a circle, the hovered entry's name in a pill at the centre. Picking a category replaces the ring with that category's entries and turns the centre pill into a **↩ back** button — one ring deep on purpose, since the panel is ~330 px wide and a second, outer ring would not fit. A second right-click, a click outside, or Esc closes it; choosing an entry closes it too ([media/webview/radial-menu.js](media/webview/radial-menu.js), [media/companion.css](media/companion.css)). Near an edge the ring's centre is pulled inward so the whole ring stays on screen, and a small window (the desktop pet) gets a smaller ring.
+  - Purely a shell: every entry carries the same action id the list menu uses and runs through the same dispatcher, so Mute / Unmute and the look-at check read their live state exactly as before ([media/webview/interaction.js](media/webview/interaction.js)).
+- **New setting `animeCompanion.menuStyle`** — `radial` (default) or `list` for the classic vertical menu. Read by the panel and the Desktop Companion alike ([src/companion-view.ts](src/companion-view.ts), [src/desktop-pet-bridge.ts](src/desktop-pet-bridge.ts), [desktop-pet/web/index.html](desktop-pet/web/index.html)).
+- **i18n** — `menu.radialTitle`, `menu.radialBack` across en/vi/ja.
+
+### Changed — ↔️ Side columns: the model picker joins them, close button at the bottom, full titles
+
+- **Change Model now opens as the same two side columns as Outfit / Expression / Motion** (Appearance › Model): the list is split evenly across the two columns with the current model highlighted, and picking one switches immediately as before. The old centred model card and its styles are gone ([media/webview/interaction.js](media/webview/interaction.js), [media/companion.css](media/companion.css)).
+- **Each column is now header / scrolling body / footer.** Only the body scrolls, so the **×** — moved from the header to the **bottom of the right column** — stays in reach however long the list is; the left footer holds an equal-height spacer so both columns keep the same layout. Titles have the whole column width and wrap on a narrow column instead of being cut to "Mot…".
+- **A clicked motion row shows it.** Motions have no state to reflect, so the row itself lights up, pulses twice and stays highlighted as "last motion played" until another is chosen, with a small bubble naming it (`bubbles.motionPlayed`). Before, a click on a motion left the list looking untouched, which read as "didn't work" ([media/webview/interaction.js](media/webview/interaction.js), [media/companion.css](media/companion.css)).
+- **A model switch announces what the model ships** — one bubble with the outfit / expression / motion counts and a nudge to press and hold, shown once per model (remembered in webview state, so a reload of the same model stays quiet). It is **held for nine seconds**: `showBubble()` gained a `holdMs` option, and an ordinary bubble arriving during a hold — the greeting the host sends four seconds after a render — now waits its turn instead of replacing the held one a moment after it appeared ([media/webview/ui.js](media/webview/ui.js)). The host's own "Switched to model …" bubble is gone; it was unlocalized and only competed for the same stage. `bubbles.modelInventory` across en/vi/ja.
+- **The view header shows the model's name** — "🌸 Anime Companion: Hiyori" instead of "Anime Companion: Anime Companion"; the title follows every model switch and still yields to a showcased achievement ([src/companion-view.ts](src/companion-view.ts)).
+
 ## [0.5.6] - 2026-09-09
 
 ### Changed — ↔️ Outfit, Expression and Motion open beside the character, not over it

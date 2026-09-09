@@ -8,9 +8,15 @@
 
 > ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.5.6
+**Phiên bản hiện tại:** v0.5.7
 
-> 🆕 **Có gì mới ở v0.5.6**:
+> 🆕 **Có gì mới ở v0.5.7**:
+> - **⚙️ Cài đặt theo kiểu companion** — chuột phải › **Cài đặt** (hoặc lệnh `Anime Companion: Open Settings`) giờ mở trang cài đặt riêng cùng tông: mọi tuỳ chọn gom thành Model, Âm thanh, Lời nhắn, Pomodoro, Chibi Cursor, Chat AI, Desktop; có ô tìm, công tắc / thanh kéo / nút chọn đúng kiểu, nút ↺ về mặc định cho từng mục, và nút mở nhanh bảng Ảnh nền, Settings UI của VS Code, settings.json.
+> - **🎡 Menu chuột phải hình tròn** — chuột phải là menu bung thành vòng tròn quanh con trỏ: icon trên vòng, tên mục hiện ở tâm khi rê; bấm một danh mục thì vòng đổi thành các mục con, ↩ ở tâm để quay lại. Chuột phải lần nữa, click ra ngoài hoặc Esc để đóng. Thích menu dọc cũ? `animeCompanion.menuStyle: "list"`.
+> - **Hai cột hai bên, tinh chỉnh** — **Đổi Model** cũng hiện hai cột như Trang phục / Biểu cảm / Motion; nút **×** dời xuống đáy cột phải và đứng yên khi danh sách cuộn; tiêu đề hiện đủ chữ. Bấm một motion thì hàng đó sáng lên và nhấp nháy, biết ngay là đã bấm trúng.
+> - **Biết model có gì** — đổi model xong hiện một bubble cho biết model có bao nhiêu bộ đồ, biểu cảm, motion; header panel giờ ghi **Anime Companion: <tên model>**.
+>
+> 🆕 **Mới ở v0.5.6**:
 > - **↔️ Hai cột hai bên thay cho popup** — Trang phục, Biểu cảm và Motion giờ mở thành hai cột mảnh ở hai bên nhân vật, nên chọn tới đâu thấy model đổi tới đó. Cột mở sẵn để so qua lại; đóng bằng **×** hoặc Esc.
 >
 > 🆕 **Mới ở v0.5.5**:
@@ -246,7 +252,7 @@ Mỗi kênh đều có thể bật/tắt độc lập qua settings.
 
 ![Right-click menu](images/11-rightclick-menu.png)
 
-Click chuột phải lên companion để mở menu inline — không phải mở Command Palette:
+Click chuột phải lên companion là menu **bung thành vòng tròn** quanh con trỏ: icon trên vòng, tên mục hiện ở tâm khi rê; bấm danh mục thì vòng đổi thành mục con, ↩ ở tâm để quay lại. Đặt `animeCompanion.menuStyle` = `list` nếu muốn menu dọc cũ. Kiểu nào cũng không cần Command Palette:
 
 - 🚀 **Run** — restart hoặc start debug session
 - 🔧 **Git** — `Commit`, `Pull`, `Push`
@@ -366,7 +372,7 @@ Các mood: `neutral`, `happy`, `shy`, `angry`, `surprised`, `sleepy`, `love`, `f
 
 ![Settings UI](images/12-settings-ui.png)
 
-Mở Settings (`Ctrl+,`) → tìm `Anime Companion`, hoặc click **Settings** trong right-click menu của companion.
+Chuột phải lên companion → **Cài đặt** (hoặc chạy `Anime Companion: Open Settings`) để mở trang cài đặt riêng của companion, gom nhóm và tìm được. Muốn xem bản gốc thì bấm nút ở header trang đó, hoặc mở Settings (`Ctrl+,`) và tìm `Anime Companion`.
 
 | Setting | Default | Mô tả |
 |---|---|---|
@@ -382,6 +388,7 @@ Mở Settings (`Ctrl+,`) → tìm `Anime Companion`, hoặc click **Settings** t
 | `animeCompanion.ambientVolume` | `30` | Âm lượng ambient từ `0` đến `100`. |
 | `animeCompanion.customAmbientTracks` | `[]` | Danh sách track ambient local tự thêm. |
 | `animeCompanion.characterSize` | `medium` | `small` / `medium` / `large`. |
+| `animeCompanion.menuStyle` | `radial` | Kiểu menu chuột phải: `radial` (vòng tròn quanh con trỏ) hoặc `list` (menu dọc cũ). |
 | `animeCompanion.showOnStartup` | `true` | Tự hiện panel khi VS Code khởi động. |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Khoảng cách giữa các idle bubble (giây). |
 | `animeCompanion.pomodoroWorkTime` / `BreakTime` | `25` / `5` | Thời lượng work / break (phút). |

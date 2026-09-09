@@ -4,6 +4,7 @@ import { activeOutfit, clearOutfit, outfitGlossaryKey, outfitNames, setOutfit } 
 import { expressionNames, faceNames, updateModelExpressionTick } from './model-expressions.js';
 import { idleMotionGroup, motionGroups } from './motions.js';
 import { playAudio, setAmbientPreset, setGlobalAudioMuted } from './audio.js';
+import { createRadialMenu } from './radial-menu.js';
 import {
   showBubble,
   createSparkle,
@@ -97,7 +98,6 @@ function hideCompanionPanels() {
   document.querySelector('.companion-voice-panel')?.classList.remove('show');
   document.querySelector('.companion-message-panel')?.classList.remove('show');
   document.querySelector('.companion-ambient-panel')?.classList.remove('show');
-  document.querySelector('.companion-model-panel')?.classList.remove('show');
   hideSidePanel();
   document.querySelector('.companion-achievements-panel')?.classList.remove('show');
   document.querySelector('.companion-agent-panel')?.classList.remove('show');
@@ -565,7 +565,6 @@ export function setupModel() {
   setupVoicePanel();
   setupMessagePanel();
   setupAmbientPanel();
-  setupModelPanel();
   setupSidePanel();
   setupAchievementsPanel();
   setupAgentPanel();
@@ -901,6 +900,8 @@ function setupContextMenu() {
 
 function setupCompactContextMenu() {
   const isDesktop = !!window.__DESKTOP_PET_MODE__;
+  // Set below when the radial style is active; null keeps the list menus.
+  let radialMenu = null;
 
   // Functional categories per roadmap v0.4.0 §4.1. Each category produces one
   // submenu; the main menu just lists categories + a couple of quick actions.
@@ -1054,6 +1055,7 @@ function setupCompactContextMenu() {
 
   const closeContextMenus = () => {
     for (const m of allMenus) m.classList.remove('show');
+    radialMenu?.close();
   };
 
   const positionMenu = (targetMenu, left, top) => {
@@ -1232,8 +1234,51 @@ function setupCompactContextMenu() {
     createSparkle();
   }, true);
 
+  // The radial style is the default; the classic list stays one setting away
+  // (`animeCompanion.menuStyle: "list"`). Both drive the same handleMenuAction,
+  // so the ring is only a different shell over the same entries.
+  if (window.__MENU_STYLE__ !== 'list') {
+    radialMenu = createRadialMenu({
+      getItems: () => [
+        { icon: '🚀', label: t('menu.run', 'Run'), action: 'start-server' },
+        ...categories.map((cat) => ({
+          id: cat.id,
+          icon: cat.icon,
+          label: cat.label,
+          // Mute / look-at entries read their state at open time, the way the
+          // list menu does through syncMuteMenuLabel / syncFocusMenuLabel.
+          items: cat.items.map((item) => ({
+            icon: item.mute
+              ? (window.__AUDIO_MUTED__ ? '🔊' : '🔇')
+              : item.focus
+                ? (window.__FOCUS_FOLLOW__ ? '✅' : '👀')
+                : item.icon,
+            label: item.mute
+              ? (window.__AUDIO_MUTED__ ? t('menu.unmute', 'Unmute') : t('menu.mute', 'Mute'))
+              : item.label,
+            action: item.action,
+          })),
+        })),
+        { icon: '⚙️', label: t('menu.allSettings', 'All Settings'), action: 'open-all-settings' },
+      ],
+      onAction: handleMenuAction,
+      labels: {
+        title: t('menu.radialTitle', 'Menu'),
+        back: t('menu.radialBack', 'Quay lại'),
+        close: t('panels.sideClose', 'Đóng'),
+      },
+    });
+  }
+
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
+    if (radialMenu) {
+      // A second right-click closes the ring; the list menus stay unused.
+      const wasOpen = radialMenu.isOpen();
+      closeContextMenus();
+      if (!wasOpen) radialMenu.openAt(e.clientX, e.clientY);
+      return;
+    }
     syncMuteMenuLabel(mainMenu);
     for (const id of Object.keys(submenus)) {
       syncMuteMenuLabel(submenus[id]);
@@ -1246,6 +1291,7 @@ function setupCompactContextMenu() {
 
   window.addEventListener('click', (e) => {
     if (allMenus.some((m) => m.contains(e.target))) return;
+    if (radialMenu?.contains(e.target)) return;
     closeContextMenus();
   }, true);
 
@@ -1469,64 +1515,41 @@ function showAmbientPanel() {
   panel.classList.add('show');
 }
 
-function setupModelPanel() {
-  const wrapper = document.getElementById('characterWrapper');
-  if (!wrapper) return;
+// ─── Model picker: the same two columns as the wardrobe ───────────────────
 
-  const panel = document.createElement('div');
-  panel.className = 'companion-model-panel';
+/** One row per model the extension offers, the current one highlighted. */
+function modelRows() {
   // Source of truth is `window.__VISIBLE_MODELS__` injected by companion-view.ts.
   // The provider already merges built-in models with user-configured local
   // models, so the UI only needs the final display list.
-  const models = Array.isArray(window.__VISIBLE_MODELS__) && window.__VISIBLE_MODELS__.length > 0
-    ? window.__VISIBLE_MODELS__
-    : [{ id: 'hiyori', name: 'Hiyori', description: 'Live2D Sample' }];
-  const buttons = models.map((m) =>
-    `<button class="companion-model-option" data-model="${escapeHtml(m.id)}">` +
-    `<span class="companion-model-label">${escapeHtml(m.name)}</span>` +
-    `<span class="companion-model-desc">${escapeHtml(m.description || '')}</span>` +
-    `</button>`
-  ).join('');
-  panel.innerHTML = `
-    <div class="companion-model-title">${t('panels.modelTitle', 'Model')}</div>
-    ${buttons}
-  `;
-  wrapper.appendChild(panel);
-
-  panel.addEventListener('click', (e) => {
-    const option = e.target.closest('.companion-model-option');
-    if (!option) return;
-    const modelId = option.getAttribute('data-model');
-    if (!modelId) return;
-
-    panel.classList.remove('show');
-    vscode.postMessage({ command: 'setModel', modelId });
-  });
-
-  window.addEventListener('click', (e) => {
-    if (!panel.contains(e.target)) {
-      panel.classList.remove('show');
-    }
-  }, true);
+  const models =
+    Array.isArray(window.__VISIBLE_MODELS__) && window.__VISIBLE_MODELS__.length > 0
+      ? window.__VISIBLE_MODELS__
+      : [{ id: 'hiyori', name: 'Hiyori', description: 'Live2D Sample' }];
+  const current = window.__MODEL_ID__ || 'hiyori';
+  return models.map(
+    (m) =>
+      `<button class="companion-model-option${m.id === current ? ' active' : ''}" data-model="${escapeHtml(m.id)}" title="${escapeHtml(m.description || '')}">` +
+      `<span class="companion-model-label">${escapeHtml(m.name)}</span>` +
+      (m.description ? `<span class="companion-model-desc">${escapeHtml(m.description)}</span>` : '') +
+      `</button>`
+  );
 }
 
 function showModelPanel() {
-  const panel = document.querySelector('.companion-model-panel');
-  if (!panel) return;
-  hideCompanionPanels();
-
-  const current = window.__MODEL_ID__ || 'hiyori';
-  panel.querySelectorAll('.companion-model-option').forEach((option) => {
-    option.classList.toggle('active', option.getAttribute('data-model') === current);
+  showSidePanel(() => {
+    const { leftRows, rightRows } = splitRows(modelRows());
+    const title = t('panels.modelTitle', 'Model');
+    return { left: { title, rows: leftRows }, right: { title, rows: rightRows } };
   });
-  panel.classList.add('show');
 }
 
 // ─── Side panel: outfits, expressions and motions in two columns ──────────
 
 /**
- * One panel for the model's outfits, expressions and motions, laid out as two
- * columns at the sides of the character instead of a card over it.
+ * One panel for the model picker and the model's outfits, expressions and
+ * motions, laid out as two columns at the sides of the character instead of
+ * a card over it.
  *
  * The earlier popups sat centred over the model: with eleven motions listed,
  * the character disappeared behind the very menu meant to dress it. Two
@@ -1556,6 +1579,16 @@ function setupSidePanel() {
       hideSidePanel();
       return;
     }
+    const model = e.target.closest('.companion-model-option');
+    if (model) {
+      const modelId = model.getAttribute('data-model');
+      if (!modelId) return;
+      // Switching models rebuilds the webview; close first so the old list
+      // is not left showing over the loading state.
+      hideSidePanel();
+      vscode.postMessage({ command: 'setModel', modelId });
+      return;
+    }
     const outfit = e.target.closest('.companion-outfit-option');
     if (outfit) {
       chooseOutfit(outfit.getAttribute('data-outfit'));
@@ -1570,7 +1603,16 @@ function setupSidePanel() {
     if (motion) {
       const motionId = motion.getAttribute('data-motion');
       if (!motionId) return;
+      // A motion has no persistent state to reflect, so the row itself has to
+      // show the click landed: it lights up and pulses, then stays lit as the
+      // last motion played until another row is chosen.
+      panel.querySelectorAll('.companion-motion-option.active').forEach((row) => {
+        row.classList.remove('active', 'is-playing');
+      });
+      motion.classList.add('active', 'is-playing');
+      setTimeout(() => motion.classList.remove('is-playing'), 1400);
       playMotion(motionId);
+      showBubble(t('bubbles.motionPlayed', 'Diễn {name} cho Onii-chan xem nè~ 🎬').replace('{name}', motionId));
       createSparkle();
     }
   });
@@ -1609,19 +1651,59 @@ function refreshSidePanel() {
 
 function sideColumnHtml(side, column, withClose = false) {
   const closeLabel = escapeHtml(t('panels.sideClose', 'Đóng'));
-  // The header is a three-cell grid — spacer, title, close — on both sides,
-  // so the title sits centred and the two columns line up exactly even
-  // though only the right one carries the close button.
-  const title = `<span class="companion-side-title">${escapeHtml(column.title ?? '')}</span>`;
-  const close = withClose
+  // Header, scrolling body, footer — on both sides, so the two columns line
+  // up exactly even though only the right footer carries the close button.
+  // The close lives in the footer: at the bottom of the column and outside
+  // the scrolling part, so it stays in reach however long the list is.
+  const foot = withClose
     ? `<button class="companion-side-close" title="${closeLabel}" aria-label="${closeLabel}">×</button>`
     : '<span class="companion-side-spacer"></span>';
   return (
     `<div class="companion-side-column companion-side-column--${side}">` +
-    `<div class="companion-side-head"><span class="companion-side-spacer"></span>${title}${close}</div>` +
-    column.rows.join('') +
+    `<div class="companion-side-head"><span class="companion-side-title">${escapeHtml(column.title ?? '')}</span></div>` +
+    `<div class="companion-side-body">${column.rows.join('')}</div>` +
+    `<div class="companion-side-foot">${foot}</div>` +
     `</div>`
   );
+}
+
+/**
+ * One bubble after a model switch saying what the model ships, so the user
+ * learns that this one has four outfits and eleven motions without opening
+ * anything. Remembered per webview: a plain reload of the same model stays
+ * quiet, a different model (or a fresh session) announces once.
+ */
+export function announceModelInventory() {
+  const modelId = window.__MODEL_ID__ || '';
+  let remembered;
+  try {
+    remembered = vscode.getState?.()?.announcedModelId;
+  } catch {
+    remembered = undefined;
+  }
+  if (remembered === modelId) return;
+  try {
+    vscode.setState?.({ ...(vscode.getState?.() || {}), announcedModelId: modelId });
+  } catch {
+    // A bridge without webview state (desktop pet) just announces every load.
+  }
+
+  const outfits = outfitNames().length;
+  const expressions = faceNames().length;
+  const motions = motionGroups().length;
+  if (outfits + expressions + motions === 0) return;
+
+  const text = t(
+    'bubbles.modelInventory',
+    'Model này có {outfits} bộ đồ · {expressions} biểu cảm · {motions} motion nha~ nhấn giữ em để chọn! ✨'
+  )
+    .replace('{outfits}', String(outfits))
+    .replace('{expressions}', String(expressions))
+    .replace('{motions}', String(motions));
+  // A beat after the model appears, then held long enough to read: the
+  // greeting the host sends a few seconds after a render would otherwise
+  // replace it mid-sentence — with a hold it waits its turn instead.
+  setTimeout(() => showBubble(text, { holdMs: 9000 }), 600);
 }
 
 /** First half left, second half right — reading order stays top-down. */

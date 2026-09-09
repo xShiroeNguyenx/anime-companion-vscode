@@ -522,6 +522,7 @@ export class DesktopPetBridge implements vscode.Disposable {
     const messageLanguage = config.get<string>('messageLanguage', 'vi');
     const muted = config.get<boolean>('muted', false);
     const focusFollow = config.get<boolean>('focusFollow.enabled', false);
+    const menuStyle = config.get<string>('menuStyle', 'radial');
 
     const customAmbientTracks = this._getCustomAmbientTracks();
     const ambientPreset = getAmbientPreset(config.get<string>('ambientPreset', 'off'), customAmbientTracks);
@@ -560,6 +561,7 @@ export class DesktopPetBridge implements vscode.Disposable {
       messageLanguage,
       muted,
       focusFollow,
+      menuStyle,
       clickThrough: this._getDesktopCompanionSetting('clickThrough', false),
       ambientPreset: ambientPreset.id,
       ambientVolume,

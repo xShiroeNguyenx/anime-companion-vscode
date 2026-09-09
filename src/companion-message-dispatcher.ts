@@ -110,8 +110,9 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
     case 'setModel':
       if (typeof message.modelId === 'string') {
         Promise.resolve(ctx.applyModelSelection(message.modelId)).then(() => {
+          // The webview announces the new model itself (with what it ships),
+          // so no extra bubble here — it would only fight that one for the stage.
           void ctx.refresh();
-          ctx.sendBubble(`Switched to model ${message.modelId}.`);
         });
       }
       break;

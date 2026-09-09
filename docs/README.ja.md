@@ -9,8 +9,14 @@
 
 > ⚠️ **実験版 — v0.5.x.** これは early-access ビルドです。v1.0 に到達するまで、マイナーバージョン間で API、設定、振る舞いが変わることがあります。バグや感想は [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) で歓迎します。
 
-**現在のバージョン:** v0.5.6
+**現在のバージョン:** v0.5.7
 
+> 🆕 **v0.5.7 の新着**:
+> - **⚙️ コンパニオン流の設定ページ** — 右クリック › **設定**（または `Anime Companion: Open Settings`）で、統一トーンの設定ページが開きます。すべての項目をモデル・サウンド・メッセージ・ポモドーロ・カーソルちび・AI チャット・デスクトップに分け、検索ボックス、種類に合ったトグル／スライダー／選択、項目ごとの ↺ リセット、背景パネル・VS Code の設定 UI・settings.json へのリンクを備えています。
+> - **🎡 円形の右クリックメニュー** — 右クリックするとメニューがカーソルの周りに輪状に開きます。輪の上はアイコン、ホバーした項目名は中央に。カテゴリを選ぶと輪がその項目に入れ替わり、中央の ↩ で戻ります。もう一度右クリック、外側をクリック、または Esc で閉じます。従来の縦メニューは `animeCompanion.menuStyle: "list"` で。
+> - **両脇の 2 列を調整** — **モデル変更**も衣装・表情・モーションと同じ 2 列で開きます。閉じる **×** は右列の下端に移り、一覧をスクロールしても動きません。タイトルは省略せず全文表示。モーションの行をクリックすると光って脈打つので、クリックが届いたことがすぐわかります。
+> - **モデルの中身がわかる** — モデルを切り替えると、衣装・表情・モーションの数を知らせる吹き出しが一度だけ出ます。パネルのヘッダーは **Anime Companion: <モデル名>** になりました。
+>
 > 🆕 **v0.5.6 の新着**:
 > - **↔️ ポップアップの代わりに両脇の 2 列** — 衣装・表情・モーションはキャラクターの両脇に細い 2 列として開くようになり、選んだ変化をモデルで見ながら選べます。比べられるよう開いたままで、**×** か Esc で閉じます。
 >
@@ -247,7 +253,7 @@ code --install-extension shiroenguyen.anime-companion-vscode
 
 ![Right-click menu](images/11-rightclick-menu.png)
 
-コンパニオンを右クリックでインラインメニューが開きます — Command Palette を経由する必要はありません。
+コンパニオンを右クリックすると、メニューがカーソルの周りに**輪状**に開きます。輪の上はアイコン、ホバーした項目名は中央に。カテゴリを選ぶと輪がその項目に入れ替わり、中央の ↩ で戻ります。従来の縦メニューにするには `animeCompanion.menuStyle` を `list` に。どちらでも Command Palette は不要です。
 
 - 🚀 **Run** — デバッグセッションを再起動または開始
 - 🔧 **Git** — `Commit`、`Pull`、`Push`
@@ -371,7 +377,7 @@ code --install-extension shiroenguyen.anime-companion-vscode
 
 ![Settings UI](images/12-settings-ui.png)
 
-Settings (`Ctrl+,`) を開いて `Anime Companion` で検索するか、コンパニオンの右クリックメニューから **Settings** をクリックします。
+コンパニオンを右クリック → **設定**（または `Anime Companion: Open Settings`）で、グループ分け・検索可能なコンパニオン独自の設定ページが開きます。標準の設定画面はそのヘッダーからワンクリック、または Settings (`Ctrl+,`) で `Anime Companion` を検索してください。
 
 | Setting | デフォルト | 説明 |
 |---|---|---|
@@ -387,6 +393,7 @@ Settings (`Ctrl+,`) を開いて `Anime Companion` で検索するか、コン�
 | `animeCompanion.ambientVolume` | `30` | Ambient 音量 `0`–`100`。 |
 | `animeCompanion.customAmbientTracks` | `[]` | カスタムのローカルアンビエントトラック一覧。 |
 | `animeCompanion.characterSize` | `medium` | `small` / `medium` / `large`。 |
+| `animeCompanion.menuStyle` | `radial` | 右クリックメニューの形: `radial`（カーソルの周りの輪）または `list`（従来の縦メニュー）。 |
 | `animeCompanion.showOnStartup` | `true` | VS Code 起動時にパネルを自動表示。 |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | アイドル吹き出し間隔（秒）。 |
 | `animeCompanion.pomodoroWorkTime` / `BreakTime` | `25` / `5` | 作業／休憩時間（分）。 |

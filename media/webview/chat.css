@@ -63,8 +63,12 @@
   background: radial-gradient(circle at 0% 100%, rgba(255, 158, 199, 0.06), transparent 60%),
               var(--vscode-editor-background, #1e1e1e);
 }
+/* The showcase pill is a flex item of this row too: left visible, its
+   flex-shrink: 0 content width squeezed the chat panel to a sliver. The
+   view header still shows the showcased achievement while chatting. */
 .companion-container.chat-open > .chat-bubble,
-.companion-container.chat-open > .status-bar {
+.companion-container.chat-open > .status-bar,
+.companion-container.chat-open > .companion-showcase {
   display: none !important;
 }
 .companion-container.chat-open > .character-wrapper {

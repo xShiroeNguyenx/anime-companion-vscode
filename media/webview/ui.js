@@ -9,6 +9,10 @@ function $canvas() { return document.getElementById('live2dCanvas'); }
 function $fallback() { return document.getElementById('fallbackImg'); }
 
 let bubbleTimeout = null;
+// A bubble shown with `holdMs` keeps the stage until then; ordinary bubbles
+// that arrive meanwhile are parked here and shown once it has had its time.
+let bubbleHoldUntil = 0;
+let deferredBubbleTimer = null;
 let confirmPanel = null;
 let confirmRequestId = null;
 let inputPanel = null;
@@ -45,11 +49,32 @@ export function forceDismissBubble() {
   streamAccumulated = '';
 }
 
-export function showBubble(text) {
+/**
+ * Shows a speech bubble for six seconds, or for `options.holdMs` when given.
+ *
+ * A held bubble is one the user asked to read — the model inventory after a
+ * switch, say — so an ordinary bubble arriving while it is up (the greeting,
+ * a save reaction) is deferred until the hold ends rather than replacing it
+ * a second after it appeared. Another held bubble does replace it.
+ */
+export function showBubble(text, options = {}) {
   const bubble = $bubble();
   const txt = $bubbleText();
   if (!bubble || !txt) return;
   if (bubbleStreaming) return;
+
+  const holdMs = Number.isFinite(options.holdMs) && options.holdMs > 0 ? options.holdMs : 0;
+  const now = Date.now();
+  if (!holdMs && now < bubbleHoldUntil) {
+    if (deferredBubbleTimer) clearTimeout(deferredBubbleTimer);
+    deferredBubbleTimer = setTimeout(() => {
+      deferredBubbleTimer = null;
+      showBubble(text);
+    }, bubbleHoldUntil - now + 250);
+    return;
+  }
+  bubbleHoldUntil = holdMs ? now + holdMs : 0;
+  const visibleMs = holdMs || 6000;
 
   if (bubbleTimeout) clearTimeout(bubbleTimeout);
   bubble.classList.remove('visible');
@@ -61,7 +86,7 @@ export function showBubble(text) {
     createSparkle();
     bubbleTimeout = setTimeout(() => {
       bubble.classList.remove('visible');
-    }, 6000);
+    }, visibleMs);
   }, 200);
 }
 

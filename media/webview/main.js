@@ -25,7 +25,7 @@ import {
   finishQuickChatHistoryTurn,
   failQuickChatHistoryTurn,
 } from './ui.js';
-import { applyShowcaseBanner, openShareCardPreview, receiveShareCardSaveResult, renderAgentAvailableTools, renderAgentProfileList, setupModel, showAchievementUnlockEffect, showAchievementsPanel, updateAchievementsPanelData } from './interaction.js';
+import { announceModelInventory, applyShowcaseBanner, openShareCardPreview, receiveShareCardSaveResult, renderAgentAvailableTools, renderAgentProfileList, setupModel, showAchievementUnlockEffect, showAchievementsPanel, updateAchievementsPanelData } from './interaction.js';
 
 function disposeCurrentModel() {
   state.isLive2DReady = false;
@@ -119,7 +119,7 @@ async function initLive2D() {
     // Not awaited: the outfit list is a menu the user may never open, and
     // blocking the reveal of a loaded model on a second fetch would show a
     // blank panel for no reason.
-    void loadOutfits(modelUrl);
+    void loadOutfits(modelUrl).then(() => announceModelInventory());
 
     canvas.style.display = 'block';
     hideLoading();

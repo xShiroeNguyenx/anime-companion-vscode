@@ -1,6 +1,44 @@
 # Public Release Guide
 
-> Bản hiện tại đang chuẩn bị publish: **v0.5.6** (release notes ngay bên dưới). v0.5.5 đã publish ngày 2026-09-09. Các phần cũ giữ làm reference cho flow chung.
+> Bản hiện tại đang chuẩn bị publish: **v0.5.7** (release notes ngay bên dưới). v0.5.5 và v0.5.6 đã publish ngày 2026-09-09. Các phần cũ giữ làm reference cho flow chung.
+
+---
+
+## 📦 v0.5.7 Release (2026-09-09)
+
+### Scope
+
+- Extension version public: `0.5.7`
+- Tinh chỉnh side panel hai cột:
+  - **Đổi Model** dùng chung side panel (Diện mạo › Đổi Model): danh sách chia đều 2 cột, model hiện tại sáng, chọn là đổi ngay như cũ. Card Model cũ (`.companion-model-panel`) và CSS đi kèm gỡ hẳn ([media/webview/interaction.js](media/webview/interaction.js), [media/companion.css](media/companion.css)).
+  - Mỗi cột = **header / body cuộn / footer**; chỉ body cuộn nên nút **×** ở footer cột phải luôn nằm đáy, không bị cuộn mất; cột trái có ô đệm cùng cao để hai cột đều nhau.
+  - Tiêu đề chiếm trọn bề ngang, xuống dòng khi hẹp, không còn "Mot…".
+  - **Phản hồi khi bấm motion**: hàng sáng lên (`.active`) + nhấp nháy 2 nhịp (`.is-playing`), giữ sáng là "motion vừa chạy" tới khi bấm hàng khác; kèm bubble `bubbles.motionPlayed` ("Diễn … nè~ 🎬"). Model giữ nguyên kích cỡ, không thu nhỏ.
+  - **Bubble kiểm kê sau khi đổi model**: `announceModelInventory()` (interaction.js, gọi từ main.js sau `loadOutfits`) báo số bộ đồ · biểu cảm · motion, nhớ theo model bằng `vscode.setState` nên reload cùng model không lặp. **Giữ 9 s**: `showBubble(text, { holdMs })` mới trong ui.js; bubble thường tới trong lúc giữ (lời chào 4 s sau render) được xếp hàng hiện sau thay vì đè lên. Bỏ bubble "Switched to model …" của extension (dispatcher). i18n `bubbles.modelInventory` (vi / en / ja).
+  - **Header = tên model**: `_applyShowcaseToNativeTitle()` đặt `view.title = model.name` khi không có showcase, gọi lại trong `_renderWith` → "🌸 Anime Companion: Hiyori" ([src/companion-view.ts](src/companion-view.ts)).
+- **🎡 Menu chuột phải hình tròn** (mặc định): [media/webview/radial-menu.js](media/webview/radial-menu.js) — 9 icon (Run, 7 danh mục, Cài đặt) bung thành vòng quanh con trỏ (bán kính 92 px, tự thu nhỏ/dời tâm vào trong khi gần mép); rê icon → tên hiện ở tâm; bấm danh mục → vòng đổi thành mục con, tâm thành "↩ <danh mục>"; chuột phải lần 2 / click ngoài / Esc / chọn mục → đóng. Chỉ là vỏ: cùng `data-action` và `handleMenuAction` với menu dọc; Mute/Unmute và ✅ Dõi chuột đọc trạng thái lúc mở. Setting **`animeCompanion.menuStyle`** = `radial` | `list` (giữ menu dọc), inject qua `window.__MENU_STYLE__` ở cả panel và Desktop. i18n `menu.radialTitle/radialBack` (vi / en / ja).
+- **⚙️ Trang Cài đặt riêng**: [src/settings-panel.ts](src/settings-panel.ts) đọc schema `contributes.configuration` từ package.json (không khai báo lại), gom 8 nhóm theo prefix key (Model & Diện mạo, Giọng & Âm thanh, Lời nhắn & Phản ứng, Pomodoro, Chibi Cursor, Chat AI, Desktop, Khác); nhóm Ảnh nền chỉ có nút mở bảng Ảnh nền. Webview [settings-panel.js](media/webview/settings-panel.js) dựng form theo kiểu: boolean → switch, enum ≤4 → segmented, enum >4 → select, number có min/max → slider + ô số, string → text, array/object → JSON editor có kiểm tra + nút Lưu; mỗi mục có key, giá trị mặc định, chip "Đã đổi", nút ↺; ghi chú khi workspace ghi đè. Ô tìm lọc theo key/tên/mô tả; giá trị cập nhật tại chỗ (không dựng lại DOM) nên không nhảy scroll. Ghi `update(key, value, Global)` sau khi ép kiểu theo schema; reset = `update(key, undefined)`. Lệnh `animeCompanion.openSettings` (menu › Cài đặt) giờ mở panel này; header có nút mở Settings UI gốc và settings.json. i18n `settingsPanel.*` (vi / en / ja); tên mục suy từ key và mô tả lấy từ package.json nên bằng tiếng Anh.
+
+### Pre-publish checklist v0.5.7
+
+- [x] `package.json` ở `0.5.7`
+- [x] `CHANGELOG.md` có entry `## [0.5.7] - 2026-09-09`
+- [x] 3 README — "What's new v0.5.7"
+- [x] Local `npm test` + `npm run package` pass
+- [ ] **Smoke test**: (1) Diện mạo › Đổi Model → hai cột, model hiện tại sáng, chọn model khác → đổi và panel đóng — (2) Motion trên `a_001`: cuộn cột phải, nút × vẫn đứng ở đáy; bấm × đóng — (3) tiêu đề "Motion", "Biểu cảm", "Trang phục", "Model" hiện đủ, không "…" — (4) hai cột cao bằng nhau ở mọi panel — (5) Desktop Companion lặp lại (1)–(2) — (6) `a_001`: mở Motion, bấm `打哈欠` → hàng sáng + nhấp nháy, bubble "Diễn 打哈欠…", motion chạy; bấm hàng khác → highlight chuyển; model giữ nguyên cỡ — (7) đổi sang Mao → bubble "… 0 bộ đồ · 8 biểu cảm · 3 motion …" hiện và **đứng đủ ~9 s**, lời chào hiện sau đó chứ không đè; reload window cùng model → không hiện lại; đổi model khác → hiện — (8) header panel đọc "🌸 Anime Companion: Mao", đổi model thì đổi theo; khi có showcase thành tựu vẫn ưu tiên showcase — (9) chuột phải → vòng 9 icon bung quanh con trỏ, rê icon thấy tên ở tâm; bấm Diện mạo → vòng đổi thành 11 mục, tâm "↩ Diện mạo", bấm tâm quay lại; chuột phải lần 2 / click ngoài / Esc đóng; chuột phải sát mép panel → vòng tự dời vào trong; Mute/Unmute và ✅ Dõi chuột đúng trạng thái — (10) set `animeCompanion.menuStyle: "list"` → đổi model/reload → menu dọc như cũ; Desktop Companion thử cả hai kiểu — (11) chuột phải › Cài đặt → trang Cài đặt mở trong tab editor, 8 nhóm bên trái, bấm nhóm cuộn tới; gõ "pomodoro" vào ô tìm → chỉ còn nhóm Pomodoro; bật/tắt một switch → VS Code settings.json đổi ngay, chip "Đã đổi" + nút ↺ hiện, bấm ↺ → về mặc định; kéo slider Ambient Volume → giá trị cập nhật, scroll không nhảy; sửa JSON `customModelRoots` sai cú pháp → báo lỗi đỏ, sửa đúng → Lưu được; đổi `messageLanguage` → nhãn nhóm/nút đổi ngôn ngữ tại chỗ; nút "Mở bảng Ảnh nền" / "Settings UI của VS Code" / "settings.json" đều mở đúng — (12) khoe một thành tựu (Achievements › ☆ Khoe) rồi mở 💬 Chat → khung chat rộng bình thường, banner khoe ẩn khi chat mở, đóng chat → banner hiện lại — (13) mở một file .md bằng 🌸 → header trình sửa Markdown cao ~30 px, hoa/tiêu đề/nút nhỏ gọn, nút Save vẫn bấm được, đổi màu theme và 🌙 vẫn hoạt động; toolbar định dạng (H / B / I / danh sách / bảng…) cũng cao ~30 px, bấm nút Heading/Link mở popup đúng vị trí
+- [ ] Không stage `docs/images/Screenshot_1.png`
+
+### Publish flow
+
+```bash
+npm run package
+git add -u
+git add media/webview/radial-menu.js src/settings-panel.ts media/webview/settings-panel.js media/webview/settings-panel.css
+git commit -m "release: v0.5.7 — Settings panel, radial right-click menu, side-column refinements, model inventory bubble"
+git push origin main
+git tag -a v0.5.7 -m "v0.5.7 — Settings panel, radial right-click menu, side-column refinements, model inventory bubble"
+git push origin v0.5.7
+```
 
 ---
 
