@@ -6,9 +6,12 @@
 
 > ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.5.5
+**Current version:** v0.5.6
 
-> 🆕 **What's new in v0.5.5**:
+> 🆕 **What's new in v0.5.6**:
+> - **↔️ Side columns instead of a popup** — Outfit, Expression and Motion now open as two slim columns at the sides of the character, so you see the change on the model as you pick. The columns stay open while you compare; close with **×** or Esc.
+>
+> 🆕 **New in v0.5.5**:
 > - **👗 Outfits from the model's own files** — the companion reads every `.exp3.json` a Live2D model declares and, when a file switches clothes rather than faces, lists it under **right-click › Appearance › Outfit**. Pick one and it stays on; **Default** goes back to the model's own look. Nothing to configure.
 > - **😊 Model expressions** — the faces the character was actually drawn with show up under **Appearance › Expression**, previewable with one click. A new `animeCompanion.expressionMap` setting lets the companion's *moods* (happy, shy, angry…) use those drawn faces instead of the built-in parameter presets.
 > - **🎬 Motions from any model** — motion groups are now read from the model itself, so models whose groups aren't called `Idle` / `TapBody` / `TapHead` (e.g. `待机`, `摸头`, `打哈欠`) finally animate: their own idle loops, headpats and pokes map onto matching groups, and **Appearance › Motion** lists every group by its real name.
@@ -174,7 +177,7 @@ Or download the `.vsix` from the [Open VSX page](https://open-vsx.org/extension/
 - **Single Click** — gentle touch (Surprised).
 - **Double / Triple Click** — happy (Happy).
 - **Long Press > 0.8s** — Headpat → Shy → Love with heart effects.
-- **Keep holding ≈ 1.6s** — a panel opens where you pressed: on the **body**, the **Outfit** popup; on the **head**, the model's own **Expression & Motion** panel. Everything a right-click reaches, on one finger — release, then tap a row (the release itself never picks one).
+- **Keep holding ≈ 1.6s** — two slim columns open at the sides of the character: hold on the **body** for the **Outfit** list, on the **head** for the model's own **Expressions** (left) and **Motions** (right). They stay open while you try things out — close with **×** or Esc. The release itself never picks a row.
 - **Spam Click** — angry response ("Stop poking me!").
 
 ### 🔊 Audio + Lip-sync in 3 languages

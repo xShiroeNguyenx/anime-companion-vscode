@@ -334,6 +334,7 @@
       "motionCount": "{count} モーション",
       "expressionMotionsHint": "このモデルには表情ファイル（exp3）がありませんが、モーションが {count} 個あります — 外観メニューの「モーション」から再生してね〜",
       "holdTitle": "表情とモーション",
+      "sideClose": "閉じる",
       "agentSwitchTitle": "🔁 アカウント切替",
       "agentSaveTitle": "💾 現在のアカウントを保存",
       "agentNamePlaceholder": "プロファイル名 (例: tk1, work, personal)",

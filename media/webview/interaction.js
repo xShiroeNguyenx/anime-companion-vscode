@@ -98,11 +98,8 @@ function hideCompanionPanels() {
   document.querySelector('.companion-message-panel')?.classList.remove('show');
   document.querySelector('.companion-ambient-panel')?.classList.remove('show');
   document.querySelector('.companion-model-panel')?.classList.remove('show');
-  document.querySelector('.companion-outfit-panel')?.classList.remove('show');
-  document.querySelector('.companion-expression-panel')?.classList.remove('show');
-  document.querySelector('.companion-hold-panel')?.classList.remove('show');
+  hideSidePanel();
   document.querySelector('.companion-achievements-panel')?.classList.remove('show');
-  document.querySelector('.companion-motion-panel')?.classList.remove('show');
   document.querySelector('.companion-agent-panel')?.classList.remove('show');
 }
 
@@ -569,11 +566,8 @@ export function setupModel() {
   setupMessagePanel();
   setupAmbientPanel();
   setupModelPanel();
-  setupOutfitPanel();
-  setupExpressionPanel();
+  setupSidePanel();
   setupAchievementsPanel();
-  setupMotionPanel();
-  setupHoldPanel();
   setupAgentPanel();
 }
 
@@ -1528,115 +1522,186 @@ function showModelPanel() {
   panel.classList.add('show');
 }
 
-// ─── Outfit popup ────────────────────────────────────────────────────────
+// ─── Side panel: outfits, expressions and motions in two columns ──────────
 
 /**
- * Builds the outfit chooser.
+ * One panel for the model's outfits, expressions and motions, laid out as two
+ * columns at the sides of the character instead of a card over it.
  *
- * Rebuilt on open rather than at startup, because the list belongs to the
- * loaded model: switching character replaces it wholesale, and a panel built
- * once would keep offering the previous model's clothes.
+ * The earlier popups sat centred over the model: with eleven motions listed,
+ * the character disappeared behind the very menu meant to dress it. Two
+ * narrow columns leave the middle free, so what a row does is visible the
+ * moment it is chosen. For the same reason the panel stays open across
+ * choices — comparing two outfits means clicking twice — and only the close
+ * button (or Escape) dismisses it. Nothing here closes on an outside click.
  */
-function setupOutfitPanel() {
+let sidePanelRenderer = null;
+let sidePanelKeysBound = false;
+
+function setupSidePanel() {
   const wrapper = document.getElementById('characterWrapper');
   if (!wrapper) return;
 
+  // setupModel runs again on a model switch; one panel is enough.
+  document.querySelector('.companion-side-panel')?.remove();
   const panel = document.createElement('div');
-  panel.className = 'companion-outfit-panel';
+  panel.className = 'companion-side-panel';
   wrapper.appendChild(panel);
 
   panel.addEventListener('click', (e) => {
+    // The release that ends a hold must not act on anything in here.
     if (releasedFromHoldJustNow()) return;
-    const option = e.target.closest('.companion-outfit-option');
-    if (!option) return;
-    const name = option.getAttribute('data-outfit');
-    panel.classList.remove('show');
 
-    // The empty name is the "default" row: it takes the model back to whatever
-    // the moc itself specifies rather than applying a file.
-    if (!name) {
-      clearOutfit();
-      showBubble(t('bubbles.outfitDefault', 'Về bộ mặc định nha~ 👗'));
+    if (e.target.closest('.companion-side-close')) {
+      hideSidePanel();
       return;
     }
-
-    void setOutfit(name).then((applied) => {
-      showBubble(
-        applied
-          ? t('bubbles.outfitChanged', 'Thay đồ xong rồi nè~ ✨')
-          : t('bubbles.outfitFailed', 'Ơ, bộ này em mặc không được... 😢')
-      );
-    });
+    const outfit = e.target.closest('.companion-outfit-option');
+    if (outfit) {
+      chooseOutfit(outfit.getAttribute('data-outfit'));
+      return;
+    }
+    const expression = e.target.closest('.companion-expression-option');
+    if (expression) {
+      chooseExpression(expression.getAttribute('data-expression'));
+      return;
+    }
+    const motion = e.target.closest('.companion-motion-option');
+    if (motion) {
+      const motionId = motion.getAttribute('data-motion');
+      if (!motionId) return;
+      playMotion(motionId);
+      createSparkle();
+    }
   });
 
-  window.addEventListener('click', (e) => {
-    if (!panel.contains(e.target) && !releasedFromHoldJustNow()) {
-      panel.classList.remove('show');
-    }
-  }, true);
+  if (!sidePanelKeysBound) {
+    sidePanelKeysBound = true;
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (document.querySelector('.companion-side-panel.show')) hideSidePanel();
+    });
+  }
 }
 
-function showOutfitPanel() {
-  const panel = document.querySelector('.companion-outfit-panel');
+function hideSidePanel() {
+  sidePanelRenderer = null;
+  document.querySelector('.companion-side-panel')?.classList.remove('show');
+}
+
+/**
+ * Draws the panel from a renderer returning the two columns. The renderer is
+ * kept so a choice can redraw the active highlight without closing anything.
+ */
+function showSidePanel(render) {
+  const panel = document.querySelector('.companion-side-panel');
   if (!panel) return;
   hideCompanionPanels();
-
-  const names = outfitNames();
-  if (names.length === 0) {
-    // Most models ship no expression files at all. Saying so beats an empty
-    // popup, and naming the tool that produces them makes the message useful.
-    panel.innerHTML = `
-      <div class="companion-outfit-title">${t('panels.outfitTitle', 'Outfit')}</div>
-      <div class="companion-outfit-empty">${
-        expressionNames().length > 0
-          ? t(
-              'panels.outfitAllFaces',
-              'File exp3 của model này là biểu cảm khuôn mặt, không phải trang phục — xem ở tab Biểu cảm.'
-            )
-          : t(
-              'panels.outfitEmpty',
-              'Model này chưa có bộ trang phục nào. Tạo bằng Live2D Companion Studio rồi thêm vào model3.json nha~'
-            )
-      }</div>
-    `;
-    panel.classList.add('show');
-    return;
-  }
-
-  const current = activeOutfit();
-  const rows = names
-    .map((name) => {
-      // Translate common garment names; the author's own name stays as the
-      // tooltip so the two can be matched up.
-      const key = outfitGlossaryKey(name);
-      const label = key ? t('outfits.' + key, name) : name;
-      return (
-        `<button class="companion-outfit-option${current === name ? ' active' : ''}" data-outfit="${escapeHtml(name)}" title="${escapeHtml(name)}">` +
-        `<span class="companion-outfit-label">${escapeHtml(label)}</span>` +
-        `</button>`
-      );
-    })
-    .join('');
-
-  panel.innerHTML = `
-    <div class="companion-outfit-title">${t('panels.outfitTitle', 'Outfit')}</div>
-    <div class="companion-outfit-note">${t(
-      'panels.outfitNote',
-      'Bộ trang phục model khai báo sẵn'
-    )}</div>
-    <button class="companion-outfit-option${current === null ? ' active' : ''}" data-outfit="">
-      <span class="companion-outfit-label">${t('panels.outfitDefault', 'Mặc định')}</span>
-    </button>
-    ${rows}
-  `;
+  sidePanelRenderer = render;
+  const { left, right } = render();
+  panel.innerHTML = sideColumnHtml('left', left) + sideColumnHtml('right', right, true);
   panel.classList.add('show');
 }
 
-// ─── Model expression popup ──────────────────────────────────────────────
+function refreshSidePanel() {
+  if (sidePanelRenderer) showSidePanel(sidePanelRenderer);
+}
+
+function sideColumnHtml(side, column, withClose = false) {
+  const closeLabel = escapeHtml(t('panels.sideClose', 'Đóng'));
+  // The header is a three-cell grid — spacer, title, close — on both sides,
+  // so the title sits centred and the two columns line up exactly even
+  // though only the right one carries the close button.
+  const title = `<span class="companion-side-title">${escapeHtml(column.title ?? '')}</span>`;
+  const close = withClose
+    ? `<button class="companion-side-close" title="${closeLabel}" aria-label="${closeLabel}">×</button>`
+    : '<span class="companion-side-spacer"></span>';
+  return (
+    `<div class="companion-side-column companion-side-column--${side}">` +
+    `<div class="companion-side-head"><span class="companion-side-spacer"></span>${title}${close}</div>` +
+    column.rows.join('') +
+    `</div>`
+  );
+}
+
+/** First half left, second half right — reading order stays top-down. */
+function splitRows(rows) {
+  const half = Math.ceil(rows.length / 2);
+  return { leftRows: rows.slice(0, half), rightRows: rows.slice(half) };
+}
+
+// ─── Outfits ──────────────────────────────────────────────────────────────
+
+function chooseOutfit(name) {
+  // The empty name is the "default" row: it takes the model back to whatever
+  // the moc itself specifies rather than applying a file.
+  if (!name) {
+    clearOutfit();
+    showBubble(t('bubbles.outfitDefault', 'Về bộ mặc định nha~ 👗'));
+    refreshSidePanel();
+    return;
+  }
+
+  void setOutfit(name).then((applied) => {
+    showBubble(
+      applied
+        ? t('bubbles.outfitChanged', 'Thay đồ xong rồi nè~ ✨')
+        : t('bubbles.outfitFailed', 'Ơ, bộ này em mặc không được... 😢')
+    );
+    refreshSidePanel();
+  });
+}
+
+/** The "default" row plus one per outfit, or the reason there are none. */
+function outfitRows() {
+  const names = outfitNames();
+  if (names.length === 0) {
+    // Most models ship no outfit files at all. Saying so beats an empty
+    // column, and naming the tool that produces them makes the message useful.
+    const message =
+      expressionNames().length > 0
+        ? t(
+            'panels.outfitAllFaces',
+            'File exp3 của model này là biểu cảm khuôn mặt, không phải trang phục — xem ở tab Biểu cảm.'
+          )
+        : t(
+            'panels.outfitEmpty',
+            'Model này chưa có bộ trang phục nào. Tạo bằng Live2D Companion Studio rồi thêm vào model3.json nha~'
+          );
+    return [`<div class="companion-outfit-empty">${message}</div>`];
+  }
+
+  const current = activeOutfit();
+  const rows = [
+    `<button class="companion-outfit-option${current === null ? ' active' : ''}" data-outfit="">` +
+      `<span class="companion-outfit-label">${t('panels.outfitDefault', 'Mặc định')}</span>` +
+      `</button>`
+  ];
+  for (const name of names) {
+    // Translate common garment names; the author's own name stays as the
+    // tooltip so the two can be matched up.
+    const key = outfitGlossaryKey(name);
+    const label = key ? t('outfits.' + key, name) : name;
+    rows.push(
+      `<button class="companion-outfit-option${current === name ? ' active' : ''}" data-outfit="${escapeHtml(name)}" title="${escapeHtml(name)}">` +
+        `<span class="companion-outfit-label">${escapeHtml(label)}</span>` +
+        `</button>`
+    );
+  }
+  return rows;
+}
+
+function showOutfitPanel() {
+  showSidePanel(() => {
+    const { leftRows, rightRows } = splitRows(outfitRows());
+    const title = t('panels.outfitTitle', 'Trang phục');
+    return { left: { title, rows: leftRows }, right: { title, rows: rightRows } };
+  });
+}
+
+// ─── Model expressions ─────────────────────────────────────────────────────
 
 /**
- * Lets the user show one of the model's own expressions.
- *
  * Separate from the mood presets because the two answer different questions.
  * A mood is the companion reacting to something; this is the user asking to
  * see a specific face the character was drawn with. The mood system can also
@@ -1644,34 +1709,12 @@ function showOutfitPanel() {
  * `animeCompanion.expressionMap` — nothing in a file called `exp_04` says
  * which mood it belongs to.
  */
-function setupExpressionPanel() {
-  const wrapper = document.getElementById('characterWrapper');
-  if (!wrapper) return;
-
-  const panel = document.createElement('div');
-  panel.className = 'companion-expression-panel';
-  wrapper.appendChild(panel);
-
-  panel.addEventListener('click', (e) => {
-    const option = e.target.closest('.companion-expression-option');
-    if (!option) return;
-    panel.classList.remove('show');
-    chooseExpression(option.getAttribute('data-expression'));
-  });
-
-  window.addEventListener('click', (e) => {
-    if (!panel.contains(e.target)) {
-      panel.classList.remove('show');
-    }
-  }, true);
-}
-
-/** Applies a row from any panel that lists the model's expressions. */
 function chooseExpression(name) {
   // The empty name is the "default" row: back to the mood system.
   if (!name) {
     void setModelExpression(null);
     showBubble(t('bubbles.expressionDefault', 'Về mặt mặc định nha~ 😊'));
+    refreshSidePanel();
     return;
   }
 
@@ -1681,26 +1724,12 @@ function chooseExpression(name) {
         ? t('bubbles.expressionChanged', 'Đổi biểu cảm rồi nè~ ✨')
         : t('bubbles.expressionFailed', 'Ơ, biểu cảm này em làm không được... 😢')
     );
+    refreshSidePanel();
   });
 }
 
-function showExpressionPanel() {
-  const panel = document.querySelector('.companion-expression-panel');
-  if (!panel) return;
-  hideCompanionPanels();
-
-  panel.innerHTML = `
-    <div class="companion-expression-title">${t('panels.expressionTitle', 'Biểu cảm')}</div>
-    ${expressionListHtml()}
-  `;
-  panel.classList.add('show');
-}
-
-/**
- * The model's expressions as rows, or the reason there are none. Shared by
- * the Expression popup and the press-and-hold panel.
- */
-function expressionListHtml() {
+/** The "default" row plus one per drawn face, or the reason there are none. */
+function expressionRows() {
   const names = faceNames();
   if (names.length === 0) {
     // Three different situations, three different things worth telling the
@@ -1726,85 +1755,87 @@ function expressionListHtml() {
         'Model này không khai báo biểu cảm nào. Companion vẫn dùng bộ biểu cảm mặc định.'
       );
     }
-    return `<div class="companion-outfit-empty">${message}</div>`;
+    return [`<div class="companion-outfit-empty">${message}</div>`];
   }
 
   const current = activeModelExpression();
-  const rows = names
-    .map(
-      (name) =>
-        `<button class="companion-expression-option${current === name ? ' active' : ''}" data-expression="${escapeHtml(name)}">` +
+  const rows = [
+    `<button class="companion-expression-option${current === null ? ' active' : ''}" data-expression="">` +
+      `<span class="companion-outfit-label">${t('panels.expressionDefault', 'Mặc định')}</span>` +
+      `</button>`
+  ];
+  for (const name of names) {
+    rows.push(
+      `<button class="companion-expression-option${current === name ? ' active' : ''}" data-expression="${escapeHtml(name)}">` +
         `<span class="companion-outfit-label">${escapeHtml(name)}</span>` +
         `</button>`
-    )
-    .join('');
-
-  return `
-    <div class="companion-outfit-note">${t(
-      'panels.expressionNote',
-      'Biểu cảm model khai báo sẵn'
-    )}</div>
-    <button class="companion-expression-option${current === null ? ' active' : ''}" data-expression="">
-      <span class="companion-outfit-label">${t('panels.expressionDefault', 'Mặc định')}</span>
-    </button>
-    ${rows}
-  `;
+    );
+  }
+  return rows;
 }
 
-// ─── Press-and-hold panel: the model's expressions and motions together ───
+function showExpressionPanel() {
+  showSidePanel(() => {
+    const { leftRows, rightRows } = splitRows(expressionRows());
+    const title = t('panels.expressionTitle', 'Biểu cảm');
+    return { left: { title, rows: leftRows }, right: { title, rows: rightRows } };
+  });
+}
+
+// ─── Motions ──────────────────────────────────────────────────────────────
 
 /**
- * What a hold on the model's head opens: everything the model itself ships
- * for its face and its movement, in one place. The two lists are the same
- * ones the Expression and Motion popups show; this panel only puts them side
- * by side for a gesture that has no room for a second menu level.
+ * One row per motion group the model really has, or a note that it has none.
+ * The list used to be three hard-coded names; a model whose groups are called
+ * `待机` or `摸头` showed three buttons that did nothing.
  */
-function setupHoldPanel() {
-  const wrapper = document.getElementById('characterWrapper');
-  if (!wrapper) return;
+function motionRows() {
+  const list = motionGroups();
+  if (list.length === 0) {
+    return [
+      `<div class="companion-outfit-empty">${t(
+        'panels.motionEmpty',
+        'Model này không khai báo motion nào.'
+      )}</div>`,
+    ];
+  }
 
-  const panel = document.createElement('div');
-  panel.className = 'companion-hold-panel';
-  wrapper.appendChild(panel);
-
-  panel.addEventListener('click', (e) => {
-    if (releasedFromHoldJustNow()) return;
-    const expression = e.target.closest('.companion-expression-option');
-    if (expression) {
-      panel.classList.remove('show');
-      chooseExpression(expression.getAttribute('data-expression'));
-      return;
+  const idle = idleMotionGroup();
+  const STANDARD_DESC = {
+    TapBody: t('panels.motionTapBodyDesc', 'Body tap'),
+    TapHead: t('panels.motionTapHeadDesc', 'Head pat'),
+    Idle: t('panels.motionIdleDesc', 'Default idle'),
+  };
+  return list.map(({ name, count }) => {
+    let desc = STANDARD_DESC[name] ?? '';
+    if (!desc && name === idle) desc = t('panels.motionIdleDesc', 'Default idle');
+    if (!desc && count > 1) {
+      desc = t('panels.motionCount', '{count} motion').replace('{count}', String(count));
     }
-    const motion = e.target.closest('.companion-motion-option');
-    if (motion) {
-      const motionId = motion.getAttribute('data-motion');
-      if (!motionId) return;
-      panel.classList.remove('show');
-      playMotion(motionId);
-      createSparkle();
-    }
+    return (
+      `<button class="companion-motion-option" data-motion="${escapeHtml(name)}">` +
+      `<span class="companion-motion-label">${escapeHtml(name)}</span>` +
+      (desc ? `<span class="companion-motion-desc">${escapeHtml(desc)}</span>` : '') +
+      `</button>`
+    );
   });
-
-  window.addEventListener('click', (e) => {
-    if (!panel.contains(e.target) && !releasedFromHoldJustNow()) {
-      panel.classList.remove('show');
-    }
-  }, true);
 }
 
-function showHoldPanel() {
-  const panel = document.querySelector('.companion-hold-panel');
-  if (!panel) return;
-  hideCompanionPanels();
+function showMotionPanel() {
+  showSidePanel(() => {
+    const { leftRows, rightRows } = splitRows(motionRows());
+    const title = t('panels.motionTitle', 'Motion');
+    return { left: { title, rows: leftRows }, right: { title, rows: rightRows } };
+  });
+}
 
-  panel.innerHTML = `
-    <div class="companion-hold-title">${t('panels.holdTitle', 'Biểu cảm & Motion')}</div>
-    <div class="companion-hold-section">${t('panels.expressionTitle', 'Biểu cảm')}</div>
-    ${expressionListHtml()}
-    <div class="companion-hold-section">${t('panels.motionTitle', 'Motion')}</div>
-    ${motionListHtml()}
-  `;
-  panel.classList.add('show');
+// ─── Press-and-hold on the head: expressions left, motions right ──────────
+
+function showHoldPanel() {
+  showSidePanel(() => ({
+    left: { title: t('panels.expressionTitle', 'Biểu cảm'), rows: expressionRows() },
+    right: { title: t('panels.motionTitle', 'Motion'), rows: motionRows() },
+  }));
 }
 
 // ─── Agent profile popup (Switch + Save) ─────────────────────────────────
@@ -2645,81 +2676,3 @@ export function receiveShareCardSaveResult(payload) {
   }
 }
 
-function setupMotionPanel() {
-  const wrapper = document.getElementById('characterWrapper');
-  if (!wrapper) return;
-
-  const panel = document.createElement('div');
-  panel.className = 'companion-motion-panel';
-  wrapper.appendChild(panel);
-
-  panel.addEventListener('click', (e) => {
-    const option = e.target.closest('.companion-motion-option');
-    if (!option) return;
-    const motionId = option.getAttribute('data-motion');
-    if (!motionId) return;
-
-    panel.classList.remove('show');
-    // The row carries a group the model really has, so this plays it by name.
-    playMotion(motionId);
-    createSparkle();
-  });
-
-  window.addEventListener('click', (e) => {
-    if (!panel.contains(e.target)) {
-      panel.classList.remove('show');
-    }
-  }, true);
-}
-
-/**
- * Rebuilt on open from the model's real motion groups.
- *
- * The list used to be three hard-coded names. A model whose groups are called
- * `待机` or `摸头` showed three buttons that did nothing, and had no way to
- * reach the eleven motions it actually shipped.
- */
-function showMotionPanel() {
-  const panel = document.querySelector('.companion-motion-panel');
-  if (!panel) return;
-  hideCompanionPanels();
-
-  panel.innerHTML = `<div class="companion-motion-title">${t('panels.motionTitle', 'Motion')}</div>${motionListHtml()}`;
-  panel.classList.add('show');
-}
-
-/**
- * The model's motion groups as rows, or a note that it has none. Shared by
- * the Motion popup and the press-and-hold panel.
- */
-function motionListHtml() {
-  const list = motionGroups();
-  const idle = idleMotionGroup();
-  const STANDARD_DESC = {
-    TapBody: t('panels.motionTapBodyDesc', 'Body tap'),
-    TapHead: t('panels.motionTapHeadDesc', 'Head pat'),
-    Idle: t('panels.motionIdleDesc', 'Default idle'),
-  };
-
-  if (list.length === 0) {
-    return `<div class="companion-outfit-empty">${t(
-      'panels.motionEmpty',
-      'Model này không khai báo motion nào.'
-    )}</div>`;
-  }
-  return list
-    .map(({ name, count }) => {
-      let desc = STANDARD_DESC[name] ?? '';
-      if (!desc && name === idle) desc = t('panels.motionIdleDesc', 'Default idle');
-      if (!desc && count > 1) {
-        desc = t('panels.motionCount', '{count} motion').replace('{count}', String(count));
-      }
-      return (
-        `<button class="companion-motion-option" data-motion="${escapeHtml(name)}">` +
-        `<span class="companion-motion-label">${escapeHtml(name)}</span>` +
-        (desc ? `<span class="companion-motion-desc">${escapeHtml(desc)}</span>` : '') +
-        `</button>`
-      );
-    })
-    .join('');
-}

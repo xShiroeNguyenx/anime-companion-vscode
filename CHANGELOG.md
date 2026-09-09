@@ -3,6 +3,15 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.6] - 2026-09-09
+
+### Changed — ↔️ Outfit, Expression and Motion open beside the character, not over it
+
+- **The three lists (and the press-and-hold panel) are now two slim columns at the sides of the character instead of a card centred over it.** With eleven motions listed, the old popup hid the very model it was meant to dress; the columns leave the middle free, so the effect of a row is visible the moment it is chosen ([media/webview/interaction.js](media/webview/interaction.js), [media/companion.css](media/companion.css)). The two columns come from one 3-track grid, so they are always the same width and height, with the title centred in both. A single list (Outfit, Expression or Motion from the Appearance menu, or a hold on the body) is split evenly, first half left and second half right, under the same title on each side; a hold on the **head** puts the model's **expressions on the left and motions on the right**.
+  - **The panel stays open across choices** — comparing two outfits means clicking twice — and closes only with the **×** in the right column or **Esc**. Nothing closes on an outside click any more. Choosing a row redraws the active highlight in place.
+  - Columns are `clamp(84px, 30%, 150px)` wide and stop 44 px above the bottom edge so the status row and chat button stay reachable. They scroll without a visible scrollbar, are drawn as mostly see-through sakura glass in the speech bubble's tint (the editor background shows through, so the columns read as an overlay rather than a wall), and rows are see-through too at 8 px / 6.5 px with theme-following text, so a column of eleven motions reads as a list rather than a stack of cards.
+- **i18n** — `panels.sideClose` across en/vi/ja.
+
 ## [0.5.5] - 2026-09-09
 
 ### Added — 👗 Outfits & 😊 Expressions loaded straight from the model's own files

@@ -334,6 +334,7 @@
       "motionCount": "{count} motion",
       "expressionMotionsHint": "Model này không có file biểu cảm (exp3), nhưng có {count} động tác — mở Motion trong menu Diện mạo để xem nha~",
       "holdTitle": "Biểu cảm & Motion",
+      "sideClose": "Đóng",
       "agentSwitchTitle": "🔁 Đổi tài khoản",
       "agentSaveTitle": "💾 Lưu tài khoản hiện tại",
       "agentNamePlaceholder": "Tên hồ sơ (ví dụ: tk1, work, personal)",

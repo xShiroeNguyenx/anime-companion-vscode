@@ -8,9 +8,12 @@
 
 > ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.5.5
+**Phiên bản hiện tại:** v0.5.6
 
-> 🆕 **Có gì mới ở v0.5.5**:
+> 🆕 **Có gì mới ở v0.5.6**:
+> - **↔️ Hai cột hai bên thay cho popup** — Trang phục, Biểu cảm và Motion giờ mở thành hai cột mảnh ở hai bên nhân vật, nên chọn tới đâu thấy model đổi tới đó. Cột mở sẵn để so qua lại; đóng bằng **×** hoặc Esc.
+>
+> 🆕 **Mới ở v0.5.5**:
 > - **👗 Trang phục lấy thẳng từ file của model** — companion đọc mọi file `.exp3.json` mà model Live2D khai báo; file nào đổi quần áo (không phải đổi mặt) sẽ được liệt kê ở **chuột phải › Diện mạo › Trang phục**. Chọn một bộ là mặc luôn cho tới khi đổi; **Mặc định** trả về diện mạo gốc của model. Không cần cấu hình gì.
 > - **😊 Biểu cảm của model** — những khuôn mặt mà tác giả đã vẽ sẵn cho nhân vật hiện ở **Diện mạo › Biểu cảm**, bấm một cái là xem ngay. Setting mới `animeCompanion.expressionMap` cho phép *mood* của companion (vui, ngại, giận…) dùng chính các khuôn mặt vẽ sẵn đó thay cho bộ preset tham số có sẵn.
 > - **🎬 Motion của mọi model** — danh sách motion group giờ đọc thẳng từ model, nên model có group không tên `Idle` / `TapBody` / `TapHead` (ví dụ `待机`, `摸头`, `打哈欠`) cuối cùng cũng cử động được: idle của chính model tự lặp, xoa đầu/chọc map sang group tương ứng, và **Diện mạo › Motion** liệt kê đủ mọi group theo tên thật.
@@ -174,7 +177,7 @@ Hoặc tải `.vsix` từ [Open VSX page](https://open-vsx.org/extension/shiroen
 - **Single Click** — chạm nhẹ (Surprised).
 - **Double / Triple Click** — vui vẻ (Happy).
 - **Long Press > 0.8s** — Headpat → Shy → Love kèm hiệu ứng trái tim.
-- **Giữ tiếp ≈ 1,6 s** — popup mở theo chỗ bạn nhấn: ở **thân** là **Trang phục**, ở **đầu** là bảng **Biểu cảm & Motion** của riêng model. Mọi thứ menu chuột phải có, gói trong một ngón tay — nhả ra rồi bấm chọn (cú nhả tay không bao giờ chọn nhầm mục).
+- **Giữ tiếp ≈ 1,6 s** — hai cột mảnh hiện ở hai bên nhân vật: giữ ở **thân** ra danh sách **Trang phục**, giữ ở **đầu** ra **Biểu cảm** (trái) và **Motion** (phải) của riêng model. Cột mở sẵn để thử qua lại, đóng bằng **×** hoặc Esc. Cú nhả tay không bao giờ chọn nhầm mục.
 - **Spam Click** — companion sẽ cáu (Angry) "Đừng bấm nữa!".
 
 ### 🔊 Audio + Lip-sync 3 ngôn ngữ

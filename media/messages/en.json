@@ -334,6 +334,7 @@
       "motionCount": "{count} motions",
       "expressionMotionsHint": "This model has no expression files (exp3), but it does have {count} motions — open Motion in the Appearance menu to play them~",
       "holdTitle": "Expression & Motion",
+      "sideClose": "Close",
       "agentSwitchTitle": "🔁 Switch Account",
       "agentSaveTitle": "💾 Save Current Account",
       "agentNamePlaceholder": "Profile name (e.g. tk1, work, personal)",

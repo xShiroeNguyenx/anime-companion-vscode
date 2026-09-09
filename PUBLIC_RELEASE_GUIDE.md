@@ -1,6 +1,47 @@
 # Public Release Guide
 
-> Bản hiện tại đang chuẩn bị publish: **v0.5.5** (release notes ngay bên dưới). Các phần cũ giữ làm reference cho flow chung.
+> Bản hiện tại đang chuẩn bị publish: **v0.5.6** (release notes ngay bên dưới). v0.5.5 đã publish ngày 2026-09-09. Các phần cũ giữ làm reference cho flow chung.
+
+---
+
+## 📦 v0.5.6 Release (2026-09-09)
+
+### Scope
+
+- Extension version public: `0.5.6`
+- Headline user-facing: **↔️ Trang phục / Biểu cảm / Motion hiện hai cột hai bên nhân vật, không che model nữa**
+  - 4 popup cũ (Trang phục, Biểu cảm, Motion, bảng nhấn giữ) gộp thành **một component side panel** trong [media/webview/interaction.js](media/webview/interaction.js): hai cột mảnh (`clamp(84px, 30%, 150px)`) ở mép trái/phải, chừa 44 px đáy cho dòng trạng thái + nút chat. Danh sách đơn (mở từ menu Diện mạo hoặc giữ ở thân) chia đều nửa trước trái / nửa sau phải; giữ ở **đầu** → cột trái Biểu cảm, cột phải Motion.
+  - **Không tự đóng khi chọn**: chọn xong chỉ vẽ lại highlight; đóng bằng nút **×** ở cột phải hoặc **Esc**. Bỏ hẳn cơ chế click-ngoài-đóng cho các panel này (các panel khác giữ nguyên).
+  - CSS panel cũ (`.companion-outfit-panel`, `.companion-expression-panel`, `.companion-hold-panel`, `.companion-motion-panel`) gỡ; thêm `.companion-side-*`. i18n: `panels.sideClose` (vi / en / ja).
+
+### Marketplace / Release notes pitch
+
+- Đổi đồ, đổi mặt, chạy motion mà vẫn nhìn thấy model: danh sách nằm gọn hai bên, không còn che nhân vật.
+- Chọn thử bao nhiêu lần tuỳ ý, bảng không tự tắt; xong thì bấm × hoặc Esc.
+
+### Pre-publish checklist v0.5.6
+
+- [x] `package.json` ở `0.5.6`
+- [x] `CHANGELOG.md` có entry `## [0.5.6] - 2026-09-09`
+- [x] `README.md` (EN) + `docs/README.vi.md` + `docs/README.ja.md` — "What's new v0.5.6" + bullet nhấn giữ trong 💫 Interactions
+- [x] i18n `panels.sideClose` ở en / vi / ja
+- [x] Local `npm test` + `npm run package` pass
+- [ ] **Smoke test** trên VS Code thật với `a_001`: (1) chuột phải › Diện mạo › Trang phục → hai cột hai bên, model ở giữa vẫn thấy rõ; 4 hàng chia 2/2; bấm Đồ ngủ → đổi đồ, cột **vẫn mở**, hàng Đồ ngủ sáng; bấm Mặc định → về thường phục; bấm × → đóng — (2) giữ ở đầu ~1,6 s → cột trái Biểu cảm (thông báo "không có exp3 nhưng có 11 động tác"), cột phải 11 motion; bấm `打哈欠` chạy, cột vẫn mở; Esc → đóng — (3) click ra ngoài cột **không** đóng — (4) mở Diện mạo › Model (panel giữa) khi cột đang mở → cột tự ẩn — (5) panel VS Code hẹp (~330 px) và Desktop Companion: cột không che nút chat / dòng trạng thái — (6) Mao: Biểu cảm 8 mục chia 4/5 (kể cả Mặc định), chọn đổi mặt, cột vẫn mở
+- [ ] Không stage `docs/images/Screenshot_1.png`
+
+### Publish flow
+
+```bash
+npm run package
+& "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd" --install-extension .\anime-companion-vscode-0.5.6.vsix --force
+git add -u
+git commit -m "release: v0.5.6 — Outfit / Expression / Motion as side columns beside the character"
+git push origin main
+git tag -a v0.5.6 -m "v0.5.6 — Outfit / Expression / Motion as side columns beside the character"
+git push origin v0.5.6
+```
+
+> ⚠️ Nếu Marketplace lại `Request timeout`, re-run failed jobs; publish tay thì đừng re-run nữa (xem ghi chú v0.5.5).
 
 ---
 
