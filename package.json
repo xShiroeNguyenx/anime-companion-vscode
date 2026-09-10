@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.5.8",
+  "version": "0.5.9",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -359,6 +359,26 @@
           "type": "boolean",
           "default": true,
           "description": "React when the mouse rests on a part of the companion: the face and pose answer (shy at the head, flustered at the chest or skirt, a wave at a hand), the cursor changes shape, and a small caption names the part and the gesture it takes. Only a pause of about half a second counts, and each part then rests for a few seconds."
+        },
+        "animeCompanion.idleLife.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Between interactions the companion does small things of her own — yawns, stretches, looks around, tilts her head, glances over at you — every 40 to 90 seconds. Sleepy ones are more likely late at night, and nothing plays while a panel, menu or the chat is open."
+        },
+        "animeCompanion.dragMode": {
+          "type": "string",
+          "enum": ["character", "panel"],
+          "enumDescriptions": [
+            "Character — dragging pulls the character out of place; she stays where you hold her and springs back when you let go",
+            "Panel — dragging moves the whole companion panel and it stays where you drop it"
+          ],
+          "default": "character",
+          "description": "What a drag on the companion moves. Takes effect the next time the companion loads (switch model or reload the window)."
+        },
+        "animeCompanion.dragMomentum.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Dragging the companion around the panel makes her lean into the movement, so her hair and skirt trail behind and settle with a couple of swings when you let go. Uses the model's own physics rig."
         },
         "animeCompanion.menuStyle": {
           "type": "string",

@@ -294,11 +294,11 @@
       "agentGithub": "GitHub Account…"
     },
     "hover": {
-      "head": "Head · hold to see expressions & motions",
-      "chest": "Um... please don't stare there~ 😳",
-      "body": "Body · hold to change outfits",
-      "skirt": "H-hey?! That's off limits~ 💢",
-      "arm": "Hand · say hi to me~ 👋"
+      "head": "Hold here a moment~ I will show you my faces 😊",
+      "chest": "Um... please don't look there~ 😳",
+      "body": "Hold here a moment and I will change outfits for you~ 👗",
+      "skirt": "H-hey?! Not there, okay~ 💢",
+      "arm": "Take my hand~ 👋"
     },
     "panels": {
       "voiceTitle": "Voice",

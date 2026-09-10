@@ -87,11 +87,11 @@ const CURSOR_CLASSES = Object.values(CURSOR_CLASS);
  * for, and is skipped when the model declares none.
  */
 const REACTIONS = {
-  head: { expression: 'shy', labelKey: 'hover.head', labelFallback: 'Đầu · giữ để xem biểu cảm & động tác' },
-  chest: { expression: 'angry', labelKey: 'hover.chest', labelFallback: 'Ơ... đừng nhìn chỗ đó mà~ 😳' },
-  body: { expression: 'happy', labelKey: 'hover.body', labelFallback: 'Thân · giữ để thay đồ' },
-  skirt: { expression: 'angry', labelKey: 'hover.skirt', labelFallback: 'Hửm?! Không được đâu nha~ 💢' },
-  arm: { expression: 'happy', motion: 'hand', labelKey: 'hover.arm', labelFallback: 'Tay · chạm để bắt tay em~ 👋' },
+  head: { expression: 'shy', labelKey: 'hover.head', labelFallback: 'Anh giữ chỗ này xíu đi~ em làm mặt vui cho anh xem nè 😊' },
+  chest: { expression: 'angry', labelKey: 'hover.chest', labelFallback: 'Ơ... anh đừng nhìn chỗ đó mà~ 😳' },
+  body: { expression: 'happy', labelKey: 'hover.body', labelFallback: 'Anh giữ chỗ này xíu đi, em thay đồ cho anh xem nha~ 👗' },
+  skirt: { expression: 'angry', labelKey: 'hover.skirt', labelFallback: 'Hửm?! Chỗ đó không được đâu nha anh~ 💢' },
+  arm: { expression: 'happy', motion: 'hand', labelKey: 'hover.arm', labelFallback: 'Anh nắm tay em đi~ 👋' },
 };
 
 /** Regions whose reaction is a refusal — they also nudge the gaze away. */

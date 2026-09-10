@@ -1,6 +1,40 @@
 # Public Release Guide
 
-> Bản hiện tại đang chuẩn bị publish: **v0.5.8** (release notes ngay bên dưới). v0.5.5 → v0.5.7 đã publish ngày 2026-09-09. Các phần cũ giữ làm reference cho flow chung.
+> Bản hiện tại đang chuẩn bị publish: **v0.5.9** (release notes ngay bên dưới). v0.5.5 → v0.5.8 đã publish (0.5.8 ngày 2026-09-10). Các phần cũ giữ làm reference cho flow chung.
+
+---
+
+## 📦 v0.5.9 Release (2026-09-10)
+
+### Scope
+
+- Extension version public: `0.5.9`
+- **🌱 Nhịp sống khi rảnh**: [media/webview/idle-life.js](media/webview/idle-life.js) — mỗi **40–90 s** (random) diễn một "beat" tự phát: `yawn` / `rubEyes` / `stretch` / `lookAround` / `tiltCurious` / `hum` / `peek` / `daydream`. Beat nào có motion khớp regex trong model (`打哈欠` → yawn, `揉眼睛` → rubEyes) thì **chạy motion của model**, không thì dùng preset biểu cảm + đẩy `focusController.focus()` cho ánh mắt; vài beat còn cộng thêm `ParamAngleZ` (nghiêng đầu) ghi ở `afterMotionUpdate` để tóc bay theo. Bốc có trọng số: **22:00–05:00** nhân hệ số đêm (yawn ×2.6, rubEyes ×2.2, hum ×0.4), mood hiện tại nhân hệ số riêng (mood `sleepy` đẩy yawn ×2.5; mood `happy` dìm yawn ×0.4, đẩy hum ×1.8); **loại trừ 2 beat gần nhất** để không lặp liên tiếp. Im khi `document.hidden`, khi `isBusy()` (side panel / radial / context menu / chat / agent / voice / message / ambient panel — dùng chung hàm `somethingOnStage` với hover) → thử lại sau 12 s. Mọi `pointerdown` lên model và mọi cử chỉ hover đều gọi `noteIdleInteraction()` → lùi beat kế tiếp **25–40 s**. Setting **`animeCompanion.idleLife.enabled`** (mặc định `true`) → `window.__IDLE_LIFE__`.
+- **🫳 Kéo nhân vật ra rồi thả về** (mặc định, setting `animeCompanion.dragMode` = `character` | `panel`): ở chế độ `character`, `beginDrag()` **không** tạo `panelDragState` nữa (khung companion đứng yên), chỉ gọi `startSway()`; `mousemove` đẩy vào `updateSway()`. Nhân vật lệch theo con trỏ với hệ số `PULL_RATIO` 0.55, chặn ở `MAX_PULL_PX` 90 px, bám với `PULL_FOLLOW` 0.35 — đây là **vị trí** nên **giữ chuột đứng yên là em đứng yên đúng chỗ đó**. Thả ra: lò xo `HOME_SPRING` 0.08 / `HOME_DAMPING` 0.86 kéo về gốc, mô phỏng cho **~0.9 s là về đúng chỗ cũ**. Ghi qua `model.pivot` (chia cho `scale`, đảo dấu) chứ **không** ghi `model.x/y` vì `fitModel()` sở hữu x/y và ghi đè mỗi lần panel đổi cỡ. `initSway()` reset pivot về 0 khi đổi model. Chế độ `panel` giữ nguyên hành vi cũ (kéo cả khung + nhớ vị trí qua `setCompanionPosition`).
+- **🌬️ Quán tính khi kéo model**: [media/webview/sway.js](media/webview/sway.js) — kéo model trong panel thì nghiêng người **ngược hướng kéo** theo *vận tốc* (không phải quãng đường): `ParamBodyAngleX/Z/Y` (tối đa 15° / 9° / 9°) + `ParamAngleX/Z` (22° / 11°) cộng bằng `addParameterValueById` (cộng chứ không gán, để không đè nhịp thở của idle motion). Ghi ở sự kiện **`afterMotionUpdate`** — đúng khe sau motion và **trước `physics.evaluate`** trong pipeline `motion → expression → focus → physics → draw`; ghi muộn hơn (ticker thường hay `beforeModelUpdate`) thì thân nghiêng mà **tóc đứng yên**, đúng thứ tính năng này sinh ra để tránh. **Kéo rồi giữ**: chuột đứng yên > `HOLD_LATCH_MS` 110 ms thì chuyển từ *vận tốc* sang *độ lệch so với điểm bắt đầu kéo* (`DIST_FOR_FULL_LEAN` 300 px = nghiêng hết cỡ) — em **giữ nguyên tư thế nghiêng** tới khi thả, kéo xa nghiêng nhiều, kéo ngắn 60 px chỉ ~3°. Không chốt theo vận tốc cuối vì tay ai cũng chậm dần trước khi dừng, chốt kiểu đó thì kéo mạnh xong lại về gần thẳng. Thả ra: lò xo giảm chấn (`SPRING 0.06`, `DAMPING 0.92`, recoil 0.06) đi xuyên qua vị trí thẳng và vọt quá — mô phỏng số cho **3 nhịp lắc, tần số ~2.14 Hz (chu kỳ 0.47 s), đỉnh vượt ~10.5° thân / 15.4° đầu, tắt hẳn sau ~0.77 s**. Lò xo cố ý **mềm**: bản trước `SPRING 0.16` cho cùng biên độ nhưng lắc ~3.75 Hz — nhìn ra rung chứ không ra người, nên hạ tần số và cắt recoil theo để biên độ không bị đội lên. `FOLLOW_SPEED` 0.18 (bản trước 0.3): bám con trỏ mềm hơn, giảm ~40 % độ gằn khi tay rung mà độ trễ vẫn < 0.1 s. `SPEED_FOR_FULL_LEAN` 15 px/frame. Chỉ chạy ở **panel mode**: Desktop Companion để OS kéo cửa sổ nên webview không nhận `mousemove`. Setting **`animeCompanion.dragMomentum.enabled`** (mặc định `true`) → `window.__DRAG_MOMENTUM__`.
+- Cả hai setting inject ở panel ([src/companion-view.ts](src/companion-view.ts)) lẫn Desktop ([src/desktop-pet-bridge.ts](src/desktop-pet-bridge.ts) + [desktop-pet/web/index.html](desktop-pet/web/index.html)), nằm nhóm **Model & Diện mạo** trong trang Cài đặt. Không thêm chuỗi i18n nào (không có chữ hiển thị).
+
+### Pre-publish checklist v0.5.9
+
+- [x] `package.json` ở `0.5.9`
+- [x] `CHANGELOG.md` có entry `## [0.5.9] - 2026-09-10`
+- [x] 3 README — "What's new v0.5.9" + 2 hàng setting mới
+- [x] Local `npm test` + `npm run package` pass (173 files)
+- [ ] **Smoke test**: (1) mở panel, **không đụng gì ~1 phút** → thấy beat tự phát (ngáp / vươn vai / ngó quanh…), mắt có di chuyển; đợi tiếp vài lượt → **không lặp lại cùng một beat hai lần liên tiếp** — (2) `a_001`: beat ngáp phải chạy **motion `打哈欠` của model** (xem Debug log dòng `Idle life: yawn (motion 打哈欠)`), không phải chỉ đổi biểu cảm — (3) Hiyori (không có motion ngáp) → vẫn ngáp bằng biểu cảm `sleepy` + mắt nhìn xuống, không lỗi — (4) đổi giờ máy sang 23:00 rồi reload → ngáp/dụi mắt xuất hiện dày hơn rõ rệt — (5) mở side panel / chat / menu chuột phải rồi chờ → **không beat nào chạy**; đóng lại → beat quay lại sau ~12 s — (6) click vào model → beat kế tiếp bị lùi (không hiện ngay sau đó) — (7) `idleLife.enabled: false` → reload → không beat nào — (8) chuyển tab khác ~2 phút rồi quay lại → không có chuỗi beat dồn ứ chạy một loạt
+- [ ] **Smoke test (quán tính)**: (9) kéo model qua trái/phải **nhanh** → người nghiêng ngược hướng kéo, **tóc và váy bay trễ lại**; kéo chậm → nghiêng ít — (10) đang kéo mà **giữ chuột đứng yên** → em **đứng yên đúng chỗ đang giữ** (không trôi về, không tự thẳng lại), vẫn thở và tóc vẫn đung đưa; thả chuột → **bật về đúng vị trí ban đầu** trong ~1 s kèm vài nhịp lắc — (10b) khung companion **không** xê dịch trong suốt quá trình; kéo rất xa → em bị chặn lại, không văng ra khỏi panel — (10c) đặt `dragMode: "panel"` → reload → kéo lại di chuyển cả khung và ở lại chỗ mới như bản cũ — (11) **thả ra sau khi kéo nhanh** → lắc **thong thả ~3 nhịp** (mỗi nhịp ~nửa giây) rồi đứng yên sau ~0.8 s; phải thấy **mượt**, không rung nhanh, không giật, không lệch vĩnh viễn — (12) trong lúc kéo, nhịp thở / idle motion **vẫn chạy** (không bị đơ) — (13) Alt+kéo (xoay đầu) vẫn hoạt động như cũ, không xung đột — (14) đổi model giữa chừng → không kẹt tư thế nghiêng — (15) `dragMomentum.enabled: false` → kéo không nghiêng — (16) Desktop Companion: kéo cửa sổ vẫn bình thường (tính năng này không áp dụng), không lỗi console — (17) rê chuột lên thân/đầu → nhãn hiện **lời em nói** ("Anh giữ chỗ này xíu đi, em thay đồ cho anh xem nha~"), không còn nhãn kiểu "Thân · giữ để thay đồ"; chữ xuống tối đa 3 dòng, không tràn, vẫn nằm ngoài model — (18) đổi messageLanguage sang English / 日本語 → nhãn đổi theo, cùng giọng thân mật
+- [ ] Không stage `docs/images/Screenshot_1.png`
+
+### Publish flow
+
+```bash
+npm run package
+git add -u
+git add media/webview/idle-life.js media/webview/sway.js
+git commit -m "release: v0.5.9 — Idle life beats, pull-and-release drag, warmer hover captions"
+git push origin main
+git tag -a v0.5.9 -m "v0.5.9 — Idle life beats, pull-and-release drag, warmer hover captions"
+git push origin v0.5.9
+```
 
 ---
 

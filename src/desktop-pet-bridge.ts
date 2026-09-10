@@ -525,6 +525,9 @@ export class DesktopPetBridge implements vscode.Disposable {
     const menuStyle = config.get<string>('menuStyle', 'radial');
     const hintsEnabled = config.get<boolean>('hints.enabled', true);
     const hoverReactions = config.get<boolean>('hoverReactions.enabled', true);
+    const idleLife = config.get<boolean>('idleLife.enabled', true);
+    const dragMomentum = config.get<boolean>('dragMomentum.enabled', true);
+    const dragMode = config.get<string>('dragMode', 'character');
 
     const customAmbientTracks = this._getCustomAmbientTracks();
     const ambientPreset = getAmbientPreset(config.get<string>('ambientPreset', 'off'), customAmbientTracks);
@@ -566,6 +569,9 @@ export class DesktopPetBridge implements vscode.Disposable {
       menuStyle,
       hintsEnabled,
       hoverReactions,
+      idleLife,
+      dragMomentum,
+      dragMode,
       clickThrough: this._getDesktopCompanionSetting('clickThrough', false),
       ambientPreset: ambientPreset.id,
       ambientVolume,

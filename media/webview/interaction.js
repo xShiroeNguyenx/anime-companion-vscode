@@ -7,6 +7,8 @@ import { playAudio, setAmbientPreset, setGlobalAudioMuted } from './audio.js';
 import { createRadialMenu } from './radial-menu.js';
 import { hideHint, initHints, noteHoldUsed, noteInteraction } from './hints.js';
 import { clearHover, initHover, noteHoverMove } from './hover.js';
+import { endSway, initSway, startSway, updateSway } from './sway.js';
+import { initIdleLife, noteIdleInteraction } from './idle-life.js';
 import {
   showBubble,
   createSparkle,
@@ -240,9 +242,20 @@ export function setupModel() {
       return;
     }
 
-    // Panel mode: switch the container into absolute positioning so we can
-    // move it freely. Remember the offset between cursor and container origin
-    // so the drag feels anchored to where the user grabbed.
+    // Panel mode. Two possible behaviours, chosen by the dragMode setting:
+    //
+    //   'character' (default) — only the drawing is pulled out of place and
+    //     springs back on release. The panel keeps its layout, so the drag is
+    //     a way to play with her rather than a way to move furniture.
+    //   'panel' — the older behaviour: the whole companion container is
+    //     repositioned and the new spot is remembered.
+    if (window.__DRAG_MODE__ !== 'panel') {
+      startSway(clientX, clientY);
+      // No panelDragState: nothing in the DOM moves, so the mousemove watcher
+      // only feeds the pull. Cleared on mouseup like any other drag.
+      return;
+    }
+
     const container = document.querySelector('.companion-container');
     if (!container) {
       pendingDrag = null;
@@ -256,6 +269,9 @@ export function setupModel() {
       offsetY: clientY - rect.top,
     };
     container.classList.add('companion-container--dragging');
+    // Carrying her leans the body; the model's own physics turns that into
+    // hair and skirt trailing behind.
+    startSway(clientX, clientY);
     // Pin via fixed positioning so subsequent left/top are viewport-relative
     // and don't fight with the flex parent layout.
     container.style.position = 'fixed';
@@ -291,6 +307,7 @@ export function setupModel() {
     const altKey = !!(e?.data?.originalEvent?.altKey ?? e?.altKey);
     debugLog('pointerdown: btn=' + btn + ', alt=' + altKey + ', cooldown=' + isCooldown + ', dragging=' + isWindowDragging);
     noteInteraction();
+    noteIdleInteraction();
     if (btn === 2) return;
     if (isCooldown) return;
     if (isWindowDragging) return;
@@ -440,7 +457,13 @@ export function setupModel() {
       updateModelRotation(event.clientX, event.clientY);
       return;
     }
+    if (isWindowDragging && !panelDragState) {
+      // Character-drag mode: the pull is the only thing that moves.
+      updateSway(event.clientX, event.clientY);
+      return;
+    }
     if (panelDragState) {
+      updateSway(event.clientX, event.clientY);
       const c = panelDragState.container;
       const newLeft = event.clientX - panelDragState.offsetX;
       const newTop = event.clientY - panelDragState.offsetY;
@@ -495,6 +518,9 @@ export function setupModel() {
       });
       panelDragState = null;
     }
+    // Let go: the pull springs home and the lean settles. Runs in both modes;
+    // endSway() is a no-op when no drag was in progress.
+    endSway();
     pendingDrag = null;
     // Defer slightly so a click event fired by the same release is suppressed
     // by the existing isWindowDragging guards in pointerup.
@@ -592,24 +618,27 @@ export function setupModel() {
   setupMessagePanel();
   setupAmbientPanel();
   setupSidePanel();
+  initSway();
   applyShowcaseBanner(window.__SHOWCASE__ || null);
   setupAgentPanel();
   initHints({
     translate: t,
     onOpen: (kind) => (kind === 'features' ? showHoldPanel() : showOutfitPanel()),
   });
+  // Shared by the hover reactions and the idle repertoire: a performance
+  // behind an open panel is noise the user did not ask for.
+  const somethingOnStage = () =>
+    Boolean(
+      document.querySelector(
+        '.companion-side-panel.show, .companion-radial.show, .companion-context-menu.show, ' +
+          '.companion-container.chat-open, .companion-agent-panel.show, ' +
+          '.companion-voice-panel.show, .companion-message-panel.show, .companion-ambient-panel.show'
+      )
+    );
+  initIdleLife({ isBusy: somethingOnStage });
   initHover({
     translate: t,
-    // Same "something is already on stage" test the hints use: a reaction
-    // behind an open panel is noise the user did not ask for.
-    isBusy: () =>
-      Boolean(
-        document.querySelector(
-          '.companion-side-panel.show, .companion-radial.show, .companion-context-menu.show, ' +
-            '.companion-container.chat-open, .companion-agent-panel.show, ' +
-            '.companion-voice-panel.show, .companion-message-panel.show, .companion-ambient-panel.show'
-        )
-      ),
+    isBusy: somethingOnStage,
     onReact: ({ motionGroup }) => {
       if (motionGroup) playMotion(motionGroup);
     },
@@ -618,6 +647,7 @@ export function setupModel() {
     // gestures count toward affection and their achievements.
     onGesture: (kind, detail) => {
       noteInteraction();
+      noteIdleInteraction();
       if (kind === 'tickle') {
         setExpression('happy', 2600);
         showBubble(t('bubbles.tickle', 'Hihi~ nhột quá đi mà! 🤭'));

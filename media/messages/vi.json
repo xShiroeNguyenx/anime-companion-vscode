@@ -294,11 +294,11 @@
       "agentGithub": "Tài khoản GitHub…"
     },
     "hover": {
-      "head": "Đầu · giữ để xem biểu cảm & động tác",
-      "chest": "Ơ... đừng nhìn chỗ đó mà~ 😳",
-      "body": "Thân · giữ để thay đồ",
-      "skirt": "Hửm?! Không được đâu nha~ 💢",
-      "arm": "Tay · chạm để chào em~ 👋"
+      "head": "Anh giữ chỗ này xíu đi~ em làm mặt vui cho anh xem nè 😊",
+      "chest": "Ơ... anh đừng nhìn chỗ đó mà~ 😳",
+      "body": "Anh giữ chỗ này xíu đi, em thay đồ cho anh xem nha~ 👗",
+      "skirt": "Hửm?! Chỗ đó không được đâu nha anh~ 💢",
+      "arm": "Anh nắm tay em đi~ 👋"
     },
     "panels": {
       "voiceTitle": "Voice",

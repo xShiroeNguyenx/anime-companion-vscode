@@ -2584,7 +2584,9 @@ body.desktop-pet-mode .companion-quickchat-history {
    or it is not worth showing. It wraps rather than running off the panel. */
 .companion-hover-label {
   position: absolute;
-  max-width: 108px;
+  /* Wide enough for a full spoken line at three wrapped rows; the caption is
+     the character talking, not a field label, so it needs the room. */
+  max-width: 132px;
   padding: 4px 7px;
   border-radius: 9px;
   border: 1px solid rgba(255, 150, 190, 0.6);

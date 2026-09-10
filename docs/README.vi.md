@@ -8,11 +8,15 @@
 
 > ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.5.8
+**Phiên bản hiện tại:** v0.5.9
 
-> 🆕 **Có gì mới ở v0.5.8**:
+> 🆕 **Có gì mới ở v0.5.9**:
+> - **🌱 Em tự làm việc của em** — giữa những lần bạn tương tác, mỗi 40–90 giây em sẽ ngáp, vươn vai, ngó quanh, nghiêng đầu tò mò hoặc lén nhìn bạn rồi quay đi, thay vì lặp mãi một motion idle. Sau 22 giờ thì hay ngáp và dụi mắt hơn; đang mở panel hay chat thì em im. Chạm vào em là lùi lần kế tiếp lại. Tắt bằng `animeCompanion.idleLife.enabled: false`.
+> - **🫳 Kéo em ra, thả là em bật về** — kéo thì nhân vật bị kéo lệch theo con trỏ, người nghiêng theo đà nên tóc và váy bay trễ lại. **Giữ nguyên chuột thì em đứng yên ngay chỗ bạn đang giữ**, không tự trôi về; thả chuột ra em mới bật về chỗ cũ kèm vài nhịp lắc. Muốn giữ kiểu cũ là kéo cả khung companion đi? Đặt `animeCompanion.dragMode: "panel"`. Dùng chính hệ vật lý của model. Tắt bằng `animeCompanion.dragMomentum.enabled: false`.
+>
+> 🆕 **Mới ở v0.5.8**:
 > - **👉 Gợi ý cho thao tác nhấn giữ** — để companion yên khoảng một phút, một pill nhỏ kèm mũi tên sẽ chỉ vào thân ("giữ nhẹ chỗ này để em thay đồ") hoặc vào đầu ("giữ nhẹ chỗ này để em đổi biểu cảm & động tác"). Bấm vào pill là mở luôn bảng đó. Gợi ý tạm nghỉ trong phiên khi bạn đã dùng thao tác đó; `animeCompanion.hints.enabled: false` để tắt hẳn.
-> - **🖐️ Rê chuột tới đâu, nhân vật đáp lại tới đó** — dừng con trỏ trên một bộ phận là bộ phận đó phản ứng: ngại ngùng ở đầu, giận dỗi ở ngực hay váy, vẫy tay khi chạm tay. Có nhãn nhỏ ghi tên vùng kèm thao tác ("Đầu · giữ để xem biểu cảm & động tác"), vùng đó được viền sáng một lát, và con trỏ đổi theo từng vùng — cây lược trên tóc, chiếc váy ở thân, trái tim gạch chéo hay chiếc nơ gạch chéo ở chỗ em không cho đụng, bàn tay mở ở tay em — tất cả cùng bộ mũi tên hồng với con trỏ trái tim. Phải **dừng** chuột mới tính, mỗi vùng nghỉ vài giây sau khi phản ứng; tắt bằng `animeCompanion.hoverReactions.enabled: false`.
+> - **🖐️ Rê chuột tới đâu, nhân vật đáp lại tới đó** — dừng con trỏ trên một bộ phận là bộ phận đó phản ứng: ngại ngùng ở đầu, giận dỗi ở ngực hay váy, vẫy tay khi chạm tay. Có nhãn nhỏ ghi lời em nói về chỗ đó ("Anh giữ chỗ này xíu đi, em thay đồ cho anh xem nha~"), vùng đó được viền sáng một lát, và con trỏ đổi theo từng vùng — cây lược trên tóc, chiếc váy ở thân, trái tim gạch chéo hay chiếc nơ gạch chéo ở chỗ em không cho đụng, bàn tay mở ở tay em — tất cả cùng bộ mũi tên hồng với con trỏ trái tim. Phải **dừng** chuột mới tính, mỗi vùng nghỉ vài giây sau khi phản ứng; tắt bằng `animeCompanion.hoverReactions.enabled: false`.
 > - **🤭 Cù lét, vuốt tóc, nắm tay** — rê chuột qua lại ở eo là em cười (mở thành tựu bí mật); vuốt chậm nhiều lần trên đầu là vuốt tóc, tính vào chuỗi thành tựu **Vuốt tóc** mới (25 / 100 / 500 lần); dừng ở tay rồi nhích nhẹ là nắm tay. Nhãn tên vùng giờ nằm **bên cạnh** nhân vật nên đọc rõ trên mọi bộ đồ.
 > - **🏆 Thành tựu hiện hai cột hai bên** — Thành tựu mở cùng kiểu hai cột như Trang phục / Biểu cảm / Motion: thành tựu và thành tựu bí mật bên trái, nhiệm vụ và ký ức bên phải, nhân vật vẫn thấy trọn ở giữa. Bấm ☆ Khoe là đổi tại chỗ; bảng giữ nguyên tới khi bấm **×**.
 >
@@ -396,6 +400,9 @@ Chuột phải lên companion → **Cài đặt** (hoặc chạy `Anime Companio
 | `animeCompanion.characterSize` | `medium` | `small` / `medium` / `large`. |
 | `animeCompanion.hints.enabled` | `true` | Hiện gợi ý khi để yên lâu, chỉ vào chỗ cần nhấn giữ (thân → Trang phục, đầu → Biểu cảm & Motion). |
 | `animeCompanion.hoverReactions.enabled` | `true` | Phản ứng khi dừng chuột trên một bộ phận: biểu cảm, nhãn tên vùng, viền sáng và con trỏ riêng. |
+| `animeCompanion.idleLife.enabled` | `true` | Cử chỉ tự phát giữa các lần tương tác (ngáp, vươn vai, ngó quanh), tuỳ giờ và tâm trạng. |
+| `animeCompanion.dragMomentum.enabled` | `true` | Kéo em thì người nghiêng theo đà, tóc và váy bay trễ lại; thả ra thì lắc lư rồi đứng thẳng. |
+| `animeCompanion.dragMode` | `character` | Kéo thì cái gì di chuyển: nhân vật (thả là về chỗ cũ) hay cả khung panel (ở lại chỗ mới). |
 | `animeCompanion.menuStyle` | `radial` | Kiểu menu chuột phải: `radial` (vòng tròn quanh con trỏ) hoặc `list` (menu dọc cũ). |
 | `animeCompanion.showOnStartup` | `true` | Tự hiện panel khi VS Code khởi động. |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Khoảng cách giữa các idle bubble (giây). |

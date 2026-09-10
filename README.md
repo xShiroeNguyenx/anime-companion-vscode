@@ -6,11 +6,15 @@
 
 > ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.5.8
+**Current version:** v0.5.9
 
-> 🆕 **What's new in v0.5.8**:
+> 🆕 **What's new in v0.5.9**:
+> - **🌱 She does things on her own** — between interactions she yawns, stretches, looks around, tilts her head or glances over at you, every 40 to 90 seconds. Sleepy beats crowd in after 22:00; nothing plays while a panel or the chat is open, and touching her pushes the next one back. `animeCompanion.idleLife.enabled: false` to turn it off.
+> - **🫳 Pull her, and she springs back** — drag and the character stretches after your cursor, leaning into it so her hair and skirt trail behind. Stop while still holding the button and she stays right where you are holding her; let go and she springs home with a couple of swings. Prefer the old behaviour where a drag moved the whole panel? `animeCompanion.dragMode: "panel"`. Driven through the model's own physics rig. `animeCompanion.dragMomentum.enabled: false` to turn it off.
+>
+> 🆕 **New in v0.5.8**:
 > - **👉 Hints for the hold gestures** — leave the companion alone for a minute and a small pill with an arrow points at the body ("hold here a moment and I'll change outfits") or the head ("hold here a moment to see my expressions & motions"). Click the pill to open that panel. A hint rests for the session once you have used the gesture; `animeCompanion.hints.enabled: false` turns them off for good.
-> - **🖐️ The character answers where you point** — rest the cursor on a part and that part reacts: shy at the head, flustered at the chest or skirt, a wave from a hand. A caption names the part and its gesture ("Head · hold to see expressions & motions"), the part is briefly outlined, and the cursor itself changes with the part — a comb over her hair, a dress over her body, a barred heart or bow where she'd rather you didn't, an open hand over hers — all in the same pink-arrow family as the heart cursor. Only a pause counts, and each part then rests a few seconds; `animeCompanion.hoverReactions.enabled: false` turns it off.
+> - **🖐️ The character answers where you point** — rest the cursor on a part and that part reacts: shy at the head, flustered at the chest or skirt, a wave from a hand. A caption tells you in her own voice what that part invites ("hold here a moment and I will change outfits for you~"), the part is briefly outlined, and the cursor itself changes with the part — a comb over her hair, a dress over her body, a barred heart or bow where she'd rather you didn't, an open hand over hers — all in the same pink-arrow family as the heart cursor. Only a pause counts, and each part then rests a few seconds; `animeCompanion.hoverReactions.enabled: false` turns it off.
 > - **🤭 Tickle, pet, shake hands** — scrub the cursor back and forth across her waist and she laughs (secret achievement); stroke her head slowly and repeatedly to pet her hair, which counts toward the new **Head Pat Chain** (25 / 100 / 500); rest on a hand and then move a little to take it. Captions now sit beside the character, so they are readable over any outfit.
 > - **🏆 Achievements as side columns** — Achievements open in the same two columns as Outfit / Expression / Motion: achievements and secrets on the left, quests and memories on the right, the character in view between them. ☆ Showcase toggles in place; the panel stays until you press **×**.
 >
@@ -400,6 +404,9 @@ Right-click the companion → **Settings** (or run `Anime Companion: Open Settin
 | `animeCompanion.characterSize` | `medium` | `small` / `medium` / `large`. |
 | `animeCompanion.hints.enabled` | `true` | Show idle hints pointing at the press-and-hold spots (body → Outfit, head → Expression & Motion). |
 | `animeCompanion.hoverReactions.enabled` | `true` | React when the cursor rests on a body part: expression, caption, outline and cursor per part. |
+| `animeCompanion.idleLife.enabled` | `true` | Small unprompted beats between interactions (yawn, stretch, look around), weighted by hour and mood. |
+| `animeCompanion.dragMomentum.enabled` | `true` | Dragging her leans the body so hair and skirt trail behind, then springs back on release. |
+| `animeCompanion.dragMode` | `character` | What a drag moves: the character (springs back on release) or the whole panel (stays put). |
 | `animeCompanion.menuStyle` | `radial` | Right-click menu layout: `radial` (ring around the cursor) or `list` (classic vertical menu). |
 | `animeCompanion.showOnStartup` | `true` | Auto-show panel on VS Code startup. |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Idle bubble interval (seconds). |

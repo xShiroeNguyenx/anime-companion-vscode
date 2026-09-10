@@ -547,6 +547,9 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     const menuStyle = config.get<string>('menuStyle', 'radial');
     const hintsEnabled = config.get<boolean>('hints.enabled', true);
     const hoverReactions = config.get<boolean>('hoverReactions.enabled', true);
+    const idleLife = config.get<boolean>('idleLife.enabled', true);
+    const dragMomentum = config.get<boolean>('dragMomentum.enabled', true);
+    const dragMode = config.get<string>('dragMode', 'character');
     const customAmbientTracks = this._getCustomAmbientTracks();
     const ambientPreset = getAmbientPreset(config.get<string>('ambientPreset', 'off'), customAmbientTracks);
     const ambientVolume = config.get<number>('ambientVolume', 30);
@@ -779,6 +782,9 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__MENU_STYLE__ = ${JSON.stringify(menuStyle)};
     window.__HINTS_ENABLED__ = ${hintsEnabled ? 'true' : 'false'};
     window.__HOVER_REACTIONS__ = ${hoverReactions ? 'true' : 'false'};
+    window.__IDLE_LIFE__ = ${idleLife ? 'true' : 'false'};
+    window.__DRAG_MOMENTUM__ = ${dragMomentum ? 'true' : 'false'};
+    window.__DRAG_MODE__ = ${JSON.stringify(dragMode)};
     window.__AMBIENT_PRESET__ = "${ambientPreset.id}";
     window.__AMBIENT_VOLUME__ = ${ambientVolume};
     window.__AMBIENT_TRACKS__ = ${JSON.stringify(ambientTracks)};
