@@ -8,9 +8,12 @@
 
 > ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.5.9
+**Phiên bản hiện tại:** v0.6.0
 
-> 🆕 **Có gì mới ở v0.5.9**:
+> 🆕 **Có gì mới ở v0.6.0**:
+> - **🚶 Em đi lang thang qua khung code** — để yên vài phút là em mờ dần khỏi panel rồi hiện ra đứng ở góc trái bên dưới khung code khoảng mười giây, xong tự về. Bạn gõ phím hay di chuột là em về ngay; bạn cuộn code thì em vẫn đứng yên ở góc. Tắt bằng `animeCompanion.wander.enabled`: false.
+>
+> 🆕 **Mới ở v0.5.9**:
 > - **🌱 Em tự làm việc của em** — giữa những lần bạn tương tác, mỗi 40–90 giây em sẽ ngáp, vươn vai, ngó quanh, nghiêng đầu tò mò hoặc lén nhìn bạn rồi quay đi, thay vì lặp mãi một motion idle. Sau 22 giờ thì hay ngáp và dụi mắt hơn; đang mở panel hay chat thì em im. Chạm vào em là lùi lần kế tiếp lại. Tắt bằng `animeCompanion.idleLife.enabled: false`.
 > - **🫳 Kéo em ra, thả là em bật về** — kéo thì nhân vật bị kéo lệch theo con trỏ, người nghiêng theo đà nên tóc và váy bay trễ lại. **Giữ nguyên chuột thì em đứng yên ngay chỗ bạn đang giữ**, không tự trôi về; thả chuột ra em mới bật về chỗ cũ kèm vài nhịp lắc. Muốn giữ kiểu cũ là kéo cả khung companion đi? Đặt `animeCompanion.dragMode: "panel"`. Dùng chính hệ vật lý của model. Tắt bằng `animeCompanion.dragMomentum.enabled: false`.
 >
@@ -403,6 +406,10 @@ Chuột phải lên companion → **Cài đặt** (hoặc chạy `Anime Companio
 | `animeCompanion.idleLife.enabled` | `true` | Cử chỉ tự phát giữa các lần tương tác (ngáp, vươn vai, ngó quanh), tuỳ giờ và tâm trạng. |
 | `animeCompanion.dragMomentum.enabled` | `true` | Kéo em thì người nghiêng theo đà, tóc và váy bay trễ lại; thả ra thì lắc lư rồi đứng thẳng. |
 | `animeCompanion.dragMode` | `character` | Kéo thì cái gì di chuyển: nhân vật (thả là về chỗ cũ) hay cả khung panel (ở lại chỗ mới). |
+| `animeCompanion.wander.enabled` | `true` | Để yên vài phút thì em qua khung code đứng chơi một lát rồi tự về panel. |
+| `animeCompanion.wander.idleMinutes` | `3` | Bao nhiêu phút không gõ thì em đi lang thang. |
+| `animeCompanion.wander.staySeconds` | `10` | Em đứng trong khung code bao lâu trước khi về. |
+| `animeCompanion.wander.sizePx` | `300` | Em cao bao nhiêu pixel khi đứng trong khung code. |
 | `animeCompanion.menuStyle` | `radial` | Kiểu menu chuột phải: `radial` (vòng tròn quanh con trỏ) hoặc `list` (menu dọc cũ). |
 | `animeCompanion.showOnStartup` | `true` | Tự hiện panel khi VS Code khởi động. |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Khoảng cách giữa các idle bubble (giây). |

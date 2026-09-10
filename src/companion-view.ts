@@ -46,6 +46,9 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   private _transportSubscriptions: vscode.Disposable[] = [];
 
   private _saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>;
+  /** Set after construction by extension.ts; see WanderManager. */
+  private _receiveWanderFrames?: (modelId: string, frames: string[]) => Promise<void>;
+  private _wanderCaptureFailed?: (reason: string) => void;
   private _chatManager?: ChatManager;
   private _agentProfileManager?: import('./agent-profiles/profile-manager').AgentProfileManager;
 
@@ -157,6 +160,21 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   public applyShowcase(): void {
     const showcase = this._applyShowcaseToNativeTitle();
     this._broadcastShowcase(showcase);
+  }
+
+  /**
+   * Hooks the wander feature up to this view's message channel.
+   *
+   * Set after construction rather than passed in: WanderManager needs a host
+   * to talk to, and the host is this provider, so one of the two has to be
+   * wired second.
+   */
+  public setWanderHandlers(handlers: {
+    receiveFrames: (modelId: string, frames: string[]) => Promise<void>;
+    captureFailed: (reason: string) => void;
+  }): void {
+    this._receiveWanderFrames = handlers.receiveFrames;
+    this._wanderCaptureFailed = handlers.captureFailed;
   }
 
   public showAchievementsPanel(): boolean {
@@ -282,6 +300,8 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
         nudgeCursorChibiSize: (delta) => this._nudgeCursorChibiSize?.(delta) ?? Promise.resolve(),
         resetCursorChibi: () => this._resetCursorChibi?.() ?? Promise.resolve(),
         saveCapturedChibi: this._saveCapturedChibi,
+        receiveWanderFrames: this._receiveWanderFrames,
+        wanderCaptureFailed: this._wanderCaptureFailed,
         chatManager: this._chatManager,
         applyShowcase: () => this.applyShowcase(),
         agentProfileManager: this._agentProfileManager,

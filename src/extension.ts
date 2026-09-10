@@ -16,6 +16,7 @@ import { DesktopPetDownloader } from './desktop-pet-downloader';
 import { VoiceAssetDownloader } from './voice-asset-downloader';
 import { AnimeCompanionViewProvider } from './companion-view';
 import { CursorChibiManager } from './cursor-chibi';
+import { WanderManager } from './wander';
 import { DesktopPetBridge } from './desktop-pet-bridge';
 import { initMessageBank } from './messages';
 import { ACHIEVEMENT_COUNT, AchievementDef, buildAchievementPanelData, buildAchievementQuickPickRows, buildCompanionProfile, buildQuestQuickPickRows, QuestDef, StatsStore } from './stats';
@@ -406,6 +407,10 @@ export async function activate(context: vscode.ExtensionContext) {
   // CursorChibiManager built up here so we can pass its saveCapturedChibi
   // method into AnimeCompanionViewProvider's dispatcher context below.
   const cursorChibi = new CursorChibiManager(context.extensionUri, context.globalStorageUri);
+  // She wanders into the editor when left alone; needs the host to fade the
+  // panel sprite and to ask for animation frames, wired once a host exists.
+  const wander = new WanderManager(context);
+  context.subscriptions.push(wander);
 
   // Workbench background-image feature: patches workbench.desktop.main.js to
   // render an image behind the editor/sidebar/panel, driven by a dedicated
@@ -579,6 +584,17 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     host = provider;
     chatHostRef = host;
+    // Captured in a local so the closures below keep the narrowed type.
+    const panelProvider = provider;
+    panelProvider.setWanderHandlers({
+      receiveFrames: (modelId, frames) => wander.receiveFrames(modelId, frames),
+      captureFailed: (reason) => wander.captureFailed(reason),
+    });
+    wander.setHost({
+      postMessage: (message) => panelProvider.postMessage(message as never),
+      isReady: () => true,
+    });
+    wander.activate();
 
     // The view's `when: animeCompanion.visible` clause hides it from the
     // panel container until this context flag is true. The flag does NOT

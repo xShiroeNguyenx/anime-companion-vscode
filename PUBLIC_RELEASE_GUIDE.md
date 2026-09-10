@@ -1,6 +1,44 @@
 # Public Release Guide
 
-> Bản hiện tại đang chuẩn bị publish: **v0.5.9** (release notes ngay bên dưới). v0.5.5 → v0.5.8 đã publish (0.5.8 ngày 2026-09-10). Các phần cũ giữ làm reference cho flow chung.
+> Bản hiện tại đang chuẩn bị publish: **v0.6.0** (release notes ngay bên dưới). v0.5.5 → v0.5.9 đã publish (0.5.9 ngày 2026-09-10). Các phần cũ giữ làm reference cho flow chung.
+
+---
+
+## 📦 v0.6.0 Release (2026-09-10)
+
+### Scope
+
+- Extension version public: `0.6.0` (minor bump: tính năng mới đáng kể, không có breaking change)
+- **🚶 Em đi lang thang qua khung code**: [src/wander.ts](src/wander.ts) — sau `wander.idleMinutes` (mặc định **3 phút**) không gõ phím, model mờ dần khỏi panel (`setModelVisible` → webview đổi `opacity` của `#characterWrapper`, **không ẩn view**: ẩn view sẽ huỷ webview và phải load lại model khi quay về) rồi hiện ra ở **góc trái dưới** khung code trong `wander.staySeconds` (10 s), xong tự về. Gõ phím / di chuyển con trỏ / đổi file → `noteActivity()` gọi về ngay. **Cuộn không tính là hoạt động**: `onDidChangeTextEditorVisibleRanges` tính lại neo nên em đứng yên ở góc trong khi chữ chạy phía sau.
+- **Cách vẽ**: VS Code không cho float nội dung sống lên editor, chỉ có `TextEditorDecoration` + `contentIconPath` (đúng kỹ thuật Chibi Cursor đang dùng) → ảnh tĩnh. Nên webview chụp **4 khung** cách nhau 260 ms từ Live2D đang chạy (`handleCaptureWanderFrames` trong [media/webview/main.js](media/webview/main.js)), lưu PNG ở globalStorage `wander-frames/`, đổi khung mỗi 420 ms → nhìn như đang thở. Chụp **một lần cho mỗi model** rồi dùng lại.
+- **Ba lỗi hiển thị đã fix sau vòng test đầu** (đáng ghi lại vì dễ tái phạm):
+  1. *Ảnh cũ không được chụp lại* — bản đầu coi mọi file đã có là hợp lệ, nên khi tăng `sizePx` vẫn dùng ảnh 96 px cũ. Giờ `_pngHeight()` đọc chiều cao trong header PNG, nhỏ hơn kích thước hiển thị thì chụp lại; đổi `wander.sizePx` cũng xoá cache.
+  2. *Khung vuông bó nhân vật* — đặt `width = height = size` cộng `background-size: contain` thì ảnh dọc (49×96) bị fit theo **chiều rộng**, đặt 190 px thực tế chỉ cao ~95 px. Giờ `_frameAspect()` đọc tỉ lệ thật từ PNG và tính `width = height × ratio`.
+  3. *Chưa sát mép trái* — cột 0 nằm **sau** máng số dòng. Thêm `LEFT_INSET_PX = 62` kéo sang trái vượt máng, `background-position: bottom left` và `BASELINE_DROP_PX` để chân chạm đúng dòng neo.
+- **Kích thước**: mặc định **300 px** (trần 480), ảnh chụp ở 560 px để hiển thị 300 px vẫn nét trên màn HiDPI. Dung lượng ~0.5–1 MB cho 4 khung, nhỏ hơn một ảnh nền người dùng thường lưu.
+- **Timer đều `unref()`**: bộ đếm 3 phút giữ tiến trình Node sống làm `npm test` treo tới 5 phút; sau khi unref thì test xong trong ~6 s.
+- 4 setting mới nhóm **Model & Diện mạo**: `wander.enabled` / `wander.idleMinutes` / `wander.staySeconds` / `wander.sizePx`. Không thêm chuỗi i18n (không có chữ hiển thị).
+
+### Pre-publish checklist v0.6.0
+
+- [x] `package.json` ở `0.6.0`
+- [x] `CHANGELOG.md` có entry `## [0.6.0] - 2026-09-10`
+- [x] 3 README — "What's new v0.6.0" + 4 hàng setting mới
+- [x] Local `npm test` + `npm run package` pass (174 files)
+- [ ] **Smoke test**: (1) mở panel + mở một file code, **không gõ gì 3 phút** → model mờ khỏi panel rồi hiện ở **góc trái dưới** khung code, cao ~300 px, **nét không vỡ** — (2) đứng đó ~10 s, có nhúc nhích nhẹ (đổi 4 khung) rồi tự về panel, panel hiện lại **không khựng, không load lại model** — (3) trong lúc em đang đứng: gõ một phím → về ngay; thử tiếp: di chuyển con trỏ → về ngay; đổi file → về ngay — (4) **cuộn code** trong lúc em đứng → em **vẫn ở góc trái dưới**, không trôi theo chữ, không bị gọi về — (5) lần chạy đầu tiên (chưa có ảnh) → em chụp 4 khung rồi mới đi, có thể trễ ~1 s; xem `wander-frames/` trong globalStorage có 4 file PNG cao ≥ 300 px — (6) đổi `wander.sizePx` lên 480 → lần sau em **chụp lại** và to đúng 480 px (không mờ) — (7) đổi model → ảnh chụp lại theo model mới, không dùng nhầm ảnh model cũ — (8) `wander.enabled: false` → không bao giờ đi — (9) đóng hết editor (chỉ còn Welcome) → không lỗi, em ở lại panel — (10) mở Output panel / Debug Console → em **không** hiện trong đó — (11) đóng file đang có em đứng → em về panel, không kẹt decoration — (12) Desktop Companion bật → tính năng không áp dụng, không lỗi console
+- [ ] Không stage `docs/images/Screenshot_1.png`
+
+### Publish flow
+
+```bash
+npm run package
+git add -u
+git add src/wander.ts
+git commit -m "release: v0.6.0 — She wanders into your code"
+git push origin main
+git tag -a v0.6.0 -m "v0.6.0 — She wanders into your code"
+git push origin v0.6.0
+```
 
 ---
 

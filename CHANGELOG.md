@@ -3,6 +3,16 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-09-10
+
+### Added — 🚶 She wanders into your code
+
+- **Left alone for a few minutes, the companion steps out of her panel and turns up at the bottom-left of the editor.** She fades out of the panel, appears standing in the corner of the code for ten seconds, then goes home. Typing, moving the cursor or switching files brings her back at once — she visits the gaps, never the work ([src/wander.ts](src/wander.ts)).
+  - **She is drawn from frames of her own idle animation.** VS Code gives an extension no way to float live content over a text editor; the one sanctioned channel is a text decoration holding a still image. So four frames are captured from the running Live2D model a beat apart and cycled slowly — enough movement to read as breathing rather than as a photograph pasted into the window. The capture happens once per model and is kept on disk.
+  - **The panel is never hidden while she is away.** Toggling the view would tear the webview down and reloading the model on the way back would stall visibly; instead the character inside the panel fades and the panel itself stays exactly where it is, so her return is instant.
+  - **She holds the corner while you scroll.** A decoration has to hang off a line of the document, so the anchor is recomputed as the viewport moves and she appears to stay put in the corner while the text runs past behind her. Scrolling counts as reading, not activity, so she is not chased away by it.
+- **New settings** — `animeCompanion.wander.enabled` (default on), `animeCompanion.wander.idleMinutes` (3), `animeCompanion.wander.staySeconds` (10) and `animeCompanion.wander.sizePx` (300).
+
 ## [0.5.9] - 2026-09-10
 
 ### Added — 🌱 She does things when you are not looking

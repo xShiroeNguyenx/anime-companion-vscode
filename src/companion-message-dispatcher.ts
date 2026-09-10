@@ -28,6 +28,8 @@ export interface DispatcherContext {
   nudgeCursorChibiSize?: (delta: number) => Promise<void>;
   resetCursorChibi?: () => Promise<void>;
   saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>;
+  receiveWanderFrames?: (modelId: string, frames: string[]) => Promise<void>;
+  wanderCaptureFailed?: (reason: string) => void;
   chatManager?: ChatManager;
   applyShowcase?: () => void;
   agentProfileManager?: AgentProfileManager;
@@ -235,6 +237,14 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
       ) {
         void ctx.saveCapturedChibi(message.modelId, message.dataUrl);
       }
+      break;
+    case 'wanderFramesCaptured':
+      if (typeof message.modelId === 'string' && Array.isArray(message.frames) && ctx.receiveWanderFrames) {
+        void ctx.receiveWanderFrames(message.modelId, message.frames.filter((f: unknown) => typeof f === 'string'));
+      }
+      break;
+    case 'wanderFramesFailed':
+      ctx.wanderCaptureFailed?.(typeof message.reason === 'string' ? message.reason : 'unknown');
       break;
     case 'modelChibiCaptureFailed':
       vscode.window.showWarningMessage(

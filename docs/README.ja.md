@@ -9,8 +9,11 @@
 
 > ⚠️ **実験版 — v0.5.x.** これは early-access ビルドです。v1.0 に到達するまで、マイナーバージョン間で API、設定、振る舞いが変わることがあります。バグや感想は [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) で歓迎します。
 
-**現在のバージョン:** v0.5.9
+**現在のバージョン:** v0.6.0
 
+> 🆕 **v0.6.0 の新着**:
+> - **🚶 コードの中に遊びに来ます** — 数分放っておくと、パネルからフェードアウトしてエディタの左下に現れ、10 秒ほど立ってから戻ります。入力やカーソル移動ですぐ戻り、スクロールしても隅に留まります。`animeCompanion.wander.enabled`: false でオフ。
+>
 > 🆕 **v0.5.9 の新着**:
 > - **🌱 ひとりでも動きます** — 操作の合間に 40〜90 秒ごとに、あくび・伸び・部屋を見回す・首をかしげる・こちらをちらっと見る、といった小さな仕草をします。22 時以降は眠そうな仕草が増え、パネルやチャットが開いている間は何もしません。触ると次の仕草は先送りになります。`animeCompanion.idleLife.enabled: false` でオフ。
 > - **🫳 引っ張ると、離せば戻ります** — ドラッグするとキャラクター自身がカーソルを追って引き伸ばされ、体が傾いて髪とスカートが遅れてついてきます。**ボタンを押したまま止めると、掴んでいるその場所に留まります**。離すと数回揺れながら元の位置へ戻ります。パネルごと動かす従来の動作は `animeCompanion.dragMode: "panel"` で。モデル自身の物理演算を利用。`animeCompanion.dragMomentum.enabled: false` でオフ。
@@ -408,6 +411,10 @@ code --install-extension shiroenguyen.anime-companion-vscode
 | `animeCompanion.idleLife.enabled` | `true` | 操作の合間の自発的な仕草（あくび・伸び・見回す）。時刻と気分で重み付け。 |
 | `animeCompanion.dragMomentum.enabled` | `true` | ドラッグ中は体が傾き髪とスカートが遅れて追従、離すと揺れて戻る。 |
 | `animeCompanion.dragMode` | `character` | ドラッグで動くもの：キャラクター（離すと戻る）かパネル全体（その場に残る）か。 |
+| `animeCompanion.wander.enabled` | `true` | 数分放置するとエディタに現れ、しばらくしてパネルへ戻ります。 |
+| `animeCompanion.wander.idleMinutes` | `3` | 何分入力がなければ出かけるか。 |
+| `animeCompanion.wander.staySeconds` | `10` | エディタに留まる秒数。 |
+| `animeCompanion.wander.sizePx` | `300` | エディタ内での表示の高さ（px）。 |
 | `animeCompanion.menuStyle` | `radial` | 右クリックメニューの形: `radial`（カーソルの周りの輪）または `list`（従来の縦メニュー）。 |
 | `animeCompanion.showOnStartup` | `true` | VS Code 起動時にパネルを自動表示。 |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | アイドル吹き出し間隔（秒）。 |

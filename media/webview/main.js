@@ -236,6 +236,12 @@ window.addEventListener('message', (event) => {
     case 'captureModelChibi':
       void handleCaptureModelChibi(event.data.modelId);
       break;
+    case 'captureWanderFrames':
+      void handleCaptureWanderFrames(event.data);
+      break;
+    case 'setModelVisible':
+      setModelVisible(event.data.visible !== false, event.data.fadeMs);
+      break;
     case 'agentProfile:list:state':
       renderAgentProfileList(event.data.profiles || []);
       break;
@@ -269,6 +275,81 @@ window.addEventListener('message', (event) => {
 // Snapshot the live2D canvas into a PNG, auto-crop the fully-transparent
 // borders so the chibi has zero padding, then post the dataURL back to the
 // extension which writes it to disk and tells cursor-chibi to reload.
+/**
+ * Fades the character out of the panel, or back in.
+ *
+ * Used by the wander: she leaves the panel for the editor and comes back. The
+ * panel itself is deliberately left in place — hiding the view would tear the
+ * webview down and rebuild it, which means reloading the model and a visible
+ * stall on the way back. Fading the sprite costs nothing and returns instantly.
+ */
+function setModelVisible(visible, fadeMs) {
+  const wrapper = document.getElementById('characterWrapper');
+  if (!wrapper) return;
+  const ms = Number.isFinite(fadeMs) ? Math.max(0, fadeMs) : 420;
+  wrapper.style.transition = `opacity ${ms}ms ease`;
+  wrapper.style.opacity = visible ? '1' : '0';
+  // While she is away the panel must not react to clicks aimed at nothing.
+  wrapper.style.pointerEvents = visible ? '' : 'none';
+}
+
+/**
+ * Captures several frames of the model a beat apart, for the wander sprite.
+ *
+ * A decoration in the editor can only hold a still image, so the character
+ * standing in the code would be a photograph — and a photograph of someone who
+ * breathes reads as wrong. A handful of frames taken across a couple of seconds
+ * of her idle animation, cycled slowly, is enough to put the breath back: the
+ * eye reads "alive" from very little movement.
+ *
+ * Captured once and kept, because the capture is the expensive part (a full
+ * canvas pixel read per frame) and the result never changes for a given model.
+ */
+async function handleCaptureWanderFrames(payload) {
+  const modelId = payload?.modelId || window.__MODEL_ID__;
+  const count = Math.max(1, Math.min(8, payload?.count || 4));
+  const gapMs = Math.max(60, Math.min(600, payload?.gapMs || 260));
+  try {
+    if (!state.isLive2DReady) {
+      vscode.postMessage({ command: 'wanderFramesFailed', reason: 'Model not ready yet.' });
+      return;
+    }
+    const canvas = document.getElementById('live2dCanvas');
+    if (!canvas) {
+      vscode.postMessage({ command: 'wanderFramesFailed', reason: 'Canvas not found.' });
+      return;
+    }
+
+    const frames = [];
+    for (let i = 0; i < count; i++) {
+      // Spread the captures over real time rather than over frames: what makes
+      // the cycle read as breathing is the idle animation having moved on, and
+      // that is driven by the clock.
+      if (i > 0) await new Promise((r) => setTimeout(r, gapMs));
+      if (state.app && typeof state.app.render === 'function') {
+        try { state.app.render(); } catch (_) { /* ignore */ }
+      }
+      await new Promise((r) => requestAnimationFrame(() => r()));
+      // Captured well above the display height so she stays crisp on a HiDPI
+      // screen; the decoration scales the image down, never up.
+      const cropped = autoCropCanvas(canvas, Math.max(96, payload?.maxDim || 560));
+      if (!cropped) continue;
+      frames.push(cropped.toDataURL('image/png'));
+    }
+
+    if (frames.length === 0) {
+      vscode.postMessage({ command: 'wanderFramesFailed', reason: 'Model is not visible.' });
+      return;
+    }
+    vscode.postMessage({ command: 'wanderFramesCaptured', modelId, frames });
+  } catch (err) {
+    vscode.postMessage({
+      command: 'wanderFramesFailed',
+      reason: (err && err.message) ? err.message : String(err),
+    });
+  }
+}
+
 async function handleCaptureModelChibi(modelId) {
   try {
     if (!state.isLive2DReady) {
@@ -317,7 +398,7 @@ async function handleCaptureModelChibi(modelId) {
 // `src`. Returns null if the canvas is fully transparent. Reads pixels via a
 // 2D context backed by the PIXI WebGL canvas — copying into a 2D canvas first
 // because getImageData on a WebGL context isn't always available across browsers.
-function autoCropCanvas(src) {
+function autoCropCanvas(src, maxDim) {
   const w = src.width;
   const h = src.height;
   if (!w || !h) return null;
@@ -352,7 +433,11 @@ function autoCropCanvas(src) {
   // reliably when the source PNG is already small — large source images
   // sometimes render at natural size and ignore the sizePx CSS, which made
   // captured chibis impossible to shrink via the Tune command.
-  const MAX_DIM = 96;
+  // The cap is a parameter because the two callers want opposite things: the
+  // cursor chibi is drawn tiny and needs a small source, while the wander
+  // sprite stands ~190px tall and would look washed out if it were upscaled
+  // from a 96px capture.
+  const MAX_DIM = Number.isFinite(maxDim) ? Math.max(16, maxDim) : 96;
   let outW = cw, outH = ch;
   if (Math.max(cw, ch) > MAX_DIM) {
     const ratio = MAX_DIM / Math.max(cw, ch);

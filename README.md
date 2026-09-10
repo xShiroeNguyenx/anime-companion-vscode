@@ -6,9 +6,12 @@
 
 > ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.5.9
+**Current version:** v0.6.0
 
-> 🆕 **What's new in v0.5.9**:
+> 🆕 **What's new in v0.6.0**:
+> - **🚶 She wanders into your code** — leave her alone for a few minutes and she fades out of her panel and turns up standing at the bottom-left of the editor for ten seconds, then goes home. Typing or moving the cursor brings her back at once, and she keeps her corner while you scroll. Off with `animeCompanion.wander.enabled`: false.
+>
+> 🆕 **New in v0.5.9**:
 > - **🌱 She does things on her own** — between interactions she yawns, stretches, looks around, tilts her head or glances over at you, every 40 to 90 seconds. Sleepy beats crowd in after 22:00; nothing plays while a panel or the chat is open, and touching her pushes the next one back. `animeCompanion.idleLife.enabled: false` to turn it off.
 > - **🫳 Pull her, and she springs back** — drag and the character stretches after your cursor, leaning into it so her hair and skirt trail behind. Stop while still holding the button and she stays right where you are holding her; let go and she springs home with a couple of swings. Prefer the old behaviour where a drag moved the whole panel? `animeCompanion.dragMode: "panel"`. Driven through the model's own physics rig. `animeCompanion.dragMomentum.enabled: false` to turn it off.
 >
@@ -407,6 +410,10 @@ Right-click the companion → **Settings** (or run `Anime Companion: Open Settin
 | `animeCompanion.idleLife.enabled` | `true` | Small unprompted beats between interactions (yawn, stretch, look around), weighted by hour and mood. |
 | `animeCompanion.dragMomentum.enabled` | `true` | Dragging her leans the body so hair and skirt trail behind, then springs back on release. |
 | `animeCompanion.dragMode` | `character` | What a drag moves: the character (springs back on release) or the whole panel (stays put). |
+| `animeCompanion.wander.enabled` | `true` | After a few idle minutes she appears in the editor for a while, then returns to her panel. |
+| `animeCompanion.wander.idleMinutes` | `3` | Minutes of no typing before she wanders into the editor. |
+| `animeCompanion.wander.staySeconds` | `10` | How long she stays in the editor before going home. |
+| `animeCompanion.wander.sizePx` | `300` | How tall she is drawn while standing in the editor. |
 | `animeCompanion.menuStyle` | `radial` | Right-click menu layout: `radial` (ring around the cursor) or `list` (classic vertical menu). |
 | `animeCompanion.showOnStartup` | `true` | Auto-show panel on VS Code startup. |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Idle bubble interval (seconds). |

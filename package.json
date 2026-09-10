@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.5.9",
+  "version": "0.6.0",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -364,6 +364,32 @@
           "type": "boolean",
           "default": true,
           "description": "Between interactions the companion does small things of her own — yawns, stretches, looks around, tilts her head, glances over at you — every 40 to 90 seconds. Sleepy ones are more likely late at night, and nothing plays while a panel, menu or the chat is open."
+        },
+        "animeCompanion.wander.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "After a while with no typing the companion fades out of her panel and appears at the edge of your code for a few seconds, then goes home. Any typing, cursor movement or file switch brings her back immediately."
+        },
+        "animeCompanion.wander.idleMinutes": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 120,
+          "default": 3,
+          "description": "Minutes of no typing before the companion wanders into the editor."
+        },
+        "animeCompanion.wander.staySeconds": {
+          "type": "number",
+          "minimum": 2,
+          "maximum": 120,
+          "default": 10,
+          "description": "How long the companion stands in the editor before returning to her panel."
+        },
+        "animeCompanion.wander.sizePx": {
+          "type": "number",
+          "minimum": 16,
+          "maximum": 480,
+          "default": 300,
+          "description": "How tall the companion is drawn while standing in the editor, in pixels."
         },
         "animeCompanion.dragMode": {
           "type": "string",
