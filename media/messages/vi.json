@@ -229,6 +229,9 @@
       "focusFollowOn": "Em sẽ dõi theo con trỏ của Onii-chan nha~ 👀",
       "focusFollowOff": "Em nhìn thẳng lại đây rồi nè~ 🙂",
       "followDizzy": "Chậm lại chút đi Onii-chan~ rê nhanh vậy em chóng mặt mất! 😵‍💫",
+      "tickle": "Hihi~ nhột quá đi mà! 🤭",
+      "hairPet": "Vuốt tóc em nữa đi~ dễ chịu ghê á 💕",
+      "handshake": "Nắm tay em nè~ ấm ghê! 🤝✨",
       "settings": "Mở Settings ra cho Onii-chan liền nha~ ⚙️",
       "motion": "Chọn motion cho em diễn nha~ 🎬",
       "quickChatThinking": "Em đang suy nghĩ chút nha~ 💭",
@@ -290,6 +293,13 @@
       "agentSave": "Lưu tài khoản hiện tại…",
       "agentGithub": "Tài khoản GitHub…"
     },
+    "hover": {
+      "head": "Đầu · giữ để xem biểu cảm & động tác",
+      "chest": "Ơ... đừng nhìn chỗ đó mà~ 😳",
+      "body": "Thân · giữ để thay đồ",
+      "skirt": "Hửm?! Không được đâu nha~ 💢",
+      "arm": "Tay · chạm để chào em~ 👋"
+    },
     "panels": {
       "voiceTitle": "Voice",
       "voiceJaLabel": "Japanese",
@@ -326,6 +336,7 @@
       "questsWeekly": "Tuần",
       "memoriesTitle": "Ký ức",
       "memoriesEmpty": "Chưa có ký ức nào.",
+      "questsEmpty": "Chưa có nhiệm vụ nào.",
       "showcaseBtn": "☆ Khoe",
       "showcaseActive": "★ Đang khoe",
       "showcaseHint": "Khoe thành tựu này lên đầu panel",
@@ -392,6 +403,10 @@
       "accentReset": "Khôi phục màu mặc định",
       "statusBar": "Markdown",
       "statusBarTooltip": "Mở file Markdown này trong trình sửa Anime"
+    },
+    "hints": {
+      "holdBody": "Giữ nhẹ chỗ này để em thay đồ nha~ 👗",
+      "holdHead": "Giữ nhẹ chỗ này để em đổi biểu cảm & động tác nha~ 😊🎬"
     },
     "settingsPanel": {
       "title": "Cài đặt Anime Companion",

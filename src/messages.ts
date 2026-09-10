@@ -51,6 +51,8 @@ export interface WebviewStrings {
   outfits?: Record<string, string>;
   backgroundPanel?: Record<string, string>;
   settingsPanel?: Record<string, string>;
+  hints?: Record<string, string>;
+  hover?: Record<string, string>;
   markdownEditor?: Record<string, string>;
 }
 

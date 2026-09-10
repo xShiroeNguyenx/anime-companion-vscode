@@ -54,7 +54,7 @@ const SECTIONS: SectionDef[] = [
   {
     id: 'model',
     icon: '🎭',
-    match: /^(model$|customModelRoots|customModels|expressionMap|modelDownloadBaseUrl|characterSize|showOnStartup|focusFollow\.|menuStyle)/,
+    match: /^(model$|customModelRoots|customModels|expressionMap|modelDownloadBaseUrl|characterSize|showOnStartup|focusFollow\.|menuStyle|hints\.|hoverReactions\.)/,
   },
   { id: 'sound', icon: '🔊', match: /^(voiceLanguage|muted|ambientPreset|ambientVolume|customAmbientTracks|voiceAssets\.)/ },
   {

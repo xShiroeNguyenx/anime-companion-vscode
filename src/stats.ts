@@ -6,7 +6,8 @@ export type AchievementMetric =
   | 'error_fix'
   | 'coding_minutes'
   | 'chat_prompt'
-  | 'pomodoro_completed';
+  | 'pomodoro_completed'
+  | 'hair_pet';
 
 export type AchievementRarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
 export type QuestPeriod = 'daily' | 'weekly';
@@ -177,6 +178,7 @@ interface MetricSnapshot {
   coding_minutes: number;
   chat_prompt: number;
   pomodoro_completed: number;
+  hair_pet: number;
 }
 
 interface QuestPeriodState {
@@ -199,6 +201,7 @@ export interface PersistedStats {
   pomodoroCompleted: number;
   pokeCount: number;
   headpatCount: number;
+  hairPetCount: number;
   multiClickCount: number;
   spamClickCount: number;
   chatProvidersUsed: string[];
@@ -219,6 +222,7 @@ const COMMIT_SERIES = 'commit';
 const CODING_SERIES = 'coding';
 const CHAT_SERIES = 'chat';
 const POMODORO_SERIES = 'pomodoro';
+const HAIR_PET_SERIES = 'hair_pet';
 
 function rarityLabel(rarity: AchievementRarity): string {
   switch (rarity) {
@@ -330,6 +334,10 @@ export const ACHIEVEMENT_DEFS: AchievementDef[] = [
   { id: 'pomodoro_1', title: 'Focus Sprout', description: 'Complete 1 Pomodoro session', metric: 'pomodoro_completed', threshold: 1, seriesId: POMODORO_SERIES, seriesTitle: 'Pomodoro Chain', tier: 1, secret: false, rarity: 'common' },
   { id: 'pomodoro_5', title: 'Rhythm Keeper', description: 'Complete 5 Pomodoro sessions', metric: 'pomodoro_completed', threshold: 5, seriesId: POMODORO_SERIES, seriesTitle: 'Pomodoro Chain', tier: 2, parentId: 'pomodoro_1', secret: false, rarity: 'rare' },
   { id: 'pomodoro_25', title: 'Fortress of Focus', description: 'Complete 25 Pomodoro sessions', metric: 'pomodoro_completed', threshold: 25, seriesId: POMODORO_SERIES, seriesTitle: 'Pomodoro Chain', tier: 3, parentId: 'pomodoro_5', secret: false, rarity: 'epic' },
+  { id: 'hair_pet_25', title: 'Gentle Hands', description: 'Stroke the companion\'s hair 25 times', metric: 'hair_pet', threshold: 25, seriesId: HAIR_PET_SERIES, seriesTitle: 'Head Pat Chain', tier: 1, secret: false, rarity: 'common' },
+  { id: 'hair_pet_100', title: 'Hair Whisperer', description: 'Stroke the companion\'s hair 100 times', metric: 'hair_pet', threshold: 100, seriesId: HAIR_PET_SERIES, seriesTitle: 'Head Pat Chain', tier: 2, parentId: 'hair_pet_25', secret: false, rarity: 'rare' },
+  { id: 'hair_pet_500', title: 'Keeper of Silk', description: 'Stroke the companion\'s hair 500 times', metric: 'hair_pet', threshold: 500, seriesId: HAIR_PET_SERIES, seriesTitle: 'Head Pat Chain', tier: 3, parentId: 'hair_pet_100', secret: false, rarity: 'epic' },
+  { id: 'ticklish', title: 'Ticklish', description: 'Tickle the companion until she laughs', secret: true, hint: 'Some spots do not like being brushed quickly.', rarity: 'rare' },
   { id: 'night_owl', title: 'Night Owl', description: 'Do something with your companion between 03:00 and 03:59', secret: true, hint: 'Stay awake together in the deep night.', rarity: 'mythic' },
   { id: 'save_storm', title: 'Save Storm', description: 'Save 20 times in 60 seconds', secret: true, hint: 'Your Ctrl+S key might survive this combo.', rarity: 'legendary' },
   { id: 'pet_chaos', title: 'Pet Chaos', description: 'Make the companion dizzy with spam clicks', secret: true, hint: 'Too much affection can cause dizziness.', rarity: 'legendary' },
@@ -350,7 +358,7 @@ export const ACHIEVEMENT_COUNT = ACHIEVEMENT_DEFS.length;
 const SERIES_ORDER = [SAVE_SERIES, BUG_SERIES, COMMIT_SERIES, CODING_SERIES, CHAT_SERIES, POMODORO_SERIES];
 const ACHIEVEMENT_BY_ID = new Map(ACHIEVEMENT_DEFS.map((def) => [def.id, def]));
 const QUEST_BY_ID = new Map(QUEST_DEFS.map((quest) => [quest.id, quest]));
-const EMPTY_SNAPSHOT: MetricSnapshot = { save: 0, commit: 0, error_fix: 0, coding_minutes: 0, chat_prompt: 0, pomodoro_completed: 0 };
+const EMPTY_SNAPSHOT: MetricSnapshot = { save: 0, commit: 0, error_fix: 0, coding_minutes: 0, chat_prompt: 0, pomodoro_completed: 0, hair_pet: 0 };
 const MAX_MEMORIES = 12;
 
 const KEY = 'animeCompanion.stats.v4';
@@ -370,6 +378,7 @@ const DEFAULT_STATS: PersistedStats = {
   pomodoroCompleted: 0,
   pokeCount: 0,
   headpatCount: 0,
+  hairPetCount: 0,
   multiClickCount: 0,
   spamClickCount: 0,
   chatProvidersUsed: [],
@@ -470,6 +479,7 @@ function getMetricValueFromStats(stats: PersistedStats, metric: AchievementMetri
     case 'coding_minutes': return Math.floor(stats.codingMillisAllTime / 60000);
     case 'chat_prompt': return stats.chatPrompts;
     case 'pomodoro_completed': return stats.pomodoroCompleted;
+    case 'hair_pet': return stats.hairPetCount;
   }
 }
 
@@ -481,6 +491,7 @@ function getMetricSnapshot(stats: PersistedStats): MetricSnapshot {
     coding_minutes: Math.floor(stats.codingMillisAllTime / 60000),
     chat_prompt: stats.chatPrompts,
     pomodoro_completed: stats.pomodoroCompleted,
+    hair_pet: stats.hairPetCount,
   };
 }
 
@@ -1039,7 +1050,7 @@ export class StatsStore {
     return this._data.pomodoroCompleted;
   }
 
-  public async recordInteraction(kind: 'poke' | 'headpat' | 'multiClick' | 'spamClick'): Promise<number> {
+  public async recordInteraction(kind: 'poke' | 'headpat' | 'multiClick' | 'spamClick' | 'hairPet'): Promise<number> {
     switch (kind) {
       case 'poke':
         this._data.pokeCount++;
@@ -1057,6 +1068,10 @@ export class StatsStore {
         this._data.spamClickCount++;
         await this._flush();
         return this._data.spamClickCount;
+      case 'hairPet':
+        this._data.hairPetCount++;
+        await this._flush();
+        return this._data.hairPetCount;
     }
   }
 

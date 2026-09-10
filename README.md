@@ -6,9 +6,15 @@
 
 > ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.5.7
+**Current version:** v0.5.8
 
-> 🆕 **What's new in v0.5.7**:
+> 🆕 **What's new in v0.5.8**:
+> - **👉 Hints for the hold gestures** — leave the companion alone for a minute and a small pill with an arrow points at the body ("hold here a moment and I'll change outfits") or the head ("hold here a moment to see my expressions & motions"). Click the pill to open that panel. A hint rests for the session once you have used the gesture; `animeCompanion.hints.enabled: false` turns them off for good.
+> - **🖐️ The character answers where you point** — rest the cursor on a part and that part reacts: shy at the head, flustered at the chest or skirt, a wave from a hand. A caption names the part and its gesture ("Head · hold to see expressions & motions"), the part is briefly outlined, and the cursor itself changes with the part — a comb over her hair, a dress over her body, a barred heart or bow where she'd rather you didn't, an open hand over hers — all in the same pink-arrow family as the heart cursor. Only a pause counts, and each part then rests a few seconds; `animeCompanion.hoverReactions.enabled: false` turns it off.
+> - **🤭 Tickle, pet, shake hands** — scrub the cursor back and forth across her waist and she laughs (secret achievement); stroke her head slowly and repeatedly to pet her hair, which counts toward the new **Head Pat Chain** (25 / 100 / 500); rest on a hand and then move a little to take it. Captions now sit beside the character, so they are readable over any outfit.
+> - **🏆 Achievements as side columns** — Achievements open in the same two columns as Outfit / Expression / Motion: achievements and secrets on the left, quests and memories on the right, the character in view between them. ☆ Showcase toggles in place; the panel stays until you press **×**.
+>
+> 🆕 **New in v0.5.7**:
 > - **⚙️ Settings, the companion's way** — right-click › **Settings** (or `Anime Companion: Open Settings`) now opens a themed settings page: every option grouped into Model, Sound, Messages, Pomodoro, Cursor Chibi, AI Chat and Desktop, with a search box, proper toggles / sliders / pickers, a ↺ per setting, and one-click links to the Background panel, VS Code's Settings UI and settings.json.
 > - **🎡 Radial right-click menu** — right-click and the menu fans out on a ring around the cursor: icons on the circle, the hovered name in the centre; a category swaps the ring for its entries with a ↩ in the middle. Right-click again, click outside, or Esc closes it. Prefer the old list? `animeCompanion.menuStyle: "list"`.
 > - **Side columns, refined** — **Change Model** now uses the same two side columns as Outfit / Expression / Motion; the close **×** sits at the bottom of the right column and stays put while the list scrolls; titles show in full. A clicked motion row lights up and pulses, so you can see the click landed.
@@ -392,6 +398,8 @@ Right-click the companion → **Settings** (or run `Anime Companion: Open Settin
 | `animeCompanion.ambientVolume` | `30` | Ambient volume `0`–`100`. |
 | `animeCompanion.customAmbientTracks` | `[]` | List of custom local ambient tracks. |
 | `animeCompanion.characterSize` | `medium` | `small` / `medium` / `large`. |
+| `animeCompanion.hints.enabled` | `true` | Show idle hints pointing at the press-and-hold spots (body → Outfit, head → Expression & Motion). |
+| `animeCompanion.hoverReactions.enabled` | `true` | React when the cursor rests on a body part: expression, caption, outline and cursor per part. |
 | `animeCompanion.menuStyle` | `radial` | Right-click menu layout: `radial` (ring around the cursor) or `list` (classic vertical menu). |
 | `animeCompanion.showOnStartup` | `true` | Auto-show panel on VS Code startup. |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Idle bubble interval (seconds). |

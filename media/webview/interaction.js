@@ -5,6 +5,8 @@ import { expressionNames, faceNames, updateModelExpressionTick } from './model-e
 import { idleMotionGroup, motionGroups } from './motions.js';
 import { playAudio, setAmbientPreset, setGlobalAudioMuted } from './audio.js';
 import { createRadialMenu } from './radial-menu.js';
+import { hideHint, initHints, noteHoldUsed, noteInteraction } from './hints.js';
+import { clearHover, initHover, noteHoverMove } from './hover.js';
 import {
   showBubble,
   createSparkle,
@@ -99,7 +101,6 @@ function hideCompanionPanels() {
   document.querySelector('.companion-message-panel')?.classList.remove('show');
   document.querySelector('.companion-ambient-panel')?.classList.remove('show');
   hideSidePanel();
-  document.querySelector('.companion-achievements-panel')?.classList.remove('show');
   document.querySelector('.companion-agent-panel')?.classList.remove('show');
 }
 
@@ -289,6 +290,7 @@ export function setupModel() {
     const btn = e?.data?.button ?? e?.data?.originalEvent?.button;
     const altKey = !!(e?.data?.originalEvent?.altKey ?? e?.altKey);
     debugLog('pointerdown: btn=' + btn + ', alt=' + altKey + ', cooldown=' + isCooldown + ', dragging=' + isWindowDragging);
+    noteInteraction();
     if (btn === 2) return;
     if (isCooldown) return;
     if (isWindowDragging) return;
@@ -329,10 +331,12 @@ export function setupModel() {
     // head → the model's own expressions and motions, body → its wardrobe.
     holdOpenedPanel = false;
     clearHoldTimers();
+    clearHover();
     const pressPoint = e?.data?.global ? { x: e.data.global.x, y: e.data.global.y } : null;
     holdPanelTimer = setTimeout(() => {
       holdOpenedPanel = true;
       const region = holdRegionAt(pressPoint);
+      noteHoldUsed(region);
       debugLog('Hold: ' + region + ' panel');
       if (region === 'head') {
         showBubble(t('bubbles.changeExpression', 'Chọn biểu cảm cho em nha~ 😊'));
@@ -512,6 +516,28 @@ export function setupModel() {
   });
   document.documentElement.addEventListener('mouseleave', () => {
     if (isFollowEnabled()) recenterFollow();
+    clearHover();
+  });
+
+  // Hover reactions: which part of the character the cursor is resting on.
+  // Wrapper-relative coordinates, because that is the space the model's own
+  // getBounds() reports in (the renderer is resized to the wrapper 1:1).
+  window.addEventListener('mousemove', (event) => {
+    const wrapper = document.getElementById('characterWrapper');
+    if (!wrapper) return;
+    // A drag, a rotate or a press in progress is a gesture, not a hover.
+    if (isWindowDragging || isModelRotating() || panelDragState || pendingDrag) {
+      clearHover();
+      return;
+    }
+    const rect = wrapper.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+      clearHover();
+      return;
+    }
+    noteHoverMove({ x, y });
   });
   // Whipping the cursor back and forth too fast while following → the model
   // complains and holds its gaze forward for a beat (rotation.js drives timing).
@@ -566,8 +592,59 @@ export function setupModel() {
   setupMessagePanel();
   setupAmbientPanel();
   setupSidePanel();
-  setupAchievementsPanel();
+  applyShowcaseBanner(window.__SHOWCASE__ || null);
   setupAgentPanel();
+  initHints({
+    translate: t,
+    onOpen: (kind) => (kind === 'features' ? showHoldPanel() : showOutfitPanel()),
+  });
+  initHover({
+    translate: t,
+    // Same "something is already on stage" test the hints use: a reaction
+    // behind an open panel is noise the user did not ask for.
+    isBusy: () =>
+      Boolean(
+        document.querySelector(
+          '.companion-side-panel.show, .companion-radial.show, .companion-context-menu.show, ' +
+            '.companion-container.chat-open, .companion-agent-panel.show, ' +
+            '.companion-voice-panel.show, .companion-message-panel.show, .companion-ambient-panel.show'
+        )
+      ),
+    onReact: ({ motionGroup }) => {
+      if (motionGroup) playMotion(motionGroup);
+    },
+    // Tickling, petting her hair and taking her hand: each gets a face, a
+    // line and, where the model has one, a motion. The host is told so the
+    // gestures count toward affection and their achievements.
+    onGesture: (kind, detail) => {
+      noteInteraction();
+      if (kind === 'tickle') {
+        setExpression('happy', 2600);
+        showBubble(t('bubbles.tickle', 'Hihi~ nhột quá đi mà! 🤭'));
+        playAudio('poke.mp3');
+        createSparkle();
+        vscode.postMessage({ command: 'tickle' });
+        return;
+      }
+      if (kind === 'hairPet') {
+        // Every stroke is counted by the host; only the loud ones speak, or
+        // a minute of petting would be a minute of bubbles and sparkles.
+        vscode.postMessage({ command: 'hairPet' });
+        if (!detail?.loud) return;
+        setExpression('love', 2600);
+        showBubble(t('bubbles.hairPet', 'Vuốt tóc em nữa đi~ dễ chịu ghê á 💕'));
+        createSparkle();
+        return;
+      }
+      if (kind === 'handshake') {
+        setExpression('happy', 2400);
+        showBubble(t('bubbles.handshake', 'Nắm tay em nè~ ấm ghê! 🤝✨'));
+        createSparkle();
+        if (detail?.motionGroup) playMotion(detail.motionGroup);
+        vscode.postMessage({ command: 'handshake' });
+      }
+    },
+  });
 }
 
 // Reads window.__COMPANION_POSITION__ (set by extension when persisted) and
@@ -1272,6 +1349,7 @@ function setupCompactContextMenu() {
 
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
+    hideHint();
     if (radialMenu) {
       // A second right-click closes the ring; the list menus stay unused.
       const wasOpen = radialMenu.isOpen();
@@ -1579,6 +1657,15 @@ function setupSidePanel() {
       hideSidePanel();
       return;
     }
+    const showcase = e.target.closest('.companion-achievement-showcase-btn');
+    if (showcase) {
+      // The host answers with a fresh achievements payload, which redraws the
+      // open columns in place (see updateAchievementsPanelData).
+      const id = showcase.getAttribute('data-achievement-id') || '';
+      const active = showcase.getAttribute('data-active') === '1';
+      vscode.postMessage({ command: 'setShowcaseAchievement', id: active ? null : id });
+      return;
+    }
     const model = e.target.closest('.companion-model-option');
     if (model) {
       const modelId = model.getAttribute('data-model');
@@ -1638,10 +1725,21 @@ function hideSidePanel() {
 function showSidePanel(render) {
   const panel = document.querySelector('.companion-side-panel');
   if (!panel) return;
+  // Redrawing the panel that is already open (a choice moving the highlight,
+  // a showcase toggle) keeps each column where it was scrolled; opening a
+  // different one starts at the top.
+  const redraw = panel.classList.contains('show') && sidePanelRenderer === render;
+  const scrollTops = redraw
+    ? Array.from(panel.querySelectorAll('.companion-side-body'), (body) => body.scrollTop)
+    : [];
   hideCompanionPanels();
+  hideHint();
   sidePanelRenderer = render;
   const { left, right } = render();
   panel.innerHTML = sideColumnHtml('left', left) + sideColumnHtml('right', right, true);
+  panel.querySelectorAll('.companion-side-body').forEach((body, i) => {
+    if (scrollTops[i]) body.scrollTop = scrollTops[i];
+  });
   panel.classList.add('show');
 }
 
@@ -2155,164 +2253,143 @@ export function applyShowcaseBanner(showcase) {
   `;
 }
 
-function attachShowcaseHandlers(panel) {
-  panel.querySelectorAll('.companion-achievement-showcase-btn').forEach((btn) => {
-    if (btn.dataset.bound === '1') return;
-    btn.dataset.bound = '1';
-    btn.addEventListener('click', (event) => {
-      event.stopPropagation();
-      const id = btn.getAttribute('data-achievement-id') || '';
-      const active = btn.getAttribute('data-active') === '1';
-      const next = active ? null : id;
-      vscode.postMessage({ command: 'setShowcaseAchievement', id: next });
-    });
-  });
+// ─── Achievements ──────────────────────────────────────────────────────────
+// The same two columns as the outfit picker: achievements on the left,
+// quests and memories on the right, the character in view between them. It
+// stays open until the × so a showcase can be toggled and compared, and a
+// toggle or an unlock from the host redraws it in place.
+
+const EMPTY_ACHIEVEMENTS = {
+  summary: { unlocked: 0, total: 0, secretUnlocked: 0, secretTotal: 0, dailyCompleted: 0, dailyTotal: 0, weeklyCompleted: 0, weeklyTotal: 0 },
+  chains: [],
+  secrets: [],
+  quests: { daily: [], weekly: [] },
+  memories: [],
+};
+
+function achievementsData() {
+  const data = window.__ACHIEVEMENTS__;
+  return data && typeof data === 'object' && !Array.isArray(data) ? data : EMPTY_ACHIEVEMENTS;
 }
 
-function renderAchievementsPanel(panel) {
-  const data = window.__ACHIEVEMENTS__ && typeof window.__ACHIEVEMENTS__ === 'object'
-    ? window.__ACHIEVEMENTS__
-    : { summary: { unlocked: 0, total: 0, secretUnlocked: 0, secretTotal: 0, dailyCompleted: 0, dailyTotal: 0, weeklyCompleted: 0, weeklyTotal: 0 }, chains: [], secrets: [], quests: { daily: [], weekly: [] }, memories: [] };
-  const summary = data.summary || { unlocked: 0, total: 0, secretUnlocked: 0, secretTotal: 0, dailyCompleted: 0, dailyTotal: 0, weeklyCompleted: 0, weeklyTotal: 0 };
+function achievementSectionHtml(title, progress) {
+  return (
+    `<div class="companion-achievement-chain-header">` +
+    `<span class="companion-achievement-chain-title">${escapeHtml(title)}</span>` +
+    `<span class="companion-achievement-chain-progress">${escapeHtml(progress)}</span>` +
+    `</div>`
+  );
+}
+
+function achievementEmptyHtml(text) {
+  return `<div class="companion-achievement-empty">${escapeHtml(text)}</div>`;
+}
+
+/** Tier / rarity chips, title, description, status and the showcase toggle. */
+function achievementCardHtml(item, className, { tier = false } = {}) {
+  const stateClass = item.unlocked ? 'unlocked' : 'locked';
+  const rarityClass = `rarity-${String(item.rarity || 'common').toLowerCase()}`;
+  const showcaseClass = item.isShowcased ? 'showcased' : '';
+  return (
+    `<div class="${className} ${stateClass} ${rarityClass} ${showcaseClass}">` +
+    (tier ? `<span class="companion-achievement-tier">Tier ${escapeHtml(item.tier || 0)}</span>` : '') +
+    `<span class="companion-achievement-rarity">${escapeHtml(item.rarityLabel || '')}</span>` +
+    `<span class="companion-achievement-label">${escapeHtml(item.title || '')}</span>` +
+    `<span class="companion-achievement-desc">${escapeHtml(item.description || '')}</span>` +
+    `<span class="companion-achievement-status">${escapeHtml(item.statusText || '')}</span>` +
+    renderShowcaseButton(item) +
+    `</div>`
+  );
+}
+
+function questCardHtml(item, periodLabel) {
+  return (
+    `<div class="companion-quest-card ${item.completed ? 'completed' : 'active'}">` +
+    `<span class="companion-quest-period">${escapeHtml(periodLabel)}</span>` +
+    `<span class="companion-achievement-label">${escapeHtml(item.title || '')}</span>` +
+    `<span class="companion-achievement-desc">${escapeHtml(item.description || '')}</span>` +
+    `<span class="companion-achievement-status">${escapeHtml(item.statusText || '')}</span>` +
+    `</div>`
+  );
+}
+
+function renderAchievementsColumns() {
+  const data = achievementsData();
+  const summary = data.summary || EMPTY_ACHIEVEMENTS.summary;
   const chains = Array.isArray(data.chains) ? data.chains : [];
   const secrets = Array.isArray(data.secrets) ? data.secrets : [];
-  const quests = data.quests && typeof data.quests === 'object' ? data.quests : { daily: [], weekly: [] };
+  const quests = data.quests && typeof data.quests === 'object' ? data.quests : EMPTY_ACHIEVEMENTS.quests;
+  const daily = Array.isArray(quests.daily) ? quests.daily : [];
+  const weekly = Array.isArray(quests.weekly) ? quests.weekly : [];
   const memories = Array.isArray(data.memories) ? data.memories : [];
 
-  const chainHtml = chains.map((chain) => {
+  // Left: one lane per chain, then the secret ones.
+  const leftRows = [];
+  for (const chain of chains) {
     const nodes = Array.isArray(chain.nodes) ? chain.nodes : [];
-    const nodesHtml = nodes.map((item) => {
-      const stateClass = item.unlocked ? 'unlocked' : 'locked';
-      const rarityClass = `rarity-${String(item.rarity || 'common').toLowerCase()}`;
-      const showcaseClass = item.isShowcased ? 'showcased' : '';
-      return `
-        <div class="companion-achievement-node ${stateClass} ${rarityClass} ${showcaseClass}">
-          <span class="companion-achievement-tier">Tier ${escapeHtml(item.tier || 0)}</span>
-          <span class="companion-achievement-rarity">${escapeHtml(item.rarityLabel || '')}</span>
-          <span class="companion-achievement-label">${escapeHtml(item.title || '')}</span>
-          <span class="companion-achievement-desc">${escapeHtml(item.description || '')}</span>
-          <span class="companion-achievement-status">${escapeHtml(item.statusText || '')}</span>
-          ${renderShowcaseButton(item)}
-        </div>
-      `;
-    }).join('');
+    leftRows.push(achievementSectionHtml(chain.title || '', `${chain.unlockedCount || 0}/${chain.totalCount || 0}`));
+    leftRows.push(
+      `<div class="companion-achievement-lane">` +
+        nodes.map((item) => achievementCardHtml(item, 'companion-achievement-node', { tier: true })).join('') +
+        `</div>`
+    );
+  }
+  if (chains.length === 0) leftRows.push(achievementEmptyHtml(t('panels.achievementsEmpty', 'No achievements yet.')));
+  leftRows.push(
+    achievementSectionHtml(
+      t('panels.achievementsSecretTitle', 'Secret Achievements'),
+      `${summary.secretUnlocked || 0}/${summary.secretTotal || 0}`
+    )
+  );
+  if (secrets.length === 0) leftRows.push(achievementEmptyHtml(t('panels.achievementsEmpty', 'No achievements yet.')));
+  for (const item of secrets) {
+    leftRows.push(achievementCardHtml({ ...item, rarity: item.rarity || 'mythic' }, 'companion-achievement-option'));
+  }
 
-    return `
-      <section class="companion-achievement-chain">
-        <div class="companion-achievement-chain-header">
-          <span class="companion-achievement-chain-title">${escapeHtml(chain.title || '')}</span>
-          <span class="companion-achievement-chain-progress">${escapeHtml(chain.unlockedCount || 0)}/${escapeHtml(chain.totalCount || 0)}</span>
-        </div>
-        <div class="companion-achievement-lane">${nodesHtml}</div>
-      </section>
-    `;
-  }).join('');
+  // Right: quests (daily, then weekly), then memories.
+  const rightRows = [];
+  rightRows.push(
+    achievementSectionHtml(
+      t('panels.questsTitle', 'Quests'),
+      `${summary.dailyCompleted || 0}/${summary.dailyTotal || 0} · ${summary.weeklyCompleted || 0}/${summary.weeklyTotal || 0}`
+    )
+  );
+  if (daily.length + weekly.length === 0) rightRows.push(achievementEmptyHtml(t('panels.questsEmpty', 'No quests right now.')));
+  for (const item of daily) rightRows.push(questCardHtml(item, t('panels.questsDaily', 'Daily')));
+  for (const item of weekly) rightRows.push(questCardHtml(item, t('panels.questsWeekly', 'Weekly')));
+  rightRows.push(achievementSectionHtml(t('panels.memoriesTitle', 'Memories'), String(memories.length || 0)));
+  if (memories.length === 0) rightRows.push(achievementEmptyHtml(t('panels.memoriesEmpty', 'No memories yet.')));
+  for (const memory of memories) {
+    rightRows.push(
+      `<div class="companion-memory-card"><span class="companion-achievement-desc">${escapeHtml(memory.text || '')}</span></div>`
+    );
+  }
 
-  const secretHtml = secrets.map((item) => {
-    const stateClass = item.unlocked ? 'unlocked' : 'locked secret';
-    const rarityClass = `rarity-${String(item.rarity || 'mythic').toLowerCase()}`;
-    const showcaseClass = item.isShowcased ? 'showcased' : '';
-    return `
-      <div class="companion-achievement-option ${stateClass} ${rarityClass} ${showcaseClass}">
-        <span class="companion-achievement-rarity">${escapeHtml(item.rarityLabel || '')}</span>
-        <span class="companion-achievement-label">${escapeHtml(item.title || '')}</span>
-        <span class="companion-achievement-desc">${escapeHtml(item.description || '')}</span>
-        <span class="companion-achievement-status">${escapeHtml(item.statusText || '')}</span>
-        ${renderShowcaseButton(item)}
-      </div>
-    `;
-  }).join('');
-
-  const renderQuestList = (items, periodLabel) => items.map((item) => `
-    <div class="companion-quest-card ${item.completed ? 'completed' : 'active'}">
-      <span class="companion-quest-period">${escapeHtml(periodLabel)}</span>
-      <span class="companion-achievement-label">${escapeHtml(item.title || '')}</span>
-      <span class="companion-achievement-desc">${escapeHtml(item.description || '')}</span>
-      <span class="companion-achievement-status">${escapeHtml(item.statusText || '')}</span>
-    </div>
-  `).join('');
-
-  const dailyHtml = renderQuestList(Array.isArray(quests.daily) ? quests.daily : [], t('panels.questsDaily', 'Daily'));
-  const weeklyHtml = renderQuestList(Array.isArray(quests.weekly) ? quests.weekly : [], t('panels.questsWeekly', 'Weekly'));
-  const memoryHtml = memories.map((memory) => `
-    <div class="companion-memory-card">
-      <span class="companion-achievement-desc">${escapeHtml(memory.text || '')}</span>
-    </div>
-  `).join('');
-
-  panel.innerHTML = `
-    <div class="companion-achievements-title">
-      ${t('panels.achievementsTitle', 'Achievements')} (${summary.unlocked || 0}/${summary.total || 0})
-    </div>
-    <section class="companion-achievement-chain">
-      <div class="companion-achievement-chain-header">
-        <span class="companion-achievement-chain-title">${t('panels.questsTitle', 'Quests')}</span>
-        <span class="companion-achievement-chain-progress">${summary.dailyCompleted || 0}/${summary.dailyTotal || 0} · ${summary.weeklyCompleted || 0}/${summary.weeklyTotal || 0}</span>
-      </div>
-      <div class="companion-quest-list">
-        ${dailyHtml}
-        ${weeklyHtml}
-      </div>
-    </section>
-    ${chainHtml || `<div class="companion-achievement-empty">${t('panels.achievementsEmpty', 'No achievements yet.')}</div>`}
-    <section class="companion-achievement-chain companion-achievement-secret-lane">
-      <div class="companion-achievement-chain-header">
-        <span class="companion-achievement-chain-title">${t('panels.achievementsSecretTitle', 'Secret Achievements')}</span>
-        <span class="companion-achievement-chain-progress">${summary.secretUnlocked || 0}/${summary.secretTotal || 0}</span>
-      </div>
-      <div class="companion-achievement-secret-list">
-        ${secretHtml || `<div class="companion-achievement-empty">${t('panels.achievementsEmpty', 'No achievements yet.')}</div>`}
-      </div>
-    </section>
-    <section class="companion-achievement-chain companion-achievement-memory-lane">
-      <div class="companion-achievement-chain-header">
-        <span class="companion-achievement-chain-title">${t('panels.memoriesTitle', 'Memories')}</span>
-        <span class="companion-achievement-chain-progress">${memories.length || 0}</span>
-      </div>
-      <div class="companion-memory-list">
-        ${memoryHtml || `<div class="companion-achievement-empty">${t('panels.memoriesEmpty', 'No memories yet.')}</div>`}
-      </div>
-    </section>
-  `;
-
-  attachShowcaseHandlers(panel);
-}
-
-function setupAchievementsPanel() {
-  const wrapper = document.getElementById('characterWrapper');
-  if (!wrapper) return;
-
-  const panel = document.createElement('div');
-  panel.className = 'companion-achievements-panel';
-  renderAchievementsPanel(panel);
-  wrapper.appendChild(panel);
-  applyShowcaseBanner(window.__SHOWCASE__ || null);
-
-  window.addEventListener('click', (e) => {
-    if (!panel.contains(e.target)) {
-      panel.classList.remove('show');
-    }
-  }, true);
+  return {
+    left: {
+      title: `${t('panels.achievementsTitle', 'Achievements')} ${summary.unlocked || 0}/${summary.total || 0}`,
+      rows: leftRows,
+    },
+    right: {
+      title: `${t('panels.questsTitle', 'Quests')} · ${t('panels.memoriesTitle', 'Memories')}`,
+      rows: rightRows,
+    },
+  };
 }
 
 export function updateAchievementsPanelData(achievements) {
-  window.__ACHIEVEMENTS__ = achievements && typeof achievements === 'object'
+  window.__ACHIEVEMENTS__ = achievements && typeof achievements === 'object' && !Array.isArray(achievements)
     ? achievements
-    : { summary: { unlocked: 0, total: 0, secretUnlocked: 0, secretTotal: 0, dailyCompleted: 0, dailyTotal: 0, weeklyCompleted: 0, weeklyTotal: 0 }, chains: [], secrets: [], quests: { daily: [], weekly: [] }, memories: [] };
+    : EMPTY_ACHIEVEMENTS;
   if (achievements && typeof achievements === 'object' && 'showcase' in achievements) {
     applyShowcaseBanner(achievements.showcase || null);
   }
-  const panel = document.querySelector('.companion-achievements-panel');
-  if (!panel) return;
-  renderAchievementsPanel(panel);
+  // Only the open achievements columns are redrawn — never another panel.
+  if (sidePanelRenderer === renderAchievementsColumns) refreshSidePanel();
 }
 
 export function showAchievementsPanel() {
-  const panel = document.querySelector('.companion-achievements-panel');
-  if (!panel) return;
-  renderAchievementsPanel(panel);
-  hideCompanionPanels();
-  panel.classList.add('show');
+  showSidePanel(renderAchievementsColumns);
 }
 
 let achievementToast = null;

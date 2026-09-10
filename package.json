@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -349,6 +349,16 @@
           "type": "boolean",
           "default": false,
           "description": "When on, the companion's head and eyes follow your mouse cursor while it hovers over the companion (auto look-at). Toggle it live from the companion right-click menu (Appearance › Auto look-at cursor). Alt + left-drag still rotates the head/body manually regardless of this setting."
+        },
+        "animeCompanion.hints.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "After a while with no interaction, show a small pointer beside the companion explaining the press-and-hold gestures (body → Outfit, head → Expression & Motion). Each hint stops once you have used that gesture."
+        },
+        "animeCompanion.hoverReactions.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "React when the mouse rests on a part of the companion: the face and pose answer (shy at the head, flustered at the chest or skirt, a wave at a hand), the cursor changes shape, and a small caption names the part and the gesture it takes. Only a pause of about half a second counts, and each part then rests for a few seconds."
         },
         "animeCompanion.menuStyle": {
           "type": "string",

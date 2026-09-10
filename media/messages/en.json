@@ -229,6 +229,9 @@
       "focusFollowOn": "I'll keep my eyes on your cursor~ 👀",
       "focusFollowOff": "Looking straight ahead again~ 🙂",
       "followDizzy": "Slow down a little~ moving that fast makes me dizzy! 😵‍💫",
+      "tickle": "Hehe~ that tickles! 🤭",
+      "hairPet": "Keep stroking my hair~ that feels so nice 💕",
+      "handshake": "Holding your hand~ so warm! 🤝✨",
       "settings": "Opening Settings for you~ ⚙️",
       "motion": "Pick a motion for me to perform~ 🎬",
       "quickChatThinking": "Thinking about that for a sec~ 💭",
@@ -290,6 +293,13 @@
       "agentSave": "Save Current as…",
       "agentGithub": "GitHub Account…"
     },
+    "hover": {
+      "head": "Head · hold to see expressions & motions",
+      "chest": "Um... please don't stare there~ 😳",
+      "body": "Body · hold to change outfits",
+      "skirt": "H-hey?! That's off limits~ 💢",
+      "arm": "Hand · say hi to me~ 👋"
+    },
     "panels": {
       "voiceTitle": "Voice",
       "voiceJaLabel": "Japanese",
@@ -326,6 +336,7 @@
       "questsWeekly": "Weekly",
       "memoriesTitle": "Memories",
       "memoriesEmpty": "No memories yet.",
+      "questsEmpty": "No quests right now.",
       "showcaseBtn": "☆ Showcase",
       "showcaseActive": "★ Showcasing",
       "showcaseHint": "Showcase this achievement in the panel header",
@@ -392,6 +403,10 @@
       "accentReset": "Reset to default color",
       "statusBar": "Markdown",
       "statusBarTooltip": "Open this Markdown file in the Anime editor"
+    },
+    "hints": {
+      "holdBody": "Hold here a moment and I'll change outfits~ 👗",
+      "holdHead": "Hold here a moment to see my expressions & motions~ 😊🎬"
     },
     "settingsPanel": {
       "title": "Anime Companion Settings",

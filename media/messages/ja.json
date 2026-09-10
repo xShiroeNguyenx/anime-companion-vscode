@@ -229,6 +229,9 @@
       "focusFollowOn": "カーソルを目で追いかけるね〜 👀",
       "focusFollowOff": "また前を向くね〜 🙂",
       "followDizzy": "ちょっとゆっくり〜 そんなに速いと目が回っちゃうよ！😵‍💫",
+      "tickle": "ひゃっ〜 くすぐったいよ！🤭",
+      "hairPet": "もっと撫でて〜 気持ちいいなぁ 💕",
+      "handshake": "手をつないでる〜 あったかい！🤝✨",
       "settings": "設定を開くね〜 ⚙️",
       "motion": "どのモーションにするか選んでね〜 🎬",
       "quickChatThinking": "ちょっと考えるね〜 💭",
@@ -290,6 +293,13 @@
       "agentSave": "現在の状態を保存…",
       "agentGithub": "GitHubアカウント…"
     },
+    "hover": {
+      "head": "頭 · 長押しで表情とモーション",
+      "chest": "えっ…そこ見ないで～ 😳",
+      "body": "体 · 長押しでお着替え",
+      "skirt": "ちょ、ちょっと！ だめだよ～ 💢",
+      "arm": "手 · 触ってあいさつ～ 👋"
+    },
     "panels": {
       "voiceTitle": "Voice",
       "voiceJaLabel": "Japanese",
@@ -326,6 +336,7 @@
       "questsWeekly": "ウィークリー",
       "memoriesTitle": "思い出",
       "memoriesEmpty": "まだ思い出はありません。",
+      "questsEmpty": "今はクエストがありません。",
       "showcaseBtn": "☆ 展示する",
       "showcaseActive": "★ 展示中",
       "showcaseHint": "この実績をパネルのヘッダーに展示します",
@@ -392,6 +403,10 @@
       "accentReset": "デフォルトの色に戻す",
       "statusBar": "Markdown",
       "statusBarTooltip": "この Markdown ファイルを Anime エディターで開く"
+    },
+    "hints": {
+      "holdBody": "ここを少し長押しすると、お着替えするよ〜 👗",
+      "holdHead": "ここを少し長押しすると、表情とモーションを見せるよ〜 😊🎬"
     },
     "settingsPanel": {
       "title": "Anime Companion 設定",

@@ -8,9 +8,15 @@
 
 > ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.5.7
+**Phiên bản hiện tại:** v0.5.8
 
-> 🆕 **Có gì mới ở v0.5.7**:
+> 🆕 **Có gì mới ở v0.5.8**:
+> - **👉 Gợi ý cho thao tác nhấn giữ** — để companion yên khoảng một phút, một pill nhỏ kèm mũi tên sẽ chỉ vào thân ("giữ nhẹ chỗ này để em thay đồ") hoặc vào đầu ("giữ nhẹ chỗ này để em đổi biểu cảm & động tác"). Bấm vào pill là mở luôn bảng đó. Gợi ý tạm nghỉ trong phiên khi bạn đã dùng thao tác đó; `animeCompanion.hints.enabled: false` để tắt hẳn.
+> - **🖐️ Rê chuột tới đâu, nhân vật đáp lại tới đó** — dừng con trỏ trên một bộ phận là bộ phận đó phản ứng: ngại ngùng ở đầu, giận dỗi ở ngực hay váy, vẫy tay khi chạm tay. Có nhãn nhỏ ghi tên vùng kèm thao tác ("Đầu · giữ để xem biểu cảm & động tác"), vùng đó được viền sáng một lát, và con trỏ đổi theo từng vùng — cây lược trên tóc, chiếc váy ở thân, trái tim gạch chéo hay chiếc nơ gạch chéo ở chỗ em không cho đụng, bàn tay mở ở tay em — tất cả cùng bộ mũi tên hồng với con trỏ trái tim. Phải **dừng** chuột mới tính, mỗi vùng nghỉ vài giây sau khi phản ứng; tắt bằng `animeCompanion.hoverReactions.enabled: false`.
+> - **🤭 Cù lét, vuốt tóc, nắm tay** — rê chuột qua lại ở eo là em cười (mở thành tựu bí mật); vuốt chậm nhiều lần trên đầu là vuốt tóc, tính vào chuỗi thành tựu **Vuốt tóc** mới (25 / 100 / 500 lần); dừng ở tay rồi nhích nhẹ là nắm tay. Nhãn tên vùng giờ nằm **bên cạnh** nhân vật nên đọc rõ trên mọi bộ đồ.
+> - **🏆 Thành tựu hiện hai cột hai bên** — Thành tựu mở cùng kiểu hai cột như Trang phục / Biểu cảm / Motion: thành tựu và thành tựu bí mật bên trái, nhiệm vụ và ký ức bên phải, nhân vật vẫn thấy trọn ở giữa. Bấm ☆ Khoe là đổi tại chỗ; bảng giữ nguyên tới khi bấm **×**.
+>
+> 🆕 **Mới ở v0.5.7**:
 > - **⚙️ Cài đặt theo kiểu companion** — chuột phải › **Cài đặt** (hoặc lệnh `Anime Companion: Open Settings`) giờ mở trang cài đặt riêng cùng tông: mọi tuỳ chọn gom thành Model, Âm thanh, Lời nhắn, Pomodoro, Chibi Cursor, Chat AI, Desktop; có ô tìm, công tắc / thanh kéo / nút chọn đúng kiểu, nút ↺ về mặc định cho từng mục, và nút mở nhanh bảng Ảnh nền, Settings UI của VS Code, settings.json.
 > - **🎡 Menu chuột phải hình tròn** — chuột phải là menu bung thành vòng tròn quanh con trỏ: icon trên vòng, tên mục hiện ở tâm khi rê; bấm một danh mục thì vòng đổi thành các mục con, ↩ ở tâm để quay lại. Chuột phải lần nữa, click ra ngoài hoặc Esc để đóng. Thích menu dọc cũ? `animeCompanion.menuStyle: "list"`.
 > - **Hai cột hai bên, tinh chỉnh** — **Đổi Model** cũng hiện hai cột như Trang phục / Biểu cảm / Motion; nút **×** dời xuống đáy cột phải và đứng yên khi danh sách cuộn; tiêu đề hiện đủ chữ. Bấm một motion thì hàng đó sáng lên và nhấp nháy, biết ngay là đã bấm trúng.
@@ -388,6 +394,8 @@ Chuột phải lên companion → **Cài đặt** (hoặc chạy `Anime Companio
 | `animeCompanion.ambientVolume` | `30` | Âm lượng ambient từ `0` đến `100`. |
 | `animeCompanion.customAmbientTracks` | `[]` | Danh sách track ambient local tự thêm. |
 | `animeCompanion.characterSize` | `medium` | `small` / `medium` / `large`. |
+| `animeCompanion.hints.enabled` | `true` | Hiện gợi ý khi để yên lâu, chỉ vào chỗ cần nhấn giữ (thân → Trang phục, đầu → Biểu cảm & Motion). |
+| `animeCompanion.hoverReactions.enabled` | `true` | Phản ứng khi dừng chuột trên một bộ phận: biểu cảm, nhãn tên vùng, viền sáng và con trỏ riêng. |
 | `animeCompanion.menuStyle` | `radial` | Kiểu menu chuột phải: `radial` (vòng tròn quanh con trỏ) hoặc `list` (menu dọc cũ). |
 | `animeCompanion.showOnStartup` | `true` | Tự hiện panel khi VS Code khởi động. |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Khoảng cách giữa các idle bubble (giây). |

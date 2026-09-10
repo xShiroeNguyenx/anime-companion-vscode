@@ -545,6 +545,8 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     const muted = config.get<boolean>('muted', false);
     const focusFollow = config.get<boolean>('focusFollow.enabled', false);
     const menuStyle = config.get<string>('menuStyle', 'radial');
+    const hintsEnabled = config.get<boolean>('hints.enabled', true);
+    const hoverReactions = config.get<boolean>('hoverReactions.enabled', true);
     const customAmbientTracks = this._getCustomAmbientTracks();
     const ambientPreset = getAmbientPreset(config.get<string>('ambientPreset', 'off'), customAmbientTracks);
     const ambientVolume = config.get<number>('ambientVolume', 30);
@@ -775,6 +777,8 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__AUDIO_MUTED__ = ${muted ? 'true' : 'false'};
     window.__FOCUS_FOLLOW__ = ${focusFollow ? 'true' : 'false'};
     window.__MENU_STYLE__ = ${JSON.stringify(menuStyle)};
+    window.__HINTS_ENABLED__ = ${hintsEnabled ? 'true' : 'false'};
+    window.__HOVER_REACTIONS__ = ${hoverReactions ? 'true' : 'false'};
     window.__AMBIENT_PRESET__ = "${ambientPreset.id}";
     window.__AMBIENT_VOLUME__ = ${ambientVolume};
     window.__AMBIENT_TRACKS__ = ${JSON.stringify(ambientTracks)};

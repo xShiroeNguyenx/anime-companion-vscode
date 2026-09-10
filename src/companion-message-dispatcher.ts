@@ -38,6 +38,9 @@ const INTERACTION_COMMANDS = new Set([
   'headpat',
   'spamClick',
   'multiClick',
+  'hairPet',
+  'tickle',
+  'handshake',
   'runCommand',
   'setVoiceLanguage',
   'setMessageLanguage',
@@ -78,6 +81,16 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
     case 'multiClick':
       void _recordInteraction(ctx, 'multiClick');
       console.log(`Multi click: ${message.count}`);
+      break;
+    case 'hairPet':
+      void _recordInteraction(ctx, 'hairPet');
+      break;
+    case 'tickle':
+      void _recordTickle(ctx);
+      break;
+    case 'handshake':
+      // No counter of its own: the gesture is its own reward, and it still
+      // counts as interaction (above) so the idle timers reset.
       break;
     case 'live2dReady':
       console.log('Live2D model loaded!');
@@ -478,9 +491,25 @@ async function _handleShareCardSave(message: any, ctx: DispatcherContext): Promi
   }
 }
 
+/** The secret unlocked by tickling; no counter, so it never needs a metric. */
+async function _recordTickle(ctx: DispatcherContext): Promise<void> {
+  const ticklish = await ctx.stats.unlockById('ticklish');
+  if (!ticklish) return;
+  const template = getMessageBank().pickAchievement(ticklish.id) ?? `🏆 ${ticklish.title}`;
+  ctx.sendBubble(template, { speak: true });
+  ctx.postMessage({
+    command: 'achievementUnlocked',
+    achievement: { id: ticklish.id, title: ticklish.title, rarity: ticklish.rarity, secret: ticklish.secret },
+  });
+  ctx.postMessage({
+    command: 'setAchievementsData',
+    achievements: buildAchievementPanelData(ctx.stats.getStats()),
+  });
+}
+
 async function _recordInteraction(
   ctx: DispatcherContext,
-  kind: 'poke' | 'headpat' | 'multiClick' | 'spamClick'
+  kind: 'poke' | 'headpat' | 'multiClick' | 'spamClick' | 'hairPet'
 ): Promise<void> {
   await ctx.stats.recordInteraction(kind);
 
@@ -490,6 +519,9 @@ async function _recordInteraction(
   if (kind === 'spamClick') {
     const petChaos = await ctx.stats.unlockById('pet_chaos');
     if (petChaos) unlocked.push(petChaos);
+  }
+  if (kind === 'hairPet') {
+    unlocked.push(...(await ctx.stats.tryUnlockByMetric('hair_pet')));
   }
 
   if (unlocked.length > 0) {
