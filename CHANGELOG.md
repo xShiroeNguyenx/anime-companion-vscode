@@ -3,6 +3,30 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-09-12
+
+### Fixed — 🚶 She shows the right character when several windows are open
+
+- **With two or three VS Code windows each on a different model, the one standing in your editor could be the wrong character.** The panel renders whichever model the window resolves — and a window with a folder open can pin its own, stored in workspace state. The wander asked plain configuration instead, which cannot see that pin, so a pinned window requested frames for the *globally* configured model while the panel photographed the character actually on screen. Those pixels were then filed under the other model's name, in a frame cache every window on the machine shares — so the wrong character persisted, across restarts, for every window. The wander now resolves the model through exactly the call the view uses ([src/wander.ts](src/wander.ts)).
+  - **The panel refuses to be misquoted.** A capture request naming a model the webview is not showing is rejected instead of honoured, which closes the same hole during the moment a view is reloading after a switch ([media/webview/main.js](media/webview/main.js)).
+  - **Late frames are dropped, not written.** A capture takes about a second, and if the model changes inside it the returning frames are discarded rather than allowed to overwrite a correct cache entry ([src/wander.ts](src/wander.ts)).
+  - **Switching models now clears her frames.** This was wired up but never called, so after a switch she could keep standing in the editor as the previous character while the panel already showed the new one. Covers the workspace pin too, which fires no configuration event ([src/extension.ts](src/extension.ts)).
+  - **Frames cached before this fix are discarded on upgrade.** A file may hold a different character than its name claims and there is no way to tell by looking, so the whole cache is recaptured once.
+
+### Fixed — 🚶 The wander sprite stops twitching
+
+- **The character standing in the editor no longer jumps between frames.** Two separate causes, both in the capture:
+  - **Every frame is now cropped to one shared box.** Each was previously trimmed to its own opaque bounds, and since her silhouette changes as she breathes, the box changed size from frame to frame — so the decoration re-centred her inside it and she twitched a few pixels on every swap. The union of all four poses' bounds is now used for all of them, which is what actually holds her still ([media/webview/main.js](media/webview/main.js)).
+  - **The cut between poses is now a dissolve.** A decoration's image cannot be transitioned — swapping it replaces the DOM element, and a new element renders at its final style, so no CSS would ever animate the change. The cross-fade is therefore baked into the pixels: three blended images are generated between each pair of poses and the cycle wraps, turning the existing "show each image in turn" loop into a fade. Frames are held proportionally shorter so the poses still land at the same spacing ([src/wander.ts](src/wander.ts)).
+- **Cached frames from 0.6.0 are recaptured once, and swept.** The old files are hard cuts cropped to their own bounds, so reusing them would leave the twitch in place for anyone upgrading; they are now ignored by name and deleted from global storage.
+
+### Changed
+
+- **She shrinks into the floor on her way out of the panel, instead of simply fading.** A plain opacity fade said only that she was gone; getting smaller first says where she went — down and away, on her way to the editor. The shrink runs over 700ms rather than the old 420, because at the shorter length a departure reads as a blink. Applied to the canvas alone, so the drag pads, speech bubble and quickchat panel do not ride along with it, and as a display transform only, so the model never needs refitting ([media/webview/main.js](media/webview/main.js)).
+- **One decoration type per frame is created once and reused,** rather than built and disposed on every swap — the dissolve raised the swap rate roughly fourfold, and the style depends only on the box size ([src/wander.ts](src/wander.ts)).
+- **The frame cache keeps three models, not every model you have ever tried.** One set is sixteen PNGs, just under a megabyte, and trying characters out is a two-click operation — so previewing a hundred of them used to leave a hundred sets on disk forever, around a hundred megabytes of characters nobody would look at again. The least recently *used* set is now evicted past three, counting reuse and not just capture, so the model you actually work with is not thrown away by an afternoon of browsing. The set in use is never evicted, and sets are only ever removed whole ([src/wander.ts](src/wander.ts)).
+- **Frames are captured at 450px rather than 560.** One message now carries sixteen PNGs instead of four, and a blend compresses worse than a pose; 450 is still comfortably above the ~300px she is drawn at, which is all the cap has to guarantee ([media/webview/main.js](media/webview/main.js)).
+
 ## [0.6.0] - 2026-09-10
 
 ### Added — 🚶 She wanders into your code

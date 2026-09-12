@@ -1,6 +1,83 @@
 # Public Release Guide
 
-> Bản hiện tại đang chuẩn bị publish: **v0.6.0** (release notes ngay bên dưới). v0.5.5 → v0.5.9 đã publish (0.5.9 ngày 2026-09-10). Các phần cũ giữ làm reference cho flow chung.
+> Bản hiện tại đang chuẩn bị publish: **v0.6.1** (release notes ngay bên dưới). v0.5.5 → v0.6.0 đã publish (0.6.0 ngày 2026-09-10). Các phần cũ giữ làm reference cho flow chung.
+
+---
+
+## 📦 v0.6.1 Release (2026-09-12)
+
+### Scope
+
+Patch sửa tính năng wander ở 0.6.0 — không thêm setting, không đổi API. Gồm **một bug dữ liệu** (hiện sai nhân vật) và phần hiển thị.
+
+- **🐞 Mở nhiều cửa sổ, mỗi cửa sổ một model → hiện nhầm nhân vật.** Nguyên nhân: **hai nguồn sự thật** cho "model nào đang hiện".
+  - Webview vẽ theo `getSelectedModel('panel')` ([src/models.ts](src/models.ts)) — hàm này ưu tiên model **pin theo workspace**, lưu ở `_ctx.workspaceState` khoá `animeCompanion.workspaceModel`.
+  - `wander.ts` lại hỏi `config.get('model')` — **không bao giờ thấy `workspaceState`**.
+  - Hệ quả: cửa sổ pin model B gửi `captureWanderFrames` kèm `modelId: A` (tên global), webview chụp **đúng nhân vật đang vẽ là B**, extension ghi số pixel đó thành `A-v2-*.png`. Cache nằm ở `globalStorage` **dùng chung mọi cửa sổ** → mọi cửa sổ sau đó đọc file tên A nhưng ra mặt B, **giữ nguyên qua restart**.
+  - Lưu ý: **không phải** lỗi do dùng chung globalStorage. File đặt tên theo model id nên hai cửa sổ khác model không bao giờ đụng tên nhau; cache dùng chung là đúng và nên giữ. Đừng "sửa" bằng cách tách cache theo cửa sổ/workspace — chỉ nhân số lần chụp lên mà không giải quyết gì.
+  - **Fix 4 lớp** (mỗi lớp bịt một đường):
+    1. `wander.ts` dùng `_modelId()` → gọi đúng `getSelectedModel('panel')` như webview. **Một resolver duy nhất** — đây là fix gốc.
+    2. Webview từ chối chụp khi `payload.modelId !== window.__MODEL_ID__` (trả `wanderFramesFailed: Model mismatch`). `__MODEL_ID__` được stamp vào HTML lúc sinh view nên là sự thật của chính webview đó. Bịt khoảng thời gian view đang reload sau khi đổi model — lúc đó `isLive2DReady` vẫn `true` cho model **cũ**.
+    3. `receiveFrames()` bỏ payload nếu `modelId` trả về không còn khớp model hiện tại (chụp mất ~1 s, model có thể đổi giữa chừng) — chặn ảnh về muộn đè lên file đúng.
+    4. `forgetFrames()` **trước đây là dead code, không ai gọi**. Giờ nối qua callback `onModelChanged` đặt trong `applyModelSelection()` ([src/extension.ts](src/extension.ts)) — phải đặt ở đó vì nhánh `setWorkspaceModel()` chỉ ghi `workspaceState`, **không bắn `onDidChangeConfiguration`** nên listener config không bao giờ thấy. Có gọi thêm ở nhánh config để bắt trường hợp **cửa sổ khác** đổi global model.
+  - **`FRAME_SCHEMA` bump `v2` → `v3`**: file `v2` có thể chứa nhân vật khác tên file, nhìn không phân biệt được → xoá sạch, chụp lại. `_sweepStaleFrames()` tự dọn.
+
+- **🐞 Cache phình vô hạn khi đổi nhiều model.** Đo thật: **1 model = 16 file = ~984 KB**. Trước đây không có cơ chế giới hạn nào (`unlinkSync` duy nhất chỉ để dọn schema cũ) → đổi thử 100 model là **~96 MB rác vĩnh viễn**, trong khi 99 model chỉ xem một lần rồi bỏ.
+  - `MAX_CACHED_MODELS = 3` (~3 MB), hằng số chứ **không thêm setting** — user hỏi về chuyện phình đĩa, không xin thêm nút; thêm setting là kéo theo `contributes` + 3 README + settings panel.
+  - `_trimCache()` gọi ở **2 chỗ**: trong `receiveFrames()` ngay sau khi ghi (**bắt buộc** — đổi model để test diễn ra trong *một* phiên, chỉ dọn lúc activate thì 100 set vẫn kịp chất đống trước khi nhìn tới), và trong constructor (dọn tồn đọng từ bản cũ).
+  - **LRU thật, không phải LWT**: `_haveFrames()` gọi `utimesSync` khi tái dùng, nên mtime là *last used*. Nếu không, model bạn dùng hằng ngày (chụp từ tuần trước) sẽ bị 3 lần đổi thử hôm nay đá ra.
+  - **Hai bẫy khi sửa lại chỗ này:**
+    - Nhóm file theo model phải cắt tại `-${FRAME_SCHEMA}-`, **không** cắt tại dấu `-` đầu tiên — `_safeId()` giữ lại dấu `-` nên id custom `my-model` / `my-other` sẽ bị gộp nhầm thành một model `my`.
+    - Xoá **nguyên set**, không xoá lẻ: set thiếu file sẽ rớt kiểm tra "đủ 16" ở `_haveFrames()` rồi chụp lại, nên xoá lẻ chẳng lợi gì mà còn để lại file mồ côi.
+  - **Không evict set đang dùng.** Bảo vệ **cả hai**: model đang resolve *và* `_framesModelId` (set manager đang cầm) — `_showFrame()` đưa thẳng path này cho `contentIconPath`, xoá giữa chừng là nhân vật biến mất. Bản đầu chỉ chặn theo model resolve và **test đã bắt lỗi**: khi resolver không trả lời được thì set đang dùng bị xoá.
+  - Eviction chéo cửa sổ **tự lành, đừng thêm lock**: cửa sổ A xoá set cửa sổ B đang dùng thì B chụp lại ở lần wander kế — mất một lần chụp, không bao giờ ra sai nhân vật. Lockfile ở đây tốn hơn lợi.
+  - *Ghi chú:* cursor chibi ([src/cursor-chibi.ts](src/cursor-chibi.ts)) cũng lưu per-model nhưng **1 file/model** và chỉ tạo khi user **chủ động bấm** capture, không tự sinh khi đổi model → chưa cần cap. (Nhưng nó cũng đang dùng `config.get('model')` — **cùng lỗi workspace model** như wander, chưa sửa ở bản này.)
+
+**Phần hiển thị (đã có từ vòng trước):**
+
+- **Rời panel thì nhỏ dần rồi mới mất** ([media/webview/main.js](media/webview/main.js) — `setModelVisible`): trước chỉ `opacity 1→0`, chỉ nói được "em biến mất" chứ không nói "em đi đâu". Giờ thêm `scale(1) → scale(0.45)`, `transform-origin: bottom center`, easing `cubic-bezier(0.4, 0, 0.7, 1)` (chậm đầu nhanh cuối để mắt kịp đọc). Thời lượng tách riêng: `LEAVE_MS = 700` cho lúc đi, `FADE_MS = 420` giữ nguyên cho lúc về — 420 ms quá nhanh, đọc ra như chớp mắt chứ không như bỏ đi.
+  - Scale đặt lên `#live2dCanvas`, **không** lên `#characterWrapper`: wrapper còn chứa drag-pad, bubble thoại, quickchat panel — co theo là sai. Đây chỉ là transform hiển thị nên `clientWidth` không đổi → `ResizeObserver` không bắn → **không phải `fitModel()` lại**.
+  - Ảnh fallback `.character-img` có sẵn `animation: float` dùng `transform`, mà **keyframe thắng inline style** → dùng property `scale` riêng cho nó để cộng dồn thay vì bị đè. Canvas không có animation nên dùng `transform` bình thường.
+
+- **Hết giật khi đổi khung trong editor** — hai nguyên nhân riêng biệt, đây là **lỗi hiển thị thứ 4 và 5** cùng họ với 3 lỗi đã ghi ở mục 0.6.0 (đều là "khung decoration cố định vs. ảnh nguồn thay đổi"):
+  4. *Mỗi khung bị crop theo bounding box riêng* — `autoCropCanvas()` cắt sát từng ảnh, mà silhouette đổi khi em thở → box đổi kích thước mỗi khung → decoration căn lại nhân vật trong box → **nhảy vài pixel mỗi lần đổi ảnh**. Đây mới là nguyên nhân chính, không phải chuyện cắt cứng. Giờ `cropToSharedBox()` hợp nhất bounds của cả 4 pose thành **một box chung** cho tất cả.
+  5. *Cắt cứng giữa các pose* — **không thể dùng CSS transition**: đổi ảnh decoration = thay DOM element mới, mà element mới render thẳng ở style cuối, nên mọi `transition:` nhét vào `textDecoration` đều vô tác dụng (đừng mất công thử lại). Cross-fade phải **nung vào pixel**: `crossFadeSequence()` sinh 3 ảnh blend giữa mỗi cặp pose, có wrap về pose đầu → 4 pose thành **16 ảnh**. `FRAME_HOLD_MS` chia 4 xuống **105 ms** để các pose vẫn cách nhau như cũ.
+
+- **Cache 0.6.0 phải chụp lại**: file cũ là ảnh cắt cứng crop theo box riêng, dùng lại thì người upgrade vẫn thấy giật. Thêm `FRAME_SCHEMA = 'v2'` vào tên file (`<model>-v2-<i>.png`) nên file cũ không lọt qua `_haveFrames()`, và `_sweepStaleFrames()` xoá chúng khỏi globalStorage lúc khởi tạo. `_haveFrames()` giờ đòi **đủ cả bộ 16 file** (trước dùng `continue` nên thiếu file vẫn nhận) — thiếu một khung giữa chuỗi fade là một vết cắt nhìn thấy được.
+
+- **Hai chỗ dọn theo tốc độ swap tăng ~4×**:
+  - Cache decoration type theo frame index thay vì `createTextEditorDecorationType()` + `dispose()` mỗi 105 ms. Lưu ý giữ nguyên guard `previous !== this._decorationType` trước khi `setDecorations(previous, [])` — đường re-anchor lúc cuộn dùng lại đúng type đó, bỏ guard là em biến mất khi cuộn.
+  - `_frameAspect()` đo `_frameUris[0]` thay vì khung hiện tại: cache cũ key theo path nên **miss mọi lần** khi path đổi 16 lần/chu kỳ. Shared box đảm bảo mọi khung cùng tỉ lệ nên đo một lần là đủ.
+
+- **Kích thước ảnh**: `maxDim` hạ **560 → 450**. Một message giờ mang 16 PNG thay vì 4, và ảnh blend nén kém hơn ảnh pose. 450 vẫn trên mức 300 px hiển thị — decoration chỉ thu nhỏ chứ không phóng to, dư ra là chi tiết không ai thấy. Có `debugLog` in số khung / kích thước / tổng KB lúc chụp (xem output channel **Anime Companion**) để đo thật thay vì đoán.
+
+### Kiểm chứng
+
+- `npx tsc --noEmit` sạch; `npm test` (compile + smoke) pass; `npm run lint` giữ nguyên **11 lỗi tiền tồn** (đã đối chiếu bằng `git stash` — không phát sinh lỗi mới).
+- Phần pixel test bằng canvas 2D stub tự viết (file ngoài repo, `d:\tmp\wander-canvas-test.mjs`) — **15/15 pass**: shared box cho ra đúng một khung `34×72` từ 4 pose có bounds lệch nhau; cross-fade xác nhận bằng số (đỏ `255 → 191 → 128 → 64` trong khi xanh `0 → 64 → 128 → 191`, alpha giữ 255); các input suy biến (0 tween / 1 pose / ảnh trong suốt hoàn toàn) không ném lỗi.
+- Bug hiện-nhầm-nhân-vật **tái hiện được bằng test** (`d:\tmp\wander-model-id-test.mjs`, chạy trên `out/models.js` thật với stub `vscode`) — **10/10 pass**: khi workspace pin `mao` còn global là `hiyori`, `getSelectedModel('panel')` trả `mao` nhưng `config.get('model')` trả `hiyori` → đúng chỗ hai nguồn lệch nhau. Test phủ luôn: không mở thư mục thì pin không áp dụng, cửa sổ không pin thì hai bên khớp, pin trỏ model đã xoá thì fallback.
+  - *Lưu ý khi viết lại test này:* phải dùng **model bundled** (`hiyori` / `haru` / `mao` / `miara`) — `readWorkspaceModelId()` kiểm `getAllModels()[id]` nên id custom như `vivian` sẽ bị bỏ qua và test "pass" sai.
+- **Chưa test trong Extension Development Host** — phần còn lại cần mắt người là *cảm giác* tốc độ (`LEAVE_MS = 700`, `scale 0.45`, `FRAME_HOLD_MS = 105`) và **kịch bản 2 cửa sổ 2 model** (xem checklist).
+
+### Pre-publish checklist v0.6.1
+
+- [x] `package.json` ở `0.6.1`
+- [x] `CHANGELOG.md` có entry `## [0.6.1] - 2026-09-12`
+- [x] 3 README — "What's new v0.6.1" + đổi dòng version
+- [x] `npm test` pass
+- [ ] Test tay bản VSIX: **upgrade đè lên 0.6.0** (không phải profile sạch) để kiểm đúng đường `_sweepStaleFrames()` + `FRAME_SCHEMA`
+- [ ] Test tay **cache không phình**: đổi qua 5–6 model, đợi wander mỗi lần → `wander-frames/` chỉ còn **3 set** (~3 MB), và model đang dùng luôn nằm trong đó
+- [ ] Test tay **kịch bản 2 cửa sổ 2 model** (bug chính): cửa sổ A mở thư mục + `Change Panel Model` → model X; cửa sổ B model Y. Đợi wander ở cả hai → mỗi bên phải hiện **đúng nhân vật của mình**, và `wander-frames/` có cả `X-v3-*.png` lẫn `Y-v3-*.png`
+
+### Lệnh release
+
+```bash
+git add -u
+git commit -m "release: v0.6.1 — Smoother wander: shrink on leave, cross-faded frames"
+git push origin main
+git tag -a v0.6.1 -m "v0.6.1 — Smoother wander: shrink on leave, cross-faded frames"
+git push origin v0.6.1
+```
 
 ---
 
@@ -10,12 +87,12 @@
 
 - Extension version public: `0.6.0` (minor bump: tính năng mới đáng kể, không có breaking change)
 - **🚶 Em đi lang thang qua khung code**: [src/wander.ts](src/wander.ts) — sau `wander.idleMinutes` (mặc định **3 phút**) không gõ phím, model mờ dần khỏi panel (`setModelVisible` → webview đổi `opacity` của `#characterWrapper`, **không ẩn view**: ẩn view sẽ huỷ webview và phải load lại model khi quay về) rồi hiện ra ở **góc trái dưới** khung code trong `wander.staySeconds` (10 s), xong tự về. Gõ phím / di chuyển con trỏ / đổi file → `noteActivity()` gọi về ngay. **Cuộn không tính là hoạt động**: `onDidChangeTextEditorVisibleRanges` tính lại neo nên em đứng yên ở góc trong khi chữ chạy phía sau.
-- **Cách vẽ**: VS Code không cho float nội dung sống lên editor, chỉ có `TextEditorDecoration` + `contentIconPath` (đúng kỹ thuật Chibi Cursor đang dùng) → ảnh tĩnh. Nên webview chụp **4 khung** cách nhau 260 ms từ Live2D đang chạy (`handleCaptureWanderFrames` trong [media/webview/main.js](media/webview/main.js)), lưu PNG ở globalStorage `wander-frames/`, đổi khung mỗi 420 ms → nhìn như đang thở. Chụp **một lần cho mỗi model** rồi dùng lại.
+- **Cách vẽ**: VS Code không cho float nội dung sống lên editor, chỉ có `TextEditorDecoration` + `contentIconPath` (đúng kỹ thuật Chibi Cursor đang dùng) → ảnh tĩnh. Nên webview chụp **4 khung** cách nhau 260 ms từ Live2D đang chạy (`handleCaptureWanderFrames` trong [media/webview/main.js](media/webview/main.js)), lưu PNG ở globalStorage `wander-frames/`, đổi khung mỗi 420 ms → nhìn như đang thở. Chụp **một lần cho mỗi model** rồi dùng lại. *(→ 0.6.1 đổi: vẫn 4 pose nhưng sinh thêm 3 ảnh blend giữa mỗi cặp thành **16 ảnh**, giữ mỗi ảnh **105 ms**.)*
 - **Ba lỗi hiển thị đã fix sau vòng test đầu** (đáng ghi lại vì dễ tái phạm):
   1. *Ảnh cũ không được chụp lại* — bản đầu coi mọi file đã có là hợp lệ, nên khi tăng `sizePx` vẫn dùng ảnh 96 px cũ. Giờ `_pngHeight()` đọc chiều cao trong header PNG, nhỏ hơn kích thước hiển thị thì chụp lại; đổi `wander.sizePx` cũng xoá cache.
   2. *Khung vuông bó nhân vật* — đặt `width = height = size` cộng `background-size: contain` thì ảnh dọc (49×96) bị fit theo **chiều rộng**, đặt 190 px thực tế chỉ cao ~95 px. Giờ `_frameAspect()` đọc tỉ lệ thật từ PNG và tính `width = height × ratio`.
   3. *Chưa sát mép trái* — cột 0 nằm **sau** máng số dòng. Thêm `LEFT_INSET_PX = 62` kéo sang trái vượt máng, `background-position: bottom left` và `BASELINE_DROP_PX` để chân chạm đúng dòng neo.
-- **Kích thước**: mặc định **300 px** (trần 480), ảnh chụp ở 560 px để hiển thị 300 px vẫn nét trên màn HiDPI. Dung lượng ~0.5–1 MB cho 4 khung, nhỏ hơn một ảnh nền người dùng thường lưu.
+- **Kích thước**: mặc định **300 px** (trần 480), ảnh chụp ở 560 px để hiển thị 300 px vẫn nét trên màn HiDPI. Dung lượng ~0.5–1 MB cho 4 khung, nhỏ hơn một ảnh nền người dùng thường lưu. *(→ 0.6.1 đổi: 450 px, 16 ảnh.)*
 - **Timer đều `unref()`**: bộ đếm 3 phút giữ tiến trình Node sống làm `npm test` treo tới 5 phút; sau khi unref thì test xong trong ~6 s.
 - 4 setting mới nhóm **Model & Diện mạo**: `wander.enabled` / `wander.idleMinutes` / `wander.staySeconds` / `wander.sizePx`. Không thêm chuỗi i18n (không có chữ hiển thị).
 

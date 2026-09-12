@@ -6,9 +6,14 @@
 
 > ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.6.0
+**Current version:** v0.6.1
 
-> 🆕 **What's new in v0.6.0**:
+> 🆕 **What's new in v0.6.1**:
+> - **🚶 The right character, with several windows open** — run two or three VS Code windows on different models and the companion standing in your editor could be the wrong one, because the wander asked plain settings for the model while a window with a folder open can pin its own. Fixed, and frames cached before the fix are recaptured once.
+> - **💾 The frame cache no longer grows without limit** — trying characters out used to leave a set of frames on disk for every model you had ever previewed, about a megabyte each. Three are now kept, least recently used first out, and the one in use is never removed.
+> - **🚶 The wander, smoothed out** — she now shrinks into the floor as she leaves her panel instead of just fading, so you can see where she went. And standing in the editor she no longer twitches: every frame is cropped to one shared box, and the cuts between poses are now cross-fades. Frames cached by v0.6.0 are recaptured once on upgrade.
+>
+> 🆕 **New in v0.6.0**:
 > - **🚶 She wanders into your code** — leave her alone for a few minutes and she fades out of her panel and turns up standing at the bottom-left of the editor for ten seconds, then goes home. Typing or moving the cursor brings her back at once, and she keeps her corner while you scroll. Off with `animeCompanion.wander.enabled`: false.
 >
 > 🆕 **New in v0.5.9**:

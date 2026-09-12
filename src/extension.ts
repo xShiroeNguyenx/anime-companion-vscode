@@ -195,6 +195,16 @@ async function promptForModelSelection(target: ModelSelectionTarget): Promise<st
   return selected && selected.id !== current ? selected.id : undefined;
 }
 
+/**
+ * Told when the model changes, so cached per-model artefacts can be dropped.
+ *
+ * A module-level callback rather than a parameter because the panel model can
+ * be pinned per workspace, and that choice lives in `workspaceState` — writing
+ * it fires no configuration event, so the config listener below never sees it.
+ * This is the one place both the workspace and the global paths pass through.
+ */
+let onModelChanged: (() => void) | undefined;
+
 async function applyModelSelection(target: ModelSelectionTarget, modelId: string): Promise<boolean> {
   const config = vscode.workspace.getConfiguration('animeCompanion');
   const hasWorkspace = !!vscode.workspace.workspaceFolders?.length;
@@ -207,15 +217,18 @@ async function applyModelSelection(target: ModelSelectionTarget, modelId: string
 
   if (effectiveTarget === 'desktop') {
     await config.update('desktopCompanion.model', modelId, vscode.ConfigurationTarget.Global);
+    onModelChanged?.();
     return true;
   }
 
   if (hasWorkspace) {
     await setWorkspaceModel(modelId);
+    onModelChanged?.();
     return true;
   }
 
   await config.update('model', modelId, vscode.ConfigurationTarget.Global);
+  onModelChanged?.();
   return true;
 }
 
@@ -594,6 +607,10 @@ export async function activate(context: vscode.ExtensionContext) {
       postMessage: (message) => panelProvider.postMessage(message as never),
       isReady: () => true,
     });
+    // Frames captured from the previous character are of nobody this window
+    // shows any more: without this she keeps standing in the editor as the old
+    // model while the panel already shows the new one.
+    onModelChanged = () => wander.forgetFrames();
     wander.activate();
 
     // The view's `when: animeCompanion.visible` clause hides it from the
@@ -618,6 +635,10 @@ export async function activate(context: vscode.ExtensionContext) {
       ) {
         statusBar.refresh();
         void host.refreshView();
+        // Also fired when another window changes the global model, which never
+        // passes through applyModelSelection here. Dropping frames twice for
+        // one switch is harmless; missing the other window's switch is not.
+        onModelChanged?.();
       }
       if (
         event.affectsConfiguration('animeCompanion.customModels') ||

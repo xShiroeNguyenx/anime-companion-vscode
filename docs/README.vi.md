@@ -8,9 +8,14 @@
 
 > ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.6.0
+**Phiên bản hiện tại:** v0.6.1
 
-> 🆕 **Có gì mới ở v0.6.0**:
+> 🆕 **Có gì mới ở v0.6.1**:
+> - **🚶 Mở nhiều cửa sổ VS Code thì hiện đúng nhân vật** — mở 2–3 cửa sổ mỗi cửa sổ một model khác nhau thì nhân vật đứng trong khung code có thể **bị nhầm sang model khác**: phần wander đọc model từ settings, trong khi cửa sổ có mở thư mục lại được chọn model riêng cho workspace đó. Đã sửa; ảnh cache lưu trước bản này sẽ được chụp lại một lần.
+> - **💾 Cache ảnh không còn phình vô hạn** — trước đây cứ đổi thử một model là để lại một bộ ảnh trên đĩa (~1 MB/model) và **giữ mãi**, đổi thử 100 model là ~96 MB rác. Giờ chỉ giữ **3 model** dùng gần nhất, model đang dùng thì không bao giờ bị xoá.
+> - **🚶 Em đi lang thang, mượt hơn** — lúc rời panel em nhỏ dần xuống rồi mới biến mất, thay vì chỉ mờ đi, nên nhìn là biết em đi đâu. Còn lúc đứng trong khung code thì em hết giật: mọi khung hình giờ cắt theo **một khung chung**, và chuyển giữa các dáng là **mờ chồng** chứ không cắt cứng nữa. Ảnh cache từ v0.6.0 sẽ được chụp lại một lần khi bạn cập nhật.
+>
+> 🆕 **Mới ở v0.6.0**:
 > - **🚶 Em đi lang thang qua khung code** — để yên vài phút là em mờ dần khỏi panel rồi hiện ra đứng ở góc trái bên dưới khung code khoảng mười giây, xong tự về. Bạn gõ phím hay di chuột là em về ngay; bạn cuộn code thì em vẫn đứng yên ở góc. Tắt bằng `animeCompanion.wander.enabled`: false.
 >
 > 🆕 **Mới ở v0.5.9**:
