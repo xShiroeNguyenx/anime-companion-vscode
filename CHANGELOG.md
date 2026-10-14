@@ -3,6 +3,22 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2026-10-14
+
+### Fixed — 🙆 Her head no longer gets stuck tilted to one side
+
+- **Left alone for a while, some models ended up with the head bent over to one side and staying there.** The head tilt of two idle beats ("curious" and "hum") and the lean of a drag were added on the model's `afterMotionUpdate` event — which comes *before* the framework saves the frame's parameters. The added angle was saved, became the starting point of the next frame, and was added again: about two seconds of a tilt compounded over a hundred times and pinned `ParamAngleZ` at the rig's limit. Models whose idle motion drives that parameter (Hiyori) overwrote it every frame and never showed it; many others do not. Offsets are now applied for one frame and taken back before the next motion update, restoring the exact previous value even where the framework clamped ([media/webview/param-offsets.js](media/webview/param-offsets.js)). A test replays the update loop and shows the old way pinning at the limit and the new one not.
+- **The same mistake in the model's own expressions, fixed the same way.** `.exp3.json` entries blended as Add or Multiply were applied from the render ticker, which also runs before the save, so on any parameter the motion does not drive an Add crept to the rig's limit and a Multiply ran away — a face stronger than its author drew it — and clearing the face left the parameter wherever it had got to. They now go on after the motion (so a smile still rides on a talking mouth) for one frame at a time; Overwrite entries (outfits) are unchanged ([media/webview/model-expressions.js](media/webview/model-expressions.js)).
+
+### Changed — 🎨 The settings panel wears the theme too
+
+- **The settings panel's pink now follows the active bundled theme,** like the companion's own bubble and menus already did in 0.6.2: borders, highlights, switches and buttons take the theme's accent, with button text picked dark or white for contrast. Any other theme keeps the sakura pink ([media/webview/settings-panel.js](media/webview/settings-panel.js)).
+
+### Internal
+
+- **Lint is clean and CI now enforces it.** The ten remaining ESLint errors are fixed — needless escapes in regexes, a literal BOM written as `\uFEFF`, a comment whose arrow had been encoded three times over, an unused parameter and a dead helper — and the CI lint step no longer has `continue-on-error`. No behaviour changes.
+- **`npm test` also runs the parameter-offset tests** (scripts/param-offsets-test.js), which replay the Cubism update loop.
+
 ## [0.6.2] - 2026-10-14
 
 ### Added — 🎨 Themes for the whole of VS Code

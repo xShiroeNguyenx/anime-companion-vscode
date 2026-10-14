@@ -1,4 +1,5 @@
 import { state, debugLog } from './core.js';
+import { addTransientParameter, bindTransientParameters } from './param-offsets.js';
 
 /**
  * Momentum: the character leans into a drag, and her hair and skirt follow.
@@ -144,20 +145,16 @@ function active() {
 
 /**
  * Adds the lean to the body and head angles, just before the model's physics
- * reads them. `addParameterValueById`, not `set`: the idle motion is also
- * driving these, and replacing its value would freeze the breathing sway for
- * as long as a drag lasts.
+ * reads them. Added, not set: the idle motion is also driving these, and
+ * replacing its value would freeze the breathing sway for as long as a drag
+ * lasts. And added for this frame only (see param-offsets.js) — otherwise the
+ * lean is saved with the frame and compounds on any angle the idle motion
+ * does not animate, leaving her bent over after the drag has ended.
  */
 function applyLean() {
-  const core = state.model?.internalModel?.coreModel;
-  if (!core) return;
-  const add = (id, value) => {
-    try {
-      core.addParameterValueById(id, value);
-    } catch {
-      // Not every rig declares every angle; the ones it has still move.
-    }
-  };
+  const internal = state.model?.internalModel;
+  if (!internal?.coreModel) return;
+  const add = (id, value) => addTransientParameter(internal, id, value);
   add('ParamBodyAngleX', leanX * MAX_BODY_TILT);
   add('ParamBodyAngleZ', leanX * MAX_BODY_TILT * 0.6);
   add('ParamBodyAngleY', leanY * MAX_BODY_PITCH);
@@ -351,6 +348,7 @@ export function initSway() {
   velY = 0;
   lastPoint = null;
   if (bound === internal) return;
+  bindTransientParameters(internal);
   internal.on('afterMotionUpdate', onAfterMotionUpdate);
   bound = internal;
   debugLog('Sway (drag momentum) ready');

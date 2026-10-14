@@ -8,9 +8,13 @@
 
 > ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.6.2
+**Phiên bản hiện tại:** v0.6.3
 
-> 🆕 **Có gì mới ở v0.6.2**:
+> 🆕 **Có gì mới ở v0.6.3**:
+> - **🙆 Hết bị nghiêng đầu mãi** — để yên một lúc, vài model bị nghiêng đầu sang một bên rồi kẹt luôn. Góc nghiêng đầu và độ ngả người khi kéo bị cộng dồn từng khung hình trên những model mà motion idle không điều khiển góc đầu; giờ chúng chỉ có hiệu lực từng khung hình một. Bản sửa này cũng làm biểu cảm Add / Multiply của model không còn "đậm dần" nữa.
+> - **🎨 Bảng cài đặt đổi màu theo theme** — khi dùng một theme đi kèm, bảng cài đặt cũng lấy màu nhấn của theme đó.
+>
+> 🆕 **Mới ở v0.6.2**:
 > - **🎨 Theme cho cả VS Code** — 10 theme đi kèm extension: mỗi nhân vật một theme (Hiyori Sakura, Haru Sky, Mao Shrine, Miara Magic) và 6 theme lovely (Strawberry Milk, Peach Latte, Lavender Milk, Matcha Mochi bản sáng; Cotton Candy, Midnight Bunny bản tối). Chuột phải vào em → 🎨 Theme mở 2 cột hai bên để chọn, mỗi dòng có hình xem trước nhỏ; cũng có trong bảng cài đặt và lệnh **Anime Companion: Change Theme…**. Theme cũ của bạn được ghi nhớ để quay lại bất cứ lúc nào.
 > - **💬 Em để ý đó nha** — chọn màu của em là em vui, chọn màu nhân vật khác là em hơi ghen, mỗi theme lovely có câu riêng. Bong bóng thoại, menu và 2 cột cũng đổi màu theo theme.
 > - **✨ Tuỳ chọn thêm** — `animeCompanion.theme.followCharacter` đổi nhân vật là đổi luôn theme; `animeCompanion.theme.accentColors` nhuộm status bar, tab và nút theo màu nhân vật trên nền theme nào cũng được, không đụng tới màu bạn tự đặt.

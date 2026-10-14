@@ -1,4 +1,5 @@
 import { state, debugLog } from './core.js';
+import { addTransientParameter, bindTransientParameters, multiplyTransientParameter } from './param-offsets.js';
 
 /**
  * The expression files a model ships with, as both outfits and faces.
@@ -16,8 +17,9 @@ import { state, debugLog } from './core.js';
  * Deliberately not using the library's `model.expression()`: that hands control
  * to Cubism's ExpressionManager, which writes the same parameters every frame
  * and would fight `updateExpressionTick()` in expression.js — the two would
- * take turns winning and the model would flicker. Applying from our own ticker
- * keeps one owner per parameter.
+ * take turns winning and the model would flicker. Applying them ourselves
+ * keeps one owner per parameter (Overwrite from the ticker, Add and Multiply
+ * for one frame after the motion — see onAfterMotionUpdate).
  */
 
 /**
@@ -261,7 +263,7 @@ function restoreDefaults(parameters) {
 }
 
 /**
- * Applies both slots, once per frame.
+ * Applies the Overwrite entries of both slots, once per frame, from the ticker.
  *
  * Re-applied continuously rather than set once because everything else in the
  * pipeline — idle motions, the mood presets, physics — rewrites parameters
@@ -271,6 +273,9 @@ function restoreDefaults(parameters) {
  * Must run after `updateExpressionTick()`: where a mood preset and a model's
  * own expression both claim a parameter, the model's file is the more specific
  * statement and should win.
+ *
+ * Overwrite only. An overwrite lands on the same value however often it runs;
+ * Add and Multiply do not — see onAfterMotionUpdate.
  */
 export function updateModelExpressionTick() {
   const core = state.model?.internalModel?.coreModel;
@@ -281,22 +286,57 @@ export function updateModelExpressionTick() {
     if (!parameters) continue;
 
     for (const { id, value, blend } of parameters) {
+      if (blend !== 'Overwrite') continue;
       try {
-        // Add and Multiply compose with whatever the pipeline already put
-        // there, which is what lets a smile ride on top of a talking mouth.
-        // Overwrite ignores it, which is what an outfit switch needs.
-        if (blend === 'Overwrite') {
-          core.setParameterValueById(id, value);
-        } else if (blend === 'Multiply') {
-          core.multiplyParameterValueById(id, value);
-        } else {
-          core.addParameterValueById(id, value);
-        }
+        core.setParameterValueById(id, value);
       } catch {
         // Parameter absent from this model — the file came from another one.
       }
     }
   }
+}
+
+/**
+ * Applies the Add and Multiply entries of both slots, for one frame at a time.
+ *
+ * They compose with whatever the pipeline already put there, which is what
+ * lets a smile ride on top of a talking mouth — so they go on after the motion
+ * (lip sync included) has written this frame's values. They used to be applied
+ * from the ticker, before the model's update: the result was saved with the
+ * frame and became the base of the next one, so on any parameter the motion
+ * does not drive an Add climbed to the rig's limit and a Multiply ran away,
+ * and clearing the face left the parameter wherever it had got to.
+ * param-offsets.js takes each one back before the next motion update.
+ */
+function onAfterMotionUpdate() {
+  const internal = state.model?.internalModel;
+  if (!internal) return;
+  for (const slot of SLOT_ORDER) {
+    const parameters = slots[slot].parameters;
+    if (!parameters) continue;
+    for (const { id, value, blend } of parameters) {
+      if (blend === 'Multiply') multiplyTransientParameter(internal, id, value);
+      else if (blend !== 'Overwrite') addTransientParameter(internal, id, value);
+    }
+  }
+}
+
+let boundInternal = null;
+
+/** Hooks the loaded model; safe to call again, and on a model switch. */
+export function bindModelExpressions() {
+  const internal = state.model?.internalModel;
+  if (!internal || boundInternal === internal) return;
+  if (boundInternal) {
+    try {
+      boundInternal.off('afterMotionUpdate', onAfterMotionUpdate);
+    } catch {
+      // The old model is being torn down anyway.
+    }
+  }
+  bindTransientParameters(internal);
+  internal.on('afterMotionUpdate', onAfterMotionUpdate);
+  boundInternal = internal;
 }
 
 /**

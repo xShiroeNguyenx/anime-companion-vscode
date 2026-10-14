@@ -1,6 +1,7 @@
 import { state, debugLog } from './core.js';
 import { setExpression } from './expression.js';
 import { motionGroups, playModelMotion } from './motions.js';
+import { addTransientParameter, bindTransientParameters } from './param-offsets.js';
 
 /**
  * Small unprompted things the character does when nobody is touching her.
@@ -191,16 +192,15 @@ function gaze(x, y) {
 /**
  * A head tilt the presets cannot express, added before physics so the hair
  * follows it. Cleared when the beat's hold expires.
+ *
+ * One frame at a time (see param-offsets.js): added straight onto the
+ * parameter, the tilt was saved with the frame and compounded on every model
+ * whose idle motion does not drive ParamAngleZ, leaving the head stuck over
+ * at the rig's limit long after the beat.
  */
 function onAfterMotionUpdate() {
   if (!tiltDegrees || Date.now() > tiltUntil) return;
-  const core = state.model?.internalModel?.coreModel;
-  if (!core) return;
-  try {
-    core.addParameterValueById('ParamAngleZ', tiltDegrees);
-  } catch {
-    // Rig without that parameter: the rest of the beat still plays.
-  }
+  addTransientParameter(state.model?.internalModel, 'ParamAngleZ', tiltDegrees);
 }
 
 function perform(beat) {
@@ -287,6 +287,7 @@ export function initIdleLife(options) {
         // Old model going away.
       }
     }
+    bindTransientParameters(internal);
     internal.on('afterMotionUpdate', onAfterMotionUpdate);
     bound = internal;
   }

@@ -11,11 +11,11 @@ export class CopilotProvider implements LLMProvider {
 
   sendStream(opts: SendOptions): { stream: AsyncIterable<string>; result: StreamResult } {
     const result: StreamResult = {};
-    const stream = this._stream(opts, result);
+    const stream = this._stream(opts);
     return { stream, result };
   }
 
-  private async *_stream(opts: SendOptions, _result: StreamResult): AsyncIterable<string> {
+  private async *_stream(opts: SendOptions): AsyncIterable<string> {
     if (!vscode.lm || typeof vscode.lm.selectChatModels !== 'function') {
       throw new Error(
         'VS Code Language Model API not available. Update to VS Code 1.93+ and make sure GitHub Copilot is installed and signed in.'

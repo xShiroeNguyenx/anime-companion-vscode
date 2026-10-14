@@ -255,6 +255,40 @@
     return stringControl(item);
   }
 
+  // ---- accent ----------------------------------------------------------------
+
+  /** Dark or white text, whichever reads better on `rgb` (WCAG contrast). */
+  function readableOn(rgb) {
+    const lin = (c) => {
+      const s = c / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    };
+    const l = 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+    const dark = 0.0105; // luminance of #1b1418
+    return (l + 0.05) / (dark + 0.05) >= 1.05 / (l + 0.05) ? '#1b1418' : '#fff';
+  }
+
+  /**
+   * Re-tints the page to the active theme's accent when it is one of ours,
+   * and back to sakura pink otherwise. The theme picker's state already
+   * carries every bundled theme's accent and the active theme's label.
+   */
+  function applyAccent(picker) {
+    const style = document.documentElement.style;
+    const theme = picker && picker.themes.find((entry) => entry.label === picker.current);
+    const hex = theme && /^#[0-9a-fA-F]{6}$/.test(theme.accent) ? theme.accent : null;
+    if (!hex) {
+      ['--sakura-rgb', '--sakura-fill', '--sakura-on'].forEach((name) => style.removeProperty(name));
+      return;
+    }
+    const n = parseInt(hex.slice(1), 16);
+    const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    const light = rgb.map((c) => Math.round(c + (255 - c) * 0.18));
+    style.setProperty('--sakura-rgb', rgb.join(', '));
+    style.setProperty('--sakura-fill', 'linear-gradient(135deg, rgb(' + light.join(', ') + '), ' + hex + ')');
+    style.setProperty('--sakura-on', readableOn(rgb));
+  }
+
   // ---- theme picker ----------------------------------------------------------
 
   /** One card per character theme: a tiny window mock-up in its colors. */
@@ -545,6 +579,7 @@
     if (!msg || msg.command !== 'settings:state') return;
     if (msg.strings) S = msg.strings;
     state = { sections: msg.sections || [], themePicker: msg.themePicker || null };
+    applyAccent(state.themePicker);
     const signature = signatureOf(state);
     if (signature !== builtSignature) {
       builtSignature = signature;

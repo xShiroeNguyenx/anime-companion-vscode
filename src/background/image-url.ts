@@ -71,7 +71,7 @@ export function sniffImageMime(buf: Buffer): string | null {
   ) return 'image/webp';
   if (buf.length >= 2 && buf[0] === 0x42 && buf[1] === 0x4d) return 'image/bmp';
   // SVG is text — sniff the markup (skip a leading BOM / whitespace).
-  const head = buf.subarray(0, 256).toString('utf8').replace(/^﻿/, '').trimStart().toLowerCase();
+  const head = buf.subarray(0, 256).toString('utf8').replace(/^\uFEFF/, '').trimStart().toLowerCase();
   if (head.startsWith('<?xml') ? head.includes('<svg') : head.startsWith('<svg')) return 'image/svg+xml';
   return null;
 }

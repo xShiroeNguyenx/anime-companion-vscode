@@ -6,9 +6,13 @@
 
 > ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.6.2
+**Current version:** v0.6.3
 
-> 🆕 **What's new in v0.6.2**:
+> 🆕 **What's new in v0.6.3**:
+> - **🙆 No more stuck head tilt** — left alone for a while, some models ended up with the head bent over to one side for good. A head tilt and the drag lean were being added on top of themselves every frame on models whose idle motion does not move the head; they now last one frame at a time. The same fix stops a model's own Add / Multiply expressions from creeping stronger and stronger.
+> - **🎨 The settings panel follows the theme** — with one of the bundled themes on, the settings panel takes its accent color too.
+>
+> 🆕 **New in v0.6.2**:
 > - **🎨 Themes for the whole of VS Code** — ten color themes ship with the extension: one per character (Hiyori Sakura, Haru Sky, Mao Shrine, Miara Magic) and six lovely styles (Strawberry Milk, Peach Latte, Lavender Milk, Matcha Mochi in light; Cotton Candy, Midnight Bunny in dark). Right-click her → 🎨 Theme opens two columns beside her to pick one, with a tiny preview per row; also in the settings panel and **Anime Companion: Change Theme…**. Your own theme is remembered so you can always go back.
 > - **💬 She notices** — pick her colors and she is delighted, another character's and she gets a little jealous, and each lovely theme gets its own line. Her bubble, menus and side columns re-tint to the theme's accent too.
 > - **✨ Optional extras** — `animeCompanion.theme.followCharacter` switches the theme when you switch characters; `animeCompanion.theme.accentColors` tints the status bar, tabs and buttons in her color on top of any theme, without touching colors you set yourself.

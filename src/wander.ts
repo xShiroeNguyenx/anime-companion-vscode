@@ -316,7 +316,7 @@ export class WanderManager {
 
   /** The on-disk name for a model's frames. */
   private _safeId(modelId: string): string {
-    return (modelId || 'model').replace(/[^A-Za-z0-9_\-]/g, '_');
+    return (modelId || 'model').replace(/[^A-Za-z0-9_-]/g, '_');
   }
 
   public activate() {

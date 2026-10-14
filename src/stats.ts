@@ -242,16 +242,6 @@ function questRewardLabel(period: QuestPeriod): string {
   return period === 'daily' ? '+10 gems' : '+60 gems • +1 ticket';
 }
 
-function achievementRewardLabel(def: AchievementDef): string {
-  const grant = rewardGrantForAchievement(def);
-  const parts = [];
-  if (grant.gems) parts.push(`+${grant.gems} gems`);
-  if (grant.tickets) parts.push(`+${grant.tickets} ticket${grant.tickets > 1 ? 's' : ''}`);
-  if (grant.cosmetics.length) parts.push(`cosmetic: ${grant.cosmetics.join(', ')}`);
-  if (grant.voicePacks.length) parts.push(`voice pack: ${grant.voicePacks.join(', ')}`);
-  return parts.join(' • ');
-}
-
 function rewardGrantForAchievement(def: AchievementDef): RewardGrant {
   const grant = emptyGrant();
   switch (def.rarity) {

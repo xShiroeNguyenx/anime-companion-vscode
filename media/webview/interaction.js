@@ -1,7 +1,7 @@
 ﻿import { state, vscode, debugLog } from './core.js';
 import { activeModelExpression, setExpression, setModelExpression, updateExpressionTick } from './expression.js';
 import { activeOutfit, clearOutfit, outfitGlossaryKey, outfitNames, setOutfit } from './outfit.js';
-import { expressionNames, faceNames, updateModelExpressionTick } from './model-expressions.js';
+import { bindModelExpressions, expressionNames, faceNames, updateModelExpressionTick } from './model-expressions.js';
 import { idleMotionGroup, motionGroups } from './motions.js';
 import { playAudio, setAmbientPreset, setGlobalAudioMuted } from './audio.js';
 import { createRadialMenu } from './radial-menu.js';
@@ -620,6 +620,7 @@ export function setupModel() {
   setupAmbientPanel();
   setupSidePanel();
   initSway();
+  bindModelExpressions();
   applyShowcaseBanner(window.__SHOWCASE__ || null);
   setupAgentPanel();
   initHints({

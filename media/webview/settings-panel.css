@@ -2,10 +2,16 @@
    reads as the companion's own page yet stays legible on light and dark. */
 :root {
   color-scheme: light dark;
-  --sakura: #ff96be;
-  --sakura-soft: rgba(255, 150, 190, 0.18);
-  --sakura-line: rgba(255, 150, 190, 0.42);
-  --sakura-strong: rgba(255, 150, 190, 0.85);
+  /* The accent, as "r, g, b" so the translucent shades can derive from it.
+     settings-panel.js overrides these three to the active bundled theme's
+     accent; any other theme keeps the sakura pink below. */
+  --sakura-rgb: 255, 150, 190;
+  --sakura-fill: linear-gradient(135deg, #ff9ec6, #ff7fb2);
+  --sakura-on: #fff;
+  --sakura: rgb(var(--sakura-rgb));
+  --sakura-soft: rgba(var(--sakura-rgb), 0.18);
+  --sakura-line: rgba(var(--sakura-rgb), 0.42);
+  --sakura-strong: rgba(var(--sakura-rgb), 0.85);
   --card: var(--vscode-editorWidget-background, rgba(127, 127, 127, 0.08));
   --line: var(--vscode-panel-border, rgba(127, 127, 127, 0.25));
   --muted: var(--vscode-descriptionForeground, #999);
@@ -33,7 +39,7 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   padding: 18px 22px 14px;
   border-bottom: 1px solid var(--sakura-line);
   background:
-    linear-gradient(180deg, rgba(255, 150, 190, 0.14), rgba(255, 150, 190, 0) 90%),
+    linear-gradient(180deg, rgba(var(--sakura-rgb), 0.14), rgba(var(--sakura-rgb), 0) 90%),
     var(--vscode-editor-background);
 }
 .header h1 {
@@ -205,8 +211,8 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
 .btn:hover { background: var(--sakura-soft); }
 .btn-primary {
   border-color: transparent;
-  background: linear-gradient(135deg, #ff9ec6, #ff7fb2);
-  color: #fff;
+  background: var(--sakura-fill);
+  color: var(--sakura-on);
   font-weight: 600;
 }
 .btn-primary:hover { filter: brightness(1.05); }
@@ -223,7 +229,7 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   cursor: pointer;
   transition: background 0.15s ease;
 }
-.switch[aria-checked="true"] { background: linear-gradient(135deg, #ff9ec6, #ff7fb2); border-color: transparent; }
+.switch[aria-checked="true"] { background: var(--sakura-fill); border-color: transparent; }
 .switch-knob {
   position: absolute;
   top: 2px;
@@ -248,7 +254,7 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
 }
 .seg-btn:last-child { border-right: none; }
 .seg-btn:hover { background: var(--sakura-soft); }
-.seg-btn.active { background: linear-gradient(135deg, #ff9ec6, #ff7fb2); color: #fff; font-weight: 600; }
+.seg-btn.active { background: var(--sakura-fill); color: var(--sakura-on); font-weight: 600; }
 
 .select, .text, .num {
   padding: 6px 9px;

@@ -208,7 +208,7 @@ export class MessageBank {
     return tmpl.split('{file}').join(fileName);
   }
 
-  // User-defined `keyword ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ messages` overrides; consumed by the typing hook
+  // User-defined `keyword → messages` overrides; consumed by the typing hook
   // alongside the built-in TODO/FIXME/console.log Easter eggs.
   getCustomKeywords(): Array<{ keyword: string; messages: string[] }> {
     const raw = vscode.workspace

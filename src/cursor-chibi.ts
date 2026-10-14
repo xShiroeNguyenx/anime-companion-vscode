@@ -82,7 +82,7 @@ export class CursorChibiManager {
   private _resolveIconUri(): vscode.Uri {
     try {
       const modelId = this._modelId();
-      const safe = modelId.replace(/[^A-Za-z0-9_\-]/g, '_');
+      const safe = modelId.replace(/[^A-Za-z0-9_-]/g, '_');
       const candidate = path.join(this._capturedChibiDir, `${safe}.png`);
       if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
         return vscode.Uri.file(candidate);
@@ -99,7 +99,7 @@ export class CursorChibiManager {
     const ext = path.extname(sourcePath).toLowerCase();
     const mime = ext === '.png' ? 'image/png' : 'image/png';
     const modelId = this._modelId();
-    const safeModel = modelId.replace(/[^A-Za-z0-9_\-]/g, '_') || 'model';
+    const safeModel = modelId.replace(/[^A-Za-z0-9_-]/g, '_') || 'model';
     const target = path.join(this._renderCacheDir, `${safeModel}-${sizePx}.svg`);
 
     try {
@@ -126,7 +126,7 @@ export class CursorChibiManager {
       vscode.window.showWarningMessage('Captured chibi: unexpected dataUrl format.');
       return;
     }
-    const safe = modelId.replace(/[^A-Za-z0-9_\-]/g, '_') || 'model';
+    const safe = modelId.replace(/[^A-Za-z0-9_-]/g, '_') || 'model';
     const filePath = path.join(this._capturedChibiDir, `${safe}.png`);
     try {
       fs.writeFileSync(filePath, Buffer.from(m[1], 'base64'));
@@ -144,7 +144,7 @@ export class CursorChibiManager {
   // fall back to the bundled icon.
   public async resetCapturedChibi(): Promise<void> {
     const modelId = this._modelId();
-    const safe = modelId.replace(/[^A-Za-z0-9_\-]/g, '_') || 'model';
+    const safe = modelId.replace(/[^A-Za-z0-9_-]/g, '_') || 'model';
     const filePath = path.join(this._capturedChibiDir, `${safe}.png`);
     try {
       if (fs.existsSync(filePath)) {
@@ -234,7 +234,7 @@ export class CursorChibiManager {
 
     const POS_STEP = 4;
     const SIZE_STEP = 2;
-    while (true) {
+    for (;;) {
       const cfg = vscode.workspace.getConfiguration('animeCompanion');
       const x = cfg.get<number>('cursorChase.offsetX', 0);
       const y = cfg.get<number>('cursorChase.offsetY', 0);
