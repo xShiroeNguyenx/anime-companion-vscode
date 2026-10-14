@@ -8,9 +8,16 @@
 
 > ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.6.1
+**Phiên bản hiện tại:** v0.6.2
 
-> 🆕 **Có gì mới ở v0.6.1**:
+> 🆕 **Có gì mới ở v0.6.2**:
+> - **🎨 Theme cho cả VS Code** — 10 theme đi kèm extension: mỗi nhân vật một theme (Hiyori Sakura, Haru Sky, Mao Shrine, Miara Magic) và 6 theme lovely (Strawberry Milk, Peach Latte, Lavender Milk, Matcha Mochi bản sáng; Cotton Candy, Midnight Bunny bản tối). Chuột phải vào em → 🎨 Theme mở 2 cột hai bên để chọn, mỗi dòng có hình xem trước nhỏ; cũng có trong bảng cài đặt và lệnh **Anime Companion: Change Theme…**. Theme cũ của bạn được ghi nhớ để quay lại bất cứ lúc nào.
+> - **💬 Em để ý đó nha** — chọn màu của em là em vui, chọn màu nhân vật khác là em hơi ghen, mỗi theme lovely có câu riêng. Bong bóng thoại, menu và 2 cột cũng đổi màu theo theme.
+> - **✨ Tuỳ chọn thêm** — `animeCompanion.theme.followCharacter` đổi nhân vật là đổi luôn theme; `animeCompanion.theme.accentColors` nhuộm status bar, tab và nút theo màu nhân vật trên nền theme nào cũng được, không đụng tới màu bạn tự đặt.
+> - **🧹 Gọn hơn** — nút Cài đặt nằm dưới cùng menu tròn, Command Palette chỉ còn 12 lệnh Anime Companion thay vì 39 (phần còn lại vẫn có trong menu của em và bảng cài đặt).
+> - **⏸️ Tạm tắt đi lang thang** — em tạm không đi vào khung code nữa vì lúc được lúc không và còn giật; sẽ mở lại khi làm xong.
+>
+> 🆕 **Mới ở v0.6.1**:
 > - **🚶 Mở nhiều cửa sổ VS Code thì hiện đúng nhân vật** — mở 2–3 cửa sổ mỗi cửa sổ một model khác nhau thì nhân vật đứng trong khung code có thể **bị nhầm sang model khác**: phần wander đọc model từ settings, trong khi cửa sổ có mở thư mục lại được chọn model riêng cho workspace đó. Đã sửa; ảnh cache lưu trước bản này sẽ được chụp lại một lần.
 > - **💾 Cache ảnh không còn phình vô hạn** — trước đây cứ đổi thử một model là để lại một bộ ảnh trên đĩa (~1 MB/model) và **giữ mãi**, đổi thử 100 model là ~96 MB rác. Giờ chỉ giữ **3 model** dùng gần nhất, model đang dùng thì không bao giờ bị xoá.
 > - **🚶 Em đi lang thang, mượt hơn** — lúc rời panel em nhỏ dần xuống rồi mới biến mất, thay vì chỉ mờ đi, nên nhìn là biết em đi đâu. Còn lúc đứng trong khung code thì em hết giật: mọi khung hình giờ cắt theo **một khung chung**, và chuyển giữa các dáng là **mờ chồng** chứ không cắt cứng nữa. Ảnh cache từ v0.6.0 sẽ được chụp lại một lần khi bạn cập nhật.
@@ -409,12 +416,11 @@ Chuột phải lên companion → **Cài đặt** (hoặc chạy `Anime Companio
 | `animeCompanion.hints.enabled` | `true` | Hiện gợi ý khi để yên lâu, chỉ vào chỗ cần nhấn giữ (thân → Trang phục, đầu → Biểu cảm & Motion). |
 | `animeCompanion.hoverReactions.enabled` | `true` | Phản ứng khi dừng chuột trên một bộ phận: biểu cảm, nhãn tên vùng, viền sáng và con trỏ riêng. |
 | `animeCompanion.idleLife.enabled` | `true` | Cử chỉ tự phát giữa các lần tương tác (ngáp, vươn vai, ngó quanh), tuỳ giờ và tâm trạng. |
+| `animeCompanion.theme.followCharacter` | `false` | Đổi nhân vật thì VS Code đổi luôn sang theme của nhân vật đó. Chọn theme bằng tay qua **Anime Companion: Change Theme…** hoặc mục 🎨 Theme trong bảng cài đặt. |
+| `animeCompanion.theme.accentColors` | `false` | Nhuộm status bar, tab đang mở, badge, nút và con trỏ theo màu nhân vật, trên nền theme nào cũng được. Không bao giờ ghi đè màu bạn tự đặt trong `workbench.colorCustomizations`. |
+| `animeCompanion.theme.accentColor` | `""` | Màu nhấn dạng `#RRGGBB`; để trống thì theo nhân vật. |
 | `animeCompanion.dragMomentum.enabled` | `true` | Kéo em thì người nghiêng theo đà, tóc và váy bay trễ lại; thả ra thì lắc lư rồi đứng thẳng. |
 | `animeCompanion.dragMode` | `character` | Kéo thì cái gì di chuyển: nhân vật (thả là về chỗ cũ) hay cả khung panel (ở lại chỗ mới). |
-| `animeCompanion.wander.enabled` | `true` | Để yên vài phút thì em qua khung code đứng chơi một lát rồi tự về panel. |
-| `animeCompanion.wander.idleMinutes` | `3` | Bao nhiêu phút không gõ thì em đi lang thang. |
-| `animeCompanion.wander.staySeconds` | `10` | Em đứng trong khung code bao lâu trước khi về. |
-| `animeCompanion.wander.sizePx` | `300` | Em cao bao nhiêu pixel khi đứng trong khung code. |
 | `animeCompanion.menuStyle` | `radial` | Kiểu menu chuột phải: `radial` (vòng tròn quanh con trỏ) hoặc `list` (menu dọc cũ). |
 | `animeCompanion.showOnStartup` | `true` | Tự hiện panel khi VS Code khởi động. |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Khoảng cách giữa các idle bubble (giây). |

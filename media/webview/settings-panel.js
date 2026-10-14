@@ -15,8 +15,11 @@
   const controls = {};
   /** key -> textarea draft for JSON items; survives rebuilds and broadcasts. */
   const drafts = {};
+  /** Repaints the theme picker in place; set while the picker is on screen. */
+  let pickerSync = null;
   const SECTION_LABEL = {
     model: () => t('sectionModel', 'Model & Appearance'),
+    theme: () => t('sectionTheme', 'Theme'),
     sound: () => t('sectionSound', 'Voice & Sound'),
     messages: () => t('sectionMessages', 'Messages & Reactions'),
     pomodoro: () => t('sectionPomodoro', 'Pomodoro'),
@@ -252,6 +255,92 @@
     return stringControl(item);
   }
 
+  // ---- theme picker ----------------------------------------------------------
+
+  /** One card per character theme: a tiny window mock-up in its colors. */
+  function themePicker() {
+    const grid = el('div', { class: 'theme-grid' });
+    const current = el('div', { class: 'theme-current' });
+    const restore = el('button', { type: 'button', class: 'btn', onclick: () => post('settings:restoreTheme') });
+    const browse = el('button', {
+      type: 'button',
+      class: 'btn',
+      text: t('themeBrowse', 'All VS Code themes…'),
+      onclick: () => post('settings:browseThemes'),
+    });
+    const cards = [];
+
+    function card(theme) {
+      const swatch = el('div', { class: 'theme-swatch' }, [
+        el('span', { class: 'theme-swatch-side' }),
+        el('span', { class: 'theme-swatch-main' }, [
+          el('span', { class: 'theme-swatch-line' }),
+          el('span', { class: 'theme-swatch-line short' }),
+          el('span', { class: 'theme-swatch-line' }),
+        ]),
+        el('span', { class: 'theme-swatch-bar' }),
+      ]);
+      swatch.style.setProperty('--tb-bg', theme.background);
+      swatch.style.setProperty('--tb-side', theme.sidebar);
+      swatch.style.setProperty('--tb-fg', theme.foreground);
+      swatch.style.setProperty('--tb-accent', theme.accent);
+      const badge = el('span', { class: 'chip theme-badge', text: t('themeActive', 'In use') });
+      const button = el('button', {
+        type: 'button',
+        class: 'theme-card',
+        title: theme.label,
+        onclick: () => post('settings:applyTheme', { label: theme.label }),
+      }, [
+        swatch,
+        el('span', { class: 'theme-name' }, [
+          el('span', { class: 'theme-dot' }),
+          el('span', { text: theme.name }),
+          badge,
+        ]),
+      ]);
+      button.querySelector('.theme-dot').style.background = theme.accent;
+      cards.push({ label: theme.label, button, badge });
+      return button;
+    }
+
+    function sync(picker) {
+      if (!picker) return;
+      if (!cards.length) {
+        let group = '';
+        picker.themes.forEach((theme) => {
+          // A heading spanning the grid each time the group changes.
+          if (theme.group !== group) {
+            group = theme.group;
+            grid.appendChild(el('div', {
+              class: 'theme-group',
+              text: group === 'lovely' ? t('themeGroupLovely', 'Lovely') : t('themeGroupCharacter', 'Characters'),
+            }));
+          }
+          grid.appendChild(card(theme));
+        });
+      }
+      cards.forEach((entry) => {
+        const active = entry.label === picker.current;
+        entry.button.classList.toggle('active', active);
+        entry.button.setAttribute('aria-pressed', String(active));
+        entry.badge.hidden = !active;
+      });
+      current.textContent = t('themeCurrent', 'Current theme: {theme}').replace('{theme}', picker.current || '—');
+      restore.hidden = !picker.previous;
+      restore.textContent = t('themeRestore', 'Back to {theme}').replace('{theme}', picker.previous || '');
+    }
+
+    const node = el('div', { class: 'theme-picker' }, [
+      el('div', { class: 'theme-picker-head' }, [
+        el('div', { class: 'item-title', text: t('themePickerTitle', 'Themes') }),
+        el('div', { class: 'item-desc', text: t('themePickerHint', 'Themes for the whole of VS Code: one per character, plus a few lovely light and dark styles. Click one to use it; your previous theme is remembered so you can go back.') }),
+      ]),
+      grid,
+      el('div', { class: 'theme-picker-foot' }, [current, el('div', { class: 'theme-actions' }, [restore, browse])]),
+    ]);
+    return { node, sync };
+  }
+
   // ---- rows / sections -------------------------------------------------------
 
   function itemRow(item) {
@@ -321,6 +410,22 @@
           }),
         ])
       : el('div', { class: 'section-body' }, section.items.map(itemRow));
+    if (section.actions && section.actions.length && !section.command) {
+      body.insertBefore(el('div', { class: 'section-actions' }, section.actions.map((action) =>
+        el('button', {
+          type: 'button',
+          class: 'btn',
+          text: t('action_' + action.id, action.id),
+          onclick: () => post('settings:runAction', { section: section.id, id: action.id }),
+        })
+      )), body.firstChild);
+    }
+    if (section.id === 'theme' && state.themePicker) {
+      const picker = themePicker();
+      picker.sync(state.themePicker);
+      pickerSync = picker.sync;
+      body.insertBefore(picker.node, body.firstChild);
+    }
     return el('section', { class: 'section', id: 'section-' + section.id, 'data-section': section.id }, [head, body]);
   }
 
@@ -344,6 +449,7 @@
 
   function build() {
     for (const key in controls) delete controls[key];
+    pickerSync = null;
     root.innerHTML = '';
 
     const search = el('input', {
@@ -424,13 +530,21 @@
         if (entry) entry.sync(item);
       }
     }
+    if (pickerSync) pickerSync(state.themePicker);
+  }
+
+  function focusSection(id) {
+    const target = document.getElementById('section-' + id);
+    if (!target) return;
+    target.scrollIntoView({ block: 'start' });
+    root.querySelectorAll('.nav-btn').forEach((button) => button.classList.toggle('active', button.getAttribute('data-section') === id));
   }
 
   window.addEventListener('message', (event) => {
     const msg = event.data;
     if (!msg || msg.command !== 'settings:state') return;
     if (msg.strings) S = msg.strings;
-    state = { sections: msg.sections || [] };
+    state = { sections: msg.sections || [], themePicker: msg.themePicker || null };
     const signature = signatureOf(state);
     if (signature !== builtSignature) {
       builtSignature = signature;
@@ -439,6 +553,7 @@
       sync();
       applyFilter();
     }
+    if (msg.focusSection) focusSection(msg.focusSection);
   });
 
   post('settings:ready');

@@ -300,3 +300,74 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   .item-control { justify-content: flex-start; margin-top: 4px; }
   .text { min-width: 0; }
 }
+
+/* ── Theme picker ───────────────────────────────────────────────────────── */
+.theme-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.theme-picker-head .item-desc { margin-top: 4px; }
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+}
+.theme-card:hover { border-color: var(--sakura-line); }
+.theme-card:focus-visible { outline: 2px solid var(--sakura-strong); outline-offset: 2px; }
+.theme-card.active { border-color: var(--sakura-strong); box-shadow: 0 0 0 1px var(--sakura-strong) inset; }
+.theme-swatch {
+  position: relative;
+  display: flex;
+  height: 64px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--tb-bg);
+}
+.theme-swatch-side { width: 22%; background: var(--tb-side); border-right: 2px solid var(--tb-accent); }
+.theme-swatch-main { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 10px 8px; }
+.theme-swatch-line { height: 4px; width: 80%; border-radius: 2px; background: var(--tb-fg); opacity: 0.55; }
+.theme-swatch-line:first-child { background: var(--tb-accent); opacity: 1; width: 55%; }
+.theme-swatch-line.short { width: 40%; }
+.theme-swatch-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--tb-accent); }
+.theme-name { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.theme-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.theme-badge { margin-left: auto; }
+.theme-picker-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.theme-current { color: var(--muted); font-size: 12px; }
+.theme-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.theme-group {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}

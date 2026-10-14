@@ -3,6 +3,41 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-10-14
+
+### Added — 🎨 Themes for the whole of VS Code
+
+- **Four color themes ship with the extension, one per built-in character:** Hiyori Sakura, Haru Sky, Mao Shrine and Miara Magic. Each is a full dark theme (workbench and syntax) in that character's colors, listed in VS Code's own theme picker.
+- **Six lovely style themes besides:** Strawberry Milk, Peach Latte, Lavender Milk and Matcha Mochi (light), Cotton Candy and Midnight Bunny (dark). Syntax colors on the light ones are held to a 4.5:1 contrast with the background, comments to 3:1.
+- All ten palettes live in one place, [src/bundled-themes.ts](src/bundled-themes.ts); `npm run themes:generate` writes [themes/](themes/) from it, and the test fails if the two drift apart.
+- **A 🎨 Theme section in the settings panel** with a card per theme (a small preview in its colors), a "Back to <your theme>" button and a shortcut to VS Code's full theme list. The same choices are in the new **Anime Companion: Change Theme…** command, and in a new 🎨 Theme entry of the right-click menu, which opens two columns beside the character — character themes on the left with "Previous theme" and "All themes…", the lovely ones on the right. Each row carries a tiny preview in the theme's colors, the active one is marked, and the columns stay open so themes can be compared click after click.
+  - **Your own theme is remembered.** The first switch to a character theme stores what you had, and hopping between character themes keeps that, so "Back to" always returns to your theme, not the previous character's.
+  - **A workspace that pins its own theme is reported**, instead of the switch silently doing nothing in that window.
+- **`animeCompanion.theme.followCharacter`** (off by default): switching characters switches the theme too. Custom models have no theme and leave yours alone. Only the focused window acts, so several windows on different characters do not fight over the shared setting.
+- **`animeCompanion.theme.accentColors`** (off by default): a tint in the character's color — status bar, active tab, badges, buttons, cursor — laid over *any* theme through `workbench.colorCustomizations`. It never overwrites a color you set there yourself, a key you edit afterwards becomes yours, and turning it off removes exactly what it added; theme-scoped blocks are left untouched ([src/theme-colors.ts](src/theme-colors.ts)). **`animeCompanion.theme.accentColor`** sets a fixed `#RRGGBB` instead of following the character.
+
+### Added — 💬 She reacts to the theme, and wears its colors
+
+- **Switching to a bundled theme gets a line from her:** happy when it is her own character theme, a little jealous for another character's, and a line of its own for each lovely theme. It fires once per switch wherever the switch was made — the side columns, the settings panel or VS Code's own picker — and only in the focused window.
+- **The companion's chrome follows the theme.** Speech bubble, radial menu, side columns and chat accents used fourteen hard-coded pinks; they are now CSS variables whose defaults are those same pinks, and a bundled theme re-tints them by rotating each shade's hue to the theme's accent and scaling its saturation, keeping its lightness — the dark bubble stays dark, the pale fill stays pale ([media/webview/accent.js](media/webview/accent.js)). Any theme we do not ship keeps the original pink.
+
+### Fixed — 🐾 Cursor chibi follows a workspace-pinned model
+
+- **In a window with its own pinned model, the cursor chibi showed — and "Reset Captured Chibi" deleted — the globally configured model's capture,** because it read plain settings while captures are filed under the model the window shows. It now resolves the model the same way the panel does, and refreshes when a workspace pin changes, which fires no settings event ([src/cursor-chibi.ts](src/cursor-chibi.ts)).
+
+### Changed — 🧹 A shorter Command Palette
+
+- **Typing "Anime Companion" in the Command Palette now lists 12 commands instead of 39:** Show, Toggle, Open Settings, Change Model, Change Theme…, Toggle Mute, Start / Stop Pomodoro, Open Chat, Ask Companion About Selection, Reset Companion Position and Background Image: Disable & Restore (kept as the way out if the background patch misbehaves). The rest — voice, message language, stats, achievements, quests, profile, share card, motions, cursor chibi, chat housekeeping, agent accounts, background panel — are still there in the right-click menu and the settings panel, which is where they were used from; they are hidden from the palette only, still registered, and still bindable to a key.
+- **Reset Captured Chibi moved to the settings panel,** as a button at the top of the 🐥 Cursor Chibi section — it had no other way in. It asks before deleting the captured image.
+
+### Changed — ⚙️ Settings sits at the bottom of the radial menu
+
+- **The ring now always puts Settings at six o'clock,** opposite Run at the top, however many categories it holds — before, it was simply last and landed wherever the count put it (top-left with nine entries) ([media/webview/interaction.js](media/webview/interaction.js)).
+
+### Changed — 🚶 The wander is switched off for now
+
+- **She no longer leaves her panel for the editor.** The visit was unreliable — sometimes she arrived, sometimes she did not — and it stuttered while she was there. The feature is disabled behind a code switch until it is reworked, and its four `animeCompanion.wander.*` settings are hidden meanwhile; a value you set earlier is simply ignored ([src/wander.ts](src/wander.ts)).
+
 ## [0.6.1] - 2026-09-12
 
 ### Fixed — 🚶 She shows the right character when several windows are open

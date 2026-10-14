@@ -215,6 +215,14 @@ async function main() {
       assert.ok(registeredCommands.has(command), `Missing registered command: ${command}`);
     }
 
+    // Commands hidden from the Command Palette are still run by the companion's
+    // menus and panels, so each must name a real, registered command.
+    const contributed = new Set(packageJson.contributes.commands.map((entry) => entry.command));
+    for (const entry of packageJson.contributes.menus.commandPalette || []) {
+      assert.ok(contributed.has(entry.command), `commandPalette hides an unknown command: ${entry.command}`);
+      assert.ok(registeredCommands.has(entry.command), `Hidden command is not registered: ${entry.command}`);
+    }
+
     extension.deactivate();
     console.log('[smoke-test] Activation and command registration passed.');
   } finally {

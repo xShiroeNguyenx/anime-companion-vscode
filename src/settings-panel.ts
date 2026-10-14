@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { log } from './log';
 import { getMessageBank } from './messages';
+import type { ThemeManager } from './theme-manager';
 
 /**
  * Settings panel — the extension's own, grouped settings page.
@@ -47,6 +48,12 @@ interface SectionDef {
   match: RegExp;
   /** A section whose settings live in another panel shows a button instead of items. */
   command?: string;
+  /**
+   * One-off commands shown as buttons above the section's settings. The
+   * label comes from settingsPanel strings under `action_<id>`; `confirm`
+   * asks first (a modal, host-side) for anything that throws work away.
+   */
+  actions?: Array<{ id: string; command: string; confirm?: boolean }>;
 }
 
 // Order is the order on screen; a key lands in the first section it matches.
@@ -54,8 +61,9 @@ const SECTIONS: SectionDef[] = [
   {
     id: 'model',
     icon: '🎭',
-    match: /^(model$|customModelRoots|customModels|expressionMap|modelDownloadBaseUrl|characterSize|showOnStartup|focusFollow\.|menuStyle|hints\.|hoverReactions\.|idleLife\.|dragMomentum\.|dragMode|wander\.)/,
+    match: /^(model$|customModelRoots|customModels|expressionMap|modelDownloadBaseUrl|characterSize|showOnStartup|focusFollow\.|menuStyle|hints\.|hoverReactions\.|idleLife\.|dragMomentum\.|dragMode)/,
   },
+  { id: 'theme', icon: '🎨', match: /^theme\./ },
   { id: 'sound', icon: '🔊', match: /^(voiceLanguage|muted|ambientPreset|ambientVolume|customAmbientTracks|voiceAssets\.)/ },
   {
     id: 'messages',
@@ -63,7 +71,12 @@ const SECTIONS: SectionDef[] = [
     match: /^(messageLanguage|messageIntervalMin|messageIntervalMax|quietHours|customPhrases\.|customKeywords|reactive\.|breakReminderMinutes)/,
   },
   { id: 'pomodoro', icon: '🍅', match: /^pomodoro/ },
-  { id: 'chibi', icon: '🐥', match: /^cursorChase\./ },
+  {
+    id: 'chibi',
+    icon: '🐥',
+    match: /^cursorChase\./,
+    actions: [{ id: 'resetCapturedChibi', command: 'animeCompanion.resetCapturedChibi', confirm: true }],
+  },
   { id: 'chat', icon: '🤖', match: /^chat\./ },
   { id: 'desktop', icon: '🖥️', match: /^desktopCompanion\./ },
   { id: 'background', icon: '🖼️', match: /^background\./, command: 'animeCompanion.openBackgroundSettings' },
@@ -93,8 +106,13 @@ function primaryType(schema: SettingSchema): SettingItem['type'] {
 export class SettingsPanel {
   private static _current: SettingsPanel | undefined;
 
-  static reveal(context: vscode.ExtensionContext): void {
+  /**
+   * @param focusSection Section id to scroll to once the panel has drawn,
+   *   e.g. 'theme' from the Change Theme quick pick.
+   */
+  static reveal(context: vscode.ExtensionContext, themes?: ThemeManager, focusSection?: string): void {
     if (SettingsPanel._current) {
+      SettingsPanel._current._focusSection = focusSection;
       SettingsPanel._current._panel.reveal(vscode.ViewColumn.Active);
       SettingsPanel._current._broadcast();
       return;
@@ -110,22 +128,30 @@ export class SettingsPanel {
         localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
       }
     );
-    SettingsPanel._current = new SettingsPanel(panel, context);
+    SettingsPanel._current = new SettingsPanel(panel, context, themes);
+    SettingsPanel._current._focusSection = focusSection;
   }
 
   private readonly _disposables: vscode.Disposable[] = [];
   private _broadcastTimer: NodeJS.Timeout | undefined;
+  /** Sent with the next state message, then cleared. */
+  private _focusSection: string | undefined;
 
   private constructor(
     private readonly _panel: vscode.WebviewPanel,
-    private readonly _context: vscode.ExtensionContext
+    private readonly _context: vscode.ExtensionContext,
+    private readonly _themes?: ThemeManager
   ) {
     this._panel.webview.html = this._renderHtml();
     this._panel.onDidDispose(() => this._dispose(), null, this._disposables);
     this._panel.webview.onDidReceiveMessage((m) => this._handleMessage(m), null, this._disposables);
     this._disposables.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('animeCompanion')) this._broadcast();
+        // The theme picker shows which theme is active, so a switch made from
+        // VS Code's own picker has to repaint it too.
+        if (e.affectsConfiguration('animeCompanion') || e.affectsConfiguration('workbench.colorTheme')) {
+          this._broadcast();
+        }
       })
     );
   }
@@ -201,6 +227,7 @@ export class SettingsPanel {
       id: section.id,
       icon: section.icon,
       command: section.command,
+      actions: (section.actions ?? []).map((action) => ({ id: action.id })),
       items: [] as SettingItem[],
     }));
     for (const key of Object.keys(schemas)) {
@@ -214,7 +241,10 @@ export class SettingsPanel {
       command: 'settings:state',
       strings: getMessageBank().getWebviewStrings().settingsPanel ?? {},
       sections: sections.filter((section) => section.items.length > 0 || section.command),
+      themePicker: this._themes?.pickerState(),
+      focusSection: this._focusSection,
     });
+    this._focusSection = undefined;
   }
 
   // ---- messages --------------------------------------------------------------
@@ -241,6 +271,36 @@ export class SettingsPanel {
         case 'settings:openJson':
           await vscode.commands.executeCommand('workbench.action.openSettingsJson');
           return;
+        case 'settings:applyTheme':
+          if (typeof msg.label === 'string' && this._themes) await this._themes.applyTheme(msg.label);
+          this._broadcast();
+          return;
+        case 'settings:restoreTheme':
+          if (this._themes) await this._themes.restorePrevious();
+          this._broadcast();
+          return;
+        case 'settings:browseThemes':
+          await vscode.commands.executeCommand('workbench.action.selectTheme');
+          return;
+        case 'settings:runAction': {
+          // Only an action a section declares — the webview names it, the host maps it.
+          const action = SECTIONS.find((entry) => entry.id === msg.section)?.actions?.find(
+            (entry) => entry.id === msg.id
+          );
+          if (!action) return;
+          if (action.confirm) {
+            const strings = getMessageBank().getWebviewStrings().settingsPanel ?? {};
+            const yes = strings.confirmYes || 'Continue';
+            const choice = await vscode.window.showWarningMessage(
+              strings['confirm_' + action.id] || 'Are you sure?',
+              { modal: true },
+              yes
+            );
+            if (choice !== yes) return;
+          }
+          await vscode.commands.executeCommand(action.command);
+          return;
+        }
         case 'settings:openSection': {
           // Only the commands a section card declares — never an arbitrary one from the webview.
           const section = SECTIONS.find((entry) => entry.id === msg.id && entry.command);

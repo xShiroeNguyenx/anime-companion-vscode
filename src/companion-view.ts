@@ -25,6 +25,7 @@ import { getStoredPanelPosition, savePanelPosition } from './companion-position'
 import { setWorkspaceModel } from './models';
 import { ChatManager } from './chat/chat-manager';
 import type { CursorChibiTuningState } from './cursor-chibi';
+import { BUNDLED_THEMES } from './bundled-themes';
 
 export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'animeCompanion.live2dView';
@@ -570,6 +571,20 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     const idleLife = config.get<boolean>('idleLife.enabled', true);
     const dragMomentum = config.get<boolean>('dragMomentum.enabled', true);
     const dragMode = config.get<string>('dragMode', 'character');
+    // The theme columns: what ships, and which one is on so it can be marked.
+    const themeChoices = BUNDLED_THEMES.map((theme) => ({
+      id: theme.id,
+      label: theme.label,
+      name: theme.name,
+      group: theme.group,
+      type: theme.type,
+      modelId: theme.modelId,
+      bg: theme.palette.bg,
+      side: theme.palette.bgDeep,
+      fg: theme.palette.fg,
+      accent: theme.palette.accent,
+    }));
+    const colorTheme = vscode.workspace.getConfiguration('workbench').get<string>('colorTheme', '');
     const customAmbientTracks = this._getCustomAmbientTracks();
     const ambientPreset = getAmbientPreset(config.get<string>('ambientPreset', 'off'), customAmbientTracks);
     const ambientVolume = config.get<number>('ambientVolume', 30);
@@ -800,6 +815,8 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__AUDIO_MUTED__ = ${muted ? 'true' : 'false'};
     window.__FOCUS_FOLLOW__ = ${focusFollow ? 'true' : 'false'};
     window.__MENU_STYLE__ = ${JSON.stringify(menuStyle)};
+    window.__BUNDLED_THEMES__ = ${JSON.stringify(themeChoices)};
+    window.__COLOR_THEME__ = ${JSON.stringify(colorTheme)};
     window.__HINTS_ENABLED__ = ${hintsEnabled ? 'true' : 'false'};
     window.__HOVER_REACTIONS__ = ${hoverReactions ? 'true' : 'false'};
     window.__IDLE_LIFE__ = ${idleLife ? 'true' : 'false'};

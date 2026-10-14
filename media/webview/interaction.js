@@ -5,6 +5,7 @@ import { expressionNames, faceNames, updateModelExpressionTick } from './model-e
 import { idleMotionGroup, motionGroups } from './motions.js';
 import { playAudio, setAmbientPreset, setGlobalAudioMuted } from './audio.js';
 import { createRadialMenu } from './radial-menu.js';
+import { applyThemeAccent } from './accent.js';
 import { hideHint, initHints, noteHoldUsed, noteInteraction } from './hints.js';
 import { clearHover, initHover, noteHoverMove } from './hover.js';
 import { endSway, initSway, startSway, updateSway } from './sway.js';
@@ -1010,6 +1011,13 @@ function setupCompactContextMenu() {
   // Set below when the radial style is active; null keeps the list menus.
   let radialMenu = null;
 
+  // Color themes for the whole of VS Code open as two columns beside her. The
+  // host lists the themes it ships; the desktop pet has none, so the entry is
+  // left out there.
+  const themeEntry = bundledThemes().length === 0
+    ? null
+    : { icon: '🎨', label: t('menu.themeCategory', 'Theme'), action: 'open-theme-panel' };
+
   // Functional categories per roadmap v0.4.0 §4.1. Each category produces one
   // submenu; the main menu just lists categories + a couple of quick actions.
   const categories = [
@@ -1129,6 +1137,9 @@ function setupCompactContextMenu() {
       <span style="font-size: 11px;">🚀</span> ${t('menu.run', 'Run')}
     </div>
     ${categoryRowsHtml}
+    ${themeEntry ? `<div class="companion-menu-item" data-action="open-theme-panel">
+      <span style="font-size: 11px;">🎨</span> ${themeEntry.label}
+    </div>` : ''}
     <div class="companion-menu-separator"></div>
     <div class="companion-menu-item" data-action="open-all-settings">
       <span style="font-size: 11px;">⚙️</span> ${t('menu.allSettings', 'All Settings')}
@@ -1273,6 +1284,9 @@ function setupCompactContextMenu() {
         ? t('bubbles.clickThroughOn', 'Em ẩn dạng thôi nha~ click vào em sẽ xuyên qua app phía sau! 👻')
         : t('bubbles.clickThroughOff', 'Em quay lại rồi nè~ click được lên em rồi! ✨'));
       vscode.postMessage({ command: 'setClickThrough', value: nextClickThrough });
+    } else if (action === 'open-theme-panel') {
+      showBubble(t('bubbles.themePanel', 'Chọn màu cho cả VS Code nha~ 🎨'));
+      showThemePanel();
     } else if (action === 'open-all-settings') {
       showBubble(t('bubbles.settings', 'Mở Settings ra cho Onii-chan liền nha~ ⚙️'));
       vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.openSettings' });
@@ -1341,12 +1355,23 @@ function setupCompactContextMenu() {
     createSparkle();
   }, true);
 
+  /**
+   * The ring starts at the top (Run) and goes clockwise, so the entry halfway
+   * round sits at the bottom. Settings is put exactly there — the one entry
+   * people look for by position — however many categories the ring holds.
+   */
+  function withSettingsAtBottom(items, settings) {
+    const out = items.slice();
+    out.splice(Math.floor((items.length + 1) / 2), 0, settings);
+    return out;
+  }
+
   // The radial style is the default; the classic list stays one setting away
   // (`animeCompanion.menuStyle: "list"`). Both drive the same handleMenuAction,
   // so the ring is only a different shell over the same entries.
   if (window.__MENU_STYLE__ !== 'list') {
     radialMenu = createRadialMenu({
-      getItems: () => [
+      getItems: () => withSettingsAtBottom([
         { icon: '🚀', label: t('menu.run', 'Run'), action: 'start-server' },
         ...categories.map((cat) => ({
           id: cat.id,
@@ -1365,9 +1390,8 @@ function setupCompactContextMenu() {
               : item.label,
             action: item.action,
           })),
-        })),
-        { icon: '⚙️', label: t('menu.allSettings', 'All Settings'), action: 'open-all-settings' },
-      ],
+        })).flatMap((entry) => (entry.id === 'appearance' && themeEntry ? [entry, themeEntry] : [entry])),
+      ], { icon: '⚙️', label: t('menu.allSettings', 'All Settings'), action: 'open-all-settings' }),
       onAction: handleMenuAction,
       labels: {
         title: t('menu.radialTitle', 'Menu'),
@@ -1696,6 +1720,11 @@ function setupSidePanel() {
       vscode.postMessage({ command: 'setShowcaseAchievement', id: active ? null : id });
       return;
     }
+    const themeOption = e.target.closest('.companion-theme-option');
+    if (themeOption) {
+      chooseTheme(themeOption);
+      return;
+    }
     const model = e.target.closest('.companion-model-option');
     if (model) {
       const modelId = model.getAttribute('data-model');
@@ -1990,6 +2019,122 @@ function showExpressionPanel() {
     const title = t('panels.expressionTitle', 'Biểu cảm');
     return { left: { title, rows: leftRows }, right: { title, rows: rightRows } };
   });
+}
+
+// ─── Color themes ─────────────────────────────────────────────────────────
+
+/** Themes the host ships, as injected into the page (none in the desktop pet). */
+function bundledThemes() {
+  return Array.isArray(window.__BUNDLED_THEMES__) ? window.__BUNDLED_THEMES__ : [];
+}
+
+function themeRow(theme) {
+  const active = theme.label === window.__COLOR_THEME__;
+  const mode = theme.type === 'light' ? t('panels.themeLight', '☀ Sáng') : t('panels.themeDark', '☾ Tối');
+  return (
+    `<button class="companion-theme-option${active ? ' active' : ''}" data-theme-id="${escapeHtml(theme.id)}" title="${escapeHtml(theme.label)}">` +
+    `<span class="companion-theme-swatch" style="--sw-bg:${escapeHtml(theme.bg)};--sw-side:${escapeHtml(theme.side)};--sw-fg:${escapeHtml(theme.fg)};--sw-accent:${escapeHtml(theme.accent)}"></span>` +
+    `<span class="companion-theme-text">` +
+    `<span class="companion-theme-label">${escapeHtml(theme.name)}</span>` +
+    `<span class="companion-theme-desc">${active ? t('panels.themeActive', '✓ Đang dùng') : mode}</span>` +
+    `</span></button>`
+  );
+}
+
+function themeActionRow(action, icon, label) {
+  return (
+    `<button class="companion-theme-option companion-theme-action" data-theme-action="${action}">` +
+    `<span class="companion-theme-icon">${icon}</span>` +
+    `<span class="companion-theme-text"><span class="companion-theme-label">${escapeHtml(label)}</span></span>` +
+    `</button>`
+  );
+}
+
+/** Character themes on the left, the lovely ones on the right. */
+function renderThemeColumns() {
+  const themes = bundledThemes();
+  return {
+    left: {
+      title: t('panels.themeCharacters', 'Nhân vật'),
+      rows: [
+        ...themes.filter((theme) => theme.group === 'character').map(themeRow),
+        themeActionRow('restore', '↩', t('panels.themeRestore', 'Theme trước đó')),
+        themeActionRow('browse', '🖌', t('panels.themeBrowse', 'Tất cả theme…')),
+      ],
+    },
+    right: {
+      title: t('panels.themeLovely', 'Lovely'),
+      rows: themes.filter((theme) => theme.group === 'lovely').map(themeRow),
+    },
+  };
+}
+
+function showThemePanel() {
+  showSidePanel(renderThemeColumns);
+}
+
+function chooseTheme(row) {
+  const action = row.getAttribute('data-theme-action');
+  if (action === 'restore') {
+    vscode.postMessage({ command: 'runCommand', action: 'animeCompanion.restorePreviousTheme' });
+    return;
+  }
+  if (action === 'browse') {
+    vscode.postMessage({ command: 'runCommand', action: 'workbench.action.selectTheme' });
+    return;
+  }
+  const theme = bundledThemes().find((entry) => entry.id === row.getAttribute('data-theme-id'));
+  if (!theme) return;
+  vscode.postMessage({ command: 'applyBundledTheme', id: theme.id });
+  // Marked at once; the host confirms with colorThemeChanged a moment later.
+  // The panel stays open so themes can be compared one click after another.
+  // She speaks when the host confirms the switch (setActiveColorTheme), so a
+  // theme picked anywhere — here, the settings panel, VS Code's own picker —
+  // gets the same reaction exactly once.
+  window.__COLOR_THEME__ = theme.label;
+  applyThemeAccent(theme.label, bundledThemes());
+  refreshSidePanel();
+  createSparkle();
+}
+
+/** The theme she last reacted to; starts as the one the page loaded with. */
+let announcedTheme = null;
+
+/** Tints the chrome to the theme the page loaded with, silently. */
+export function initThemeAccent() {
+  announcedTheme = window.__COLOR_THEME__ || '';
+  applyThemeAccent(announcedTheme, bundledThemes());
+}
+
+/**
+ * Her line for a theme we ship: her own colors make her happy, another
+ * character's make her a little jealous, the lovely ones each get their own.
+ */
+function reactToTheme(theme) {
+  if (theme.group === 'character') {
+    if (theme.modelId === window.__MODEL_ID__) {
+      setExpression('happy', 3000);
+      return t('bubbles.themeOwn', 'Màu của em đó! Onii-chan chọn đúng gu em luôn~ 💕');
+    }
+    setExpression('angry', 2500);
+    return t('bubbles.themeOtherCharacter', 'Màu của {name} hả... em hơi ghen đó nha~ 😤').replace('{name}', theme.name);
+  }
+  return t('bubbles.theme_' + theme.id, t('bubbles.changeTheme', 'Đổi màu cả VS Code theo em nha~ 🎨'));
+}
+
+/**
+ * The host reports the active theme, wherever it was changed. Only the
+ * focused window answers out loud, so three open windows do not all chatter
+ * about one switch.
+ */
+export function setActiveColorTheme(label, focused) {
+  window.__COLOR_THEME__ = typeof label === 'string' ? label : '';
+  applyThemeAccent(window.__COLOR_THEME__, bundledThemes());
+  if (sidePanelRenderer === renderThemeColumns) refreshSidePanel();
+  if (window.__COLOR_THEME__ === announcedTheme) return;
+  announcedTheme = window.__COLOR_THEME__;
+  const theme = bundledThemes().find((entry) => entry.label === window.__COLOR_THEME__);
+  if (theme && focused !== false) showBubble(reactToTheme(theme));
 }
 
 // ─── Motions ──────────────────────────────────────────────────────────────

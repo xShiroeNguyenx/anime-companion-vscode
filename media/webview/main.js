@@ -25,7 +25,10 @@ import {
   finishQuickChatHistoryTurn,
   failQuickChatHistoryTurn,
 } from './ui.js';
-import { announceModelInventory, applyShowcaseBanner, openShareCardPreview, receiveShareCardSaveResult, renderAgentAvailableTools, renderAgentProfileList, setupModel, showAchievementUnlockEffect, showAchievementsPanel, updateAchievementsPanelData } from './interaction.js';
+import { announceModelInventory, applyShowcaseBanner, openShareCardPreview, receiveShareCardSaveResult, renderAgentAvailableTools, renderAgentProfileList, initThemeAccent, setActiveColorTheme, setupModel, showAchievementUnlockEffect, showAchievementsPanel, updateAchievementsPanelData } from './interaction.js';
+
+// Before the model loads: the bubbles and menus should not flash pink first.
+initThemeAccent();
 
 function disposeCurrentModel() {
   state.isLive2DReady = false;
@@ -208,6 +211,9 @@ window.addEventListener('message', (event) => {
     }
     case 'setAchievementsData':
       updateAchievementsPanelData(event.data.achievements || []);
+      break;
+    case 'colorThemeChanged':
+      setActiveColorTheme(event.data.theme, event.data.focused);
       break;
     case 'setShowcase':
       applyShowcaseBanner(event.data.showcase || null);

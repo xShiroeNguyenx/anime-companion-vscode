@@ -400,7 +400,7 @@
 
 .chat-msg-body {
   position: relative;
-  background: linear-gradient(135deg, rgba(255, 208, 226, 0.95), rgba(255, 183, 213, 0.95));
+  background: linear-gradient(135deg, rgba(255, 208, 226, 0.95), rgba(var(--tint-soft), 0.95));
   color: var(--ac-pink-3);
   padding: 9px 12px;
   border-radius: 14px;
@@ -897,7 +897,7 @@
   padding: 0;
   background: rgba(255, 255, 255, 0.55);
   color: var(--ac-pink-3);
-  border: 1px solid rgba(255, 150, 190, 0.35);
+  border: 1px solid rgba(var(--tint), 0.35);
   border-radius: 6px;
   cursor: pointer;
   opacity: 0;

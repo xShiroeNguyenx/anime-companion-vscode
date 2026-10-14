@@ -16,7 +16,7 @@ import { DesktopPetDownloader } from './desktop-pet-downloader';
 import { VoiceAssetDownloader } from './voice-asset-downloader';
 import { AnimeCompanionViewProvider } from './companion-view';
 import { CursorChibiManager } from './cursor-chibi';
-import { WanderManager } from './wander';
+import { WANDER_AVAILABLE, WanderManager } from './wander';
 import { DesktopPetBridge } from './desktop-pet-bridge';
 import { initMessageBank } from './messages';
 import { ACHIEVEMENT_COUNT, AchievementDef, buildAchievementPanelData, buildAchievementQuickPickRows, buildCompanionProfile, buildQuestQuickPickRows, QuestDef, StatsStore } from './stats';
@@ -34,6 +34,7 @@ import { GitHubAccountService } from './github-account-service';
 import { BackgroundPatchManager } from './background/background-patch-manager';
 import { BackgroundPanel } from './background/background-panel';
 import { SettingsPanel } from './settings-panel';
+import { ThemeManager } from './theme-manager';
 import { MarkdownEditorPanel } from './markdown/markdown-editor-panel';
 import { MarkdownStatusBar } from './markdown/markdown-status-bar';
 
@@ -424,6 +425,14 @@ export async function activate(context: vscode.ExtensionContext) {
   // panel sprite and to ask for animation frames, wired once a host exists.
   const wander = new WanderManager(context);
   context.subscriptions.push(wander);
+  // Character color themes and the accent tint; follows the model on screen.
+  const themeManager = new ThemeManager(context);
+  context.subscriptions.push(themeManager);
+  themeManager.activate();
+  onModelChanged = () => {
+    themeManager.onModelChanged();
+    cursorChibi.onModelChanged();
+  };
 
   // Workbench background-image feature: patches workbench.desktop.main.js to
   // render an image behind the editor/sidebar/panel, driven by a dedicated
@@ -610,8 +619,13 @@ export async function activate(context: vscode.ExtensionContext) {
     // Frames captured from the previous character are of nobody this window
     // shows any more: without this she keeps standing in the editor as the old
     // model while the panel already shows the new one.
-    onModelChanged = () => wander.forgetFrames();
-    wander.activate();
+    onModelChanged = () => {
+      wander.forgetFrames();
+      themeManager.onModelChanged();
+      cursorChibi.onModelChanged();
+    };
+    // Temporarily disabled (see WANDER_AVAILABLE): no listeners, no captures.
+    if (WANDER_AVAILABLE) wander.activate();
 
     // The view's `when: animeCompanion.visible` clause hides it from the
     // panel container until this context flag is true. The flag does NOT
@@ -629,6 +643,15 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(statusBar);
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
+      // The theme columns mark the active theme; keep the mark in step with a
+      // switch made anywhere (the columns, the settings panel, VS Code's own picker).
+      if (event.affectsConfiguration('workbench.colorTheme')) {
+        host.postMessage({
+          command: 'colorThemeChanged',
+          theme: vscode.workspace.getConfiguration('workbench').get<string>('colorTheme', ''),
+          focused: vscode.window.state.focused,
+        });
+      }
       if (
         event.affectsConfiguration('animeCompanion.model') ||
         event.affectsConfiguration('animeCompanion.desktopCompanion.model')
@@ -1142,8 +1165,22 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('animeCompanion.openSettings', () => {
       // The companion's own grouped settings page; it links back to the
       // native Settings UI and settings.json for anything unusual.
-      SettingsPanel.reveal(context);
+      SettingsPanel.reveal(context, themeManager);
     }),
+    // Internal (not in the palette): the radial menu's theme entries.
+    vscode.commands.registerCommand('animeCompanion.applyBundledTheme', (label: unknown) =>
+      typeof label === 'string' ? themeManager.applyTheme(label) : false
+    ),
+    vscode.commands.registerCommand('animeCompanion.restorePreviousTheme', async () => {
+      if (await themeManager.restorePrevious()) return;
+      const strings = messageBank.getWebviewStrings().settingsPanel ?? {};
+      void vscode.window.showInformationMessage(
+        strings.themeNothingToRestore || 'There is no earlier theme to go back to — pick one from the full list instead.'
+      );
+    }),
+    vscode.commands.registerCommand('animeCompanion.changeTheme', () =>
+      themeManager.showQuickPick(() => SettingsPanel.reveal(context, themeManager, 'theme'))
+    ),
     vscode.commands.registerCommand('animeCompanion.resetPosition', async () => {
       if (desktopPetEnabled) {
         vscode.window.showInformationMessage(

@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -61,6 +61,7 @@
     "media/messages/**",
     "media/voice/**",
     "media/webview/**",
+    "themes/**",
     "desktop-pet/web/**",
     "node_modules/adm-zip/**",
     "node_modules/ws/**",
@@ -72,7 +73,64 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "themes": [
+      {
+        "label": "Anime Companion: Hiyori Sakura",
+        "uiTheme": "vs-dark",
+        "path": "./themes/hiyori-sakura-color-theme.json"
+      },
+      {
+        "label": "Anime Companion: Haru Sky",
+        "uiTheme": "vs-dark",
+        "path": "./themes/haru-sky-color-theme.json"
+      },
+      {
+        "label": "Anime Companion: Mao Shrine",
+        "uiTheme": "vs-dark",
+        "path": "./themes/mao-shrine-color-theme.json"
+      },
+      {
+        "label": "Anime Companion: Miara Magic",
+        "uiTheme": "vs-dark",
+        "path": "./themes/miara-magic-color-theme.json"
+      },
+      {
+        "label": "Anime Companion: Strawberry Milk",
+        "uiTheme": "vs",
+        "path": "./themes/strawberry-milk-color-theme.json"
+      },
+      {
+        "label": "Anime Companion: Peach Latte",
+        "uiTheme": "vs",
+        "path": "./themes/peach-latte-color-theme.json"
+      },
+      {
+        "label": "Anime Companion: Lavender Milk",
+        "uiTheme": "vs",
+        "path": "./themes/lavender-milk-color-theme.json"
+      },
+      {
+        "label": "Anime Companion: Matcha Mochi",
+        "uiTheme": "vs",
+        "path": "./themes/matcha-mochi-color-theme.json"
+      },
+      {
+        "label": "Anime Companion: Cotton Candy",
+        "uiTheme": "vs-dark",
+        "path": "./themes/cotton-candy-color-theme.json"
+      },
+      {
+        "label": "Anime Companion: Midnight Bunny",
+        "uiTheme": "vs-dark",
+        "path": "./themes/midnight-bunny-color-theme.json"
+      }
+    ],
     "commands": [
+      {
+        "command": "animeCompanion.changeTheme",
+        "title": "Change Theme…",
+        "category": "Anime Companion"
+      },
       {
         "command": "animeCompanion.show",
         "title": "Anime Companion: Show"
@@ -301,6 +359,116 @@
           "when": "resourceExtname == .md",
           "group": "navigation@-100"
         }
+      ],
+      "commandPalette": [
+        {
+          "command": "animeCompanion.hide",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.openMarkdownEditor",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.changeVoice",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.changeMessageLanguage",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.showStats",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.showAchievements",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.showQuests",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.showProfile",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.exportShareCard",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.playMotion",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.resetWorkspaceModel",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.toggleCursorChase",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.toggleDesktopClickThrough",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.tuneCursorChibi",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.captureModelToChibi",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.resetCapturedChibi",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.chat.setApiKey",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.chat.newConversation",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.chat.clearHistory",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.agentProfile.showPanel",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.agentProfile.save",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.agentProfile.list",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.agentProfile.use",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.agentProfile.delete",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.githubAccount.switch",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.openBackgroundSettings",
+          "when": "false"
+        },
+        {
+          "command": "animeCompanion.background.apply",
+          "when": "false"
+        }
       ]
     },
     "configuration": {
@@ -365,31 +533,22 @@
           "default": true,
           "description": "Between interactions the companion does small things of her own — yawns, stretches, looks around, tilts her head, glances over at you — every 40 to 90 seconds. Sleepy ones are more likely late at night, and nothing plays while a panel, menu or the chat is open."
         },
-        "animeCompanion.wander.enabled": {
+        "animeCompanion.theme.followCharacter": {
           "type": "boolean",
-          "default": true,
-          "description": "After a while with no typing the companion fades out of her panel and appears at the edge of your code for a few seconds, then goes home. Any typing, cursor movement or file switch brings her back immediately."
+          "default": false,
+          "description": "When you switch characters, switch VS Code's color theme to that character's theme too. Custom models have no theme of their own and leave the current theme as it is. The theme you had before is remembered, so \"Change Theme…\" can take you back."
         },
-        "animeCompanion.wander.idleMinutes": {
-          "type": "number",
-          "minimum": 0.5,
-          "maximum": 120,
-          "default": 3,
-          "description": "Minutes of no typing before the companion wanders into the editor."
+        "animeCompanion.theme.accentColors": {
+          "type": "boolean",
+          "default": false,
+          "description": "Tint the status bar, active tab, badges, buttons and cursor in the character's color, on top of whatever theme you use. Writes to workbench.colorCustomizations but never overwrites a color you set there yourself, and turning it off removes exactly what it added."
         },
-        "animeCompanion.wander.staySeconds": {
-          "type": "number",
-          "minimum": 2,
-          "maximum": 120,
-          "default": 10,
-          "description": "How long the companion stands in the editor before returning to her panel."
-        },
-        "animeCompanion.wander.sizePx": {
-          "type": "number",
-          "minimum": 16,
-          "maximum": 480,
-          "default": 300,
-          "description": "How tall the companion is drawn while standing in the editor, in pixels."
+        "animeCompanion.theme.accentColor": {
+          "type": "string",
+          "default": "",
+          "pattern": "^$|^#[0-9a-fA-F]{6}$",
+          "patternErrorMessage": "Use #RRGGBB, or leave empty to follow the character.",
+          "description": "Color for the accent tint, as #RRGGBB. Leave empty to use the current character's color."
         },
         "animeCompanion.dragMode": {
           "type": "string",
@@ -955,7 +1114,8 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
-    "test": "npm run compile && node ./scripts/smoke-test.js",
+    "test": "npm run compile && node ./scripts/smoke-test.js && node ./scripts/theme-test.js",
+    "themes:generate": "npm run compile && node scripts/gen-themes.js",
     "cleanup:vsix": "node scripts/cleanup-vsix.js",
     "build:desktop-pet": "node scripts/build-desktop-pet.js",
     "voice:generate": "node scripts/generate-voice-assets.js",

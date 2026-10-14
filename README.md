@@ -6,9 +6,16 @@
 
 > ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.6.1
+**Current version:** v0.6.2
 
-> 🆕 **What's new in v0.6.1**:
+> 🆕 **What's new in v0.6.2**:
+> - **🎨 Themes for the whole of VS Code** — ten color themes ship with the extension: one per character (Hiyori Sakura, Haru Sky, Mao Shrine, Miara Magic) and six lovely styles (Strawberry Milk, Peach Latte, Lavender Milk, Matcha Mochi in light; Cotton Candy, Midnight Bunny in dark). Right-click her → 🎨 Theme opens two columns beside her to pick one, with a tiny preview per row; also in the settings panel and **Anime Companion: Change Theme…**. Your own theme is remembered so you can always go back.
+> - **💬 She notices** — pick her colors and she is delighted, another character's and she gets a little jealous, and each lovely theme gets its own line. Her bubble, menus and side columns re-tint to the theme's accent too.
+> - **✨ Optional extras** — `animeCompanion.theme.followCharacter` switches the theme when you switch characters; `animeCompanion.theme.accentColors` tints the status bar, tabs and buttons in her color on top of any theme, without touching colors you set yourself.
+> - **🧹 Tidier** — Settings now sits at the bottom of the radial menu, and the Command Palette lists 12 Anime Companion commands instead of 39 (the rest stay in her menu and the settings panel).
+> - **⏸️ The wander is paused** — she no longer walks into the editor for now; it was unreliable and stuttered, and comes back once reworked.
+>
+> 🆕 **New in v0.6.1**:
 > - **🚶 The right character, with several windows open** — run two or three VS Code windows on different models and the companion standing in your editor could be the wrong one, because the wander asked plain settings for the model while a window with a folder open can pin its own. Fixed, and frames cached before the fix are recaptured once.
 > - **💾 The frame cache no longer grows without limit** — trying characters out used to leave a set of frames on disk for every model you had ever previewed, about a megabyte each. Three are now kept, least recently used first out, and the one in use is never removed.
 > - **🚶 The wander, smoothed out** — she now shrinks into the floor as she leaves her panel instead of just fading, so you can see where she went. And standing in the editor she no longer twitches: every frame is cropped to one shared box, and the cuts between poses are now cross-fades. Frames cached by v0.6.0 are recaptured once on upgrade.
@@ -413,12 +420,11 @@ Right-click the companion → **Settings** (or run `Anime Companion: Open Settin
 | `animeCompanion.hints.enabled` | `true` | Show idle hints pointing at the press-and-hold spots (body → Outfit, head → Expression & Motion). |
 | `animeCompanion.hoverReactions.enabled` | `true` | React when the cursor rests on a body part: expression, caption, outline and cursor per part. |
 | `animeCompanion.idleLife.enabled` | `true` | Small unprompted beats between interactions (yawn, stretch, look around), weighted by hour and mood. |
+| `animeCompanion.theme.followCharacter` | `false` | Switch VS Code to the character's color theme whenever you switch characters. Pick a theme by hand with **Anime Companion: Change Theme…** or the 🎨 Theme section of the settings panel. |
+| `animeCompanion.theme.accentColors` | `false` | Tint the status bar, active tab, badges, buttons and cursor in the character's color on top of any theme. Never overwrites colors you set in `workbench.colorCustomizations`. |
+| `animeCompanion.theme.accentColor` | `""` | Accent color as `#RRGGBB`; empty follows the character. |
 | `animeCompanion.dragMomentum.enabled` | `true` | Dragging her leans the body so hair and skirt trail behind, then springs back on release. |
 | `animeCompanion.dragMode` | `character` | What a drag moves: the character (springs back on release) or the whole panel (stays put). |
-| `animeCompanion.wander.enabled` | `true` | After a few idle minutes she appears in the editor for a while, then returns to her panel. |
-| `animeCompanion.wander.idleMinutes` | `3` | Minutes of no typing before she wanders into the editor. |
-| `animeCompanion.wander.staySeconds` | `10` | How long she stays in the editor before going home. |
-| `animeCompanion.wander.sizePx` | `300` | How tall she is drawn while standing in the editor. |
 | `animeCompanion.menuStyle` | `radial` | Right-click menu layout: `radial` (ring around the cursor) or `list` (classic vertical menu). |
 | `animeCompanion.showOnStartup` | `true` | Auto-show panel on VS Code startup. |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | Idle bubble interval (seconds). |

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { log } from './log';
+import { getSelectedModel } from './models';
 
 type SizeKey = 'small' | 'medium' | 'large';
 
@@ -57,12 +58,30 @@ export class CursorChibiManager {
     });
   }
 
+  /**
+   * The model this window shows. Captures are filed under the id the webview
+   * reports, which honours a workspace-pinned model; reading plain config here
+   * would show, and reset, the globally configured model's chibi instead.
+   */
+  private _modelId(): string {
+    try {
+      return getSelectedModel('panel').id;
+    } catch {
+      return vscode.workspace.getConfiguration('animeCompanion').get<string>('model', 'hiyori');
+    }
+  }
+
+  /** A workspace-pinned model switch fires no config event; extension.ts calls this. */
+  public onModelChanged(): void {
+    this._reapply();
+  }
+
   // Resolve the icon URI: prefer a captured PNG for the current model, fall
   // back to the bundled icon. Captures live in
   // globalStorage/cursor-chibi/{modelId}.png.
   private _resolveIconUri(): vscode.Uri {
     try {
-      const modelId = vscode.workspace.getConfiguration('animeCompanion').get<string>('model', 'hiyori');
+      const modelId = this._modelId();
       const safe = modelId.replace(/[^A-Za-z0-9_\-]/g, '_');
       const candidate = path.join(this._capturedChibiDir, `${safe}.png`);
       if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
@@ -79,7 +98,7 @@ export class CursorChibiManager {
     const sourcePath = source.fsPath;
     const ext = path.extname(sourcePath).toLowerCase();
     const mime = ext === '.png' ? 'image/png' : 'image/png';
-    const modelId = vscode.workspace.getConfiguration('animeCompanion').get<string>('model', 'hiyori');
+    const modelId = this._modelId();
     const safeModel = modelId.replace(/[^A-Za-z0-9_\-]/g, '_') || 'model';
     const target = path.join(this._renderCacheDir, `${safeModel}-${sizePx}.svg`);
 
@@ -124,7 +143,7 @@ export class CursorChibiManager {
   // Wipe the captured PNG for the current model — the next decoration will
   // fall back to the bundled icon.
   public async resetCapturedChibi(): Promise<void> {
-    const modelId = vscode.workspace.getConfiguration('animeCompanion').get<string>('model', 'hiyori');
+    const modelId = this._modelId();
     const safe = modelId.replace(/[^A-Za-z0-9_\-]/g, '_') || 'model';
     const filePath = path.join(this._capturedChibiDir, `${safe}.png`);
     try {

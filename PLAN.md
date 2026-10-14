@@ -100,7 +100,24 @@ Các hướng mở rộng tiếp theo nên tận dụng nền hiện có, ưu ti
 - **Stats breakdown theo ngày/tuần**: ngoài all-time, cho xem xu hướng gần đây.
 - **Contextual recommendations**: companion gợi ý hành động phù hợp hơn dựa trên trạng thái hiện tại, ví dụ nhiều lỗi liên tục, Pomodoro break đến hạn, hoặc repo bẩn quá lâu.
 
-### 3.3 Ambient follow-up
+### 3.3 🚶 Wander (nhân vật đi vào khung editor) — ĐANG TẠM TẮT
+
+Tắt từ v0.6.2 (2026-10-14) vì chưa ổn: lúc nhân vật vào được editor, lúc không; khi đứng trong editor có cảm giác giật/lag.
+
+**Đang tắt thế nào** (để mở lại cho đúng):
+- Cờ `WANDER_AVAILABLE = false` trong [src/wander.ts](./src/wander.ts): `_enabled()` luôn trả `false`, và [src/extension.ts](./src/extension.ts) không gọi `wander.activate()` (không listener, không capture frame).
+- 4 setting `animeCompanion.wander.enabled / idleMinutes / staySeconds / sizePx` đã gỡ khỏi `package.json` → lấy lại nguyên văn từ tag `v0.6.1` (`git show v0.6.1:package.json`).
+- Settings panel: đã bỏ `wander\.` khỏi regex trong [src/settings-panel.ts](./src/settings-panel.ts).
+- Bảng setting `wander.*` đã gỡ khỏi README EN/VI/JA.
+
+**Cần làm xong trước khi mở lại:**
+- [ ] Tìm nguyên nhân "lúc vào lúc không": log từng bước (idle timer → capture frames → decoration áp vào editor) để biết bước nào rớt — capture thất bại (`wanderFramesFailed`), webview chưa sẵn sàng, không có editor đang hiển thị, hay bị `noteActivity()` huỷ giữa chừng.
+- [ ] Hết giật/lag: đo chi phí đổi decoration (mỗi frame một `TextEditorDecorationType`, 16 ảnh cross-fade) — cân nhắc giảm tần suất swap, ít frame hơn, hoặc cách hiển thị khác ngoài decoration.
+- [ ] Animation rời panel (shrink 700ms) và lúc trở về phải mượt, không nháy.
+- [ ] Test GUI thật với nhiều cửa sổ / nhiều model, đủ lâu.
+- [ ] Mở lại: `WANDER_AVAILABLE = true`, khôi phục setting trong `package.json`, regex settings panel, bảng README 3 ngôn ngữ, ghi CHANGELOG.
+
+### 3.4 Ambient follow-up
 - **Richer ambient library**: thêm nhiều preset/playlist hơn ngoài `lofi`, `rain`, `cafe`.
 - **Background/theme sync theo ambient preset**: đổi background hoặc visual treatment của companion theo track đang phát.
 - **Pomodoro-aware ambient behavior**: auto-pause / ducking / switch preset giữa work và break nếu UX hợp lý.

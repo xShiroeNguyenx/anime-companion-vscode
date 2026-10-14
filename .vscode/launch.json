@@ -5,7 +5,7 @@
       "name": "Build & Install Extension (No Bump)",
       "type": "node-terminal",
       "request": "launch",
-      "command": "bash ./build-install.sh --no-bump",
+      "command": "& \"$env:ProgramFiles\\Git\\bin\\bash.exe\" ./build-install.sh --no-bump",
       "presentation": {
         "group": "build",
         "order": 1

@@ -5,6 +5,7 @@ import { getAmbientPreset } from './ambient-presets';
 import { pullWithFeedback, pushWithFeedback, commitWithFeedback } from './git-ops';
 import { log } from './log';
 import { getMessageBank } from './messages';
+import { themeById } from './bundled-themes';
 import type { ChatManager } from './chat/chat-manager';
 import type { ProviderId } from './chat/secrets';
 import { AchievementDef, buildAchievementPanelData, StatsStore } from './stats';
@@ -50,6 +51,7 @@ const INTERACTION_COMMANDS = new Set([
   'setMuted',
   'setClickThrough',
   'setFocusFollow',
+  'applyBundledTheme',
   'setAmbientPreset',
   'confirmDialogResult',
   'inputDialogResult',
@@ -131,6 +133,12 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
         });
       }
       break;
+    case 'applyBundledTheme': {
+      // Only a theme this extension ships — the id is looked up, never passed through.
+      const theme = themeById(message.id);
+      if (theme) void vscode.commands.executeCommand('animeCompanion.applyBundledTheme', theme.label);
+      break;
+    }
     case 'setMuted':
       if (typeof message.muted === 'boolean') {
         vscode.workspace

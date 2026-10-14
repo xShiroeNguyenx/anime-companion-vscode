@@ -110,6 +110,16 @@ const LEFT_INSET_PX = 62;
 /** Lets her feet sit slightly below the anchor line, not exactly on it. */
 const BASELINE_DROP_PX = 6;
 
+/**
+ * Kill switch for the whole feature, independent of the user setting.
+ *
+ * Off for now: she does not always make it into the editor, and the visit
+ * stutters. The code stays so it can be finished; see PLAN.md (Wander) for
+ * what has to be fixed before this goes back to true — and the `wander.*`
+ * settings, removed from package.json meanwhile, must be restored with it.
+ */
+export const WANDER_AVAILABLE = false;
+
 type Host = {
   postMessage: (message: unknown) => void;
   isReady: () => boolean;
@@ -263,7 +273,7 @@ export class WanderManager {
   }
 
   private _enabled(): boolean {
-    return this._cfg().get<boolean>('wander.enabled', true);
+    return WANDER_AVAILABLE && this._cfg().get<boolean>('wander.enabled', true);
   }
 
   private _idleDelayMs(): number {

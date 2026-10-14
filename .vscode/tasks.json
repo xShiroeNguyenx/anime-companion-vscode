@@ -22,6 +22,9 @@
         "./build-install.sh",
         "--no-bump"
       ],
+      "windows": {
+        "command": "${env:ProgramFiles}\\Git\\bin\\bash.exe"
+      },
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",

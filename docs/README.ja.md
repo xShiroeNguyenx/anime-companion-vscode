@@ -9,8 +9,15 @@
 
 > ⚠️ **実験版 — v0.5.x.** これは early-access ビルドです。v1.0 に到達するまで、マイナーバージョン間で API、設定、振る舞いが変わることがあります。バグや感想は [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) で歓迎します。
 
-**現在のバージョン:** v0.6.1
+**現在のバージョン:** v0.6.2
 
+> 🆕 **v0.6.2 の新着**:
+> - **🎨 VS Code 全体のテーマ** — 10 種のカラーテーマを同梱：キャラクターごとのテーマ（Hiyori Sakura・Haru Sky・Mao Shrine・Miara Magic）と、6 種のラブリーなスタイル（ライトの Strawberry Milk・Peach Latte・Lavender Milk・Matcha Mochi、ダークの Cotton Candy・Midnight Bunny）。右クリック → 🎨 テーマで、キャラクターの両側に 2 列で並び、各行に小さなプレビュー付き。設定パネルと **Anime Companion: Change Theme…** からも選べます。元のテーマは記憶され、いつでも戻せます。
+> - **💬 気づいてくれます** — 自分の色を選ぶと大喜び、他のキャラの色だとちょっとやきもち、ラブリーテーマにはそれぞれのセリフ。吹き出し・メニュー・サイド列もテーマの色に染まります。
+> - **✨ おまけの設定** — `animeCompanion.theme.followCharacter` でキャラ切り替え時にテーマも切り替え、`animeCompanion.theme.accentColors` でステータスバー・タブ・ボタンをキャラの色に（どのテーマでも、自分で設定した色は上書きしません）。
+> - **🧹 すっきり** — 設定はラジアルメニューのいちばん下に。コマンドパレットの Anime Companion コマンドは 39 から 12 に（残りはメニューと設定パネルにあります）。
+> - **⏸️ お散歩は一時停止** — エディタへのお散歩は動作が不安定でカクつくため、作り直すまで止めています。
+>
 > 🆕 **v0.6.1 の新着**:
 > - **🚶 複数ウィンドウでも正しいキャラクターに** — VS Code を 2〜3 個、それぞれ別のモデルで開くと、エディタに立つキャラクターが**別のモデルになってしまう**ことがありました。wander が設定からモデルを読んでいた一方、フォルダーを開いたウィンドウはワークスペースごとに独自のモデルを指定できるためです。修正済みで、修正前にキャッシュされたコマは一度だけ取り直されます。
 > - **💾 フレームのキャッシュが無制限に増えなくなりました** — これまではモデルを試すたびに 1 モデルあたり約 1 MB のコマがディスクに残り続けていました。今は最近使った **3 モデル分**だけを保持し、使用中のモデルは削除されません。
@@ -414,12 +421,11 @@ code --install-extension shiroenguyen.anime-companion-vscode
 | `animeCompanion.hints.enabled` | `true` | 放置時に長押しの位置（体 → 衣装、頭 → 表情とモーション）を指すヒントを表示。 |
 | `animeCompanion.hoverReactions.enabled` | `true` | カーソルを部位に止めたときに反応（表情・キャプション・縁取り・カーソル）。 |
 | `animeCompanion.idleLife.enabled` | `true` | 操作の合間の自発的な仕草（あくび・伸び・見回す）。時刻と気分で重み付け。 |
+| `animeCompanion.theme.followCharacter` | `false` | キャラクターを切り替えると VS Code のテーマもそのキャラクターのものに切り替えます。手動では **Anime Companion: Change Theme…** か設定パネルの 🎨 テーマから選べます。 |
+| `animeCompanion.theme.accentColors` | `false` | ステータスバー・アクティブタブ・バッジ・ボタン・カーソルをキャラクターの色で彩ります（どのテーマの上でも可）。`workbench.colorCustomizations` で自分で設定した色は上書きしません。 |
+| `animeCompanion.theme.accentColor` | `""` | アクセントカラー（`#RRGGBB`）。空ならキャラクターに合わせます。 |
 | `animeCompanion.dragMomentum.enabled` | `true` | ドラッグ中は体が傾き髪とスカートが遅れて追従、離すと揺れて戻る。 |
 | `animeCompanion.dragMode` | `character` | ドラッグで動くもの：キャラクター（離すと戻る）かパネル全体（その場に残る）か。 |
-| `animeCompanion.wander.enabled` | `true` | 数分放置するとエディタに現れ、しばらくしてパネルへ戻ります。 |
-| `animeCompanion.wander.idleMinutes` | `3` | 何分入力がなければ出かけるか。 |
-| `animeCompanion.wander.staySeconds` | `10` | エディタに留まる秒数。 |
-| `animeCompanion.wander.sizePx` | `300` | エディタ内での表示の高さ（px）。 |
 | `animeCompanion.menuStyle` | `radial` | 右クリックメニューの形: `radial`（カーソルの周りの輪）または `list`（従来の縦メニュー）。 |
 | `animeCompanion.showOnStartup` | `true` | VS Code 起動時にパネルを自動表示。 |
 | `animeCompanion.messageIntervalMin` / `Max` | `10` / `20` | アイドル吹き出し間隔（秒）。 |
