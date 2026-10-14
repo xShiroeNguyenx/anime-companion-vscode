@@ -30,6 +30,11 @@ Anime Companion bundles or interfaces with the following third-party assets and 
 - **Voice character**: 四国めたん (Shikoku Metan) — see [official profile](https://voicevox.hiroshiba.jp/dormitory/shikoku_metan/). Free for commercial use **only when the credit `VOICEVOX:四国めたん` is displayed**. Without credit a paid license is required.
 - **Attribution (REQUIRED)**: `VOICEVOX:四国めたん` — shown in this file, the README, and the extension's About / Output channel.
 
+## Extension icon and character art
+
+- **Files**: `media/icon.png`, `media/character.png`
+- **Source**: generated for this project with ChatGPT's image generation, then edited (background removed, cropped and resized). Released with the extension under the MIT License below.
+
 ---
 
 ## License of this extension's own code

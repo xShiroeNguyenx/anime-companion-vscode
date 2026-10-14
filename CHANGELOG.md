@@ -3,6 +3,13 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4] - 2026-10-14
+
+### Changed — 🐱 New icon and character art
+
+- **A new extension icon:** a pink-haired cat-eared girl with headphones and a lilac laptop. The source art came on a solid black background, which would have shown as a black square in the Marketplace and as a black tile next to the cursor (the cursor chibi falls back to this icon); the background is removed by a flood fill from the edges, so the dark line art inside the figure is never touched, and the image is cropped and resampled to 128 × 128 ([media/icon.png](media/icon.png)).
+- **A new character image,** the same girl full-length, used where the Live2D model is not available (the fallback image, the chat avatar before a chibi is captured, the desktop pet's placeholder) — 1024 × 1024 with a transparent background ([media/character.png](media/character.png)).
+
 ## [0.6.3] - 2026-10-14
 
 ### Fixed — 🙆 Her head no longer gets stuck tilted to one side

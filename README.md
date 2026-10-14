@@ -6,9 +6,12 @@
 
 > ⚠️ **Experimental — v0.5.x.** This is an early-access build. APIs, settings, and behavior may shift between minor versions before v1.0. Bugs or feedback are very welcome via [GitHub Issues](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues).
 
-**Current version:** v0.6.3
+**Current version:** v0.6.4
 
-> 🆕 **What's new in v0.6.3**:
+> 🆕 **What's new in v0.6.4**:
+> - **🐱 A new look** — a new extension icon (a pink-haired, cat-eared girl with headphones and a lilac laptop) and matching full-length character art, shown wherever the Live2D model is not: the fallback image, the chat avatar before a chibi is captured, and the cursor chibi's default.
+>
+> 🆕 **New in v0.6.3**:
 > - **🙆 No more stuck head tilt** — left alone for a while, some models ended up with the head bent over to one side for good. A head tilt and the drag lean were being added on top of themselves every frame on models whose idle motion does not move the head; they now last one frame at a time. The same fix stops a model's own Add / Multiply expressions from creeping stronger and stronger.
 > - **🎨 The settings panel follows the theme** — with one of the bundled themes on, the settings panel takes its accent color too.
 >

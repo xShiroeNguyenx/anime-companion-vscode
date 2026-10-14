@@ -8,9 +8,12 @@
 
 > ⚠️ **Experimental — v0.5.x.** Đây là bản early-access. API, settings, và behavior có thể thay đổi giữa các minor version trước khi đạt v1.0. Nếu bạn gặp bug hoặc có feedback, mở issue tại [GitHub](https://github.com/xShiroeNguyenx/anime-companion-vscode/issues) — rất welcome!
 
-**Phiên bản hiện tại:** v0.6.3
+**Phiên bản hiện tại:** v0.6.4
 
-> 🆕 **Có gì mới ở v0.6.3**:
+> 🆕 **Có gì mới ở v0.6.4**:
+> - **🐱 Diện mạo mới** — icon extension mới (cô bé tóc hồng tai mèo, đeo tai nghe, cầm laptop tím) cùng ảnh nhân vật toàn thân đồng bộ, hiện ở những chỗ không có model Live2D: ảnh dự phòng, ảnh đại diện trong chat khi chưa chụp chibi, và hình mặc định của cursor chibi.
+>
+> 🆕 **Mới ở v0.6.3**:
 > - **🙆 Hết bị nghiêng đầu mãi** — để yên một lúc, vài model bị nghiêng đầu sang một bên rồi kẹt luôn. Góc nghiêng đầu và độ ngả người khi kéo bị cộng dồn từng khung hình trên những model mà motion idle không điều khiển góc đầu; giờ chúng chỉ có hiệu lực từng khung hình một. Bản sửa này cũng làm biểu cảm Add / Multiply của model không còn "đậm dần" nữa.
 > - **🎨 Bảng cài đặt đổi màu theo theme** — khi dùng một theme đi kèm, bảng cài đặt cũng lấy màu nhấn của theme đó.
 >
