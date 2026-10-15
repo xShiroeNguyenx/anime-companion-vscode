@@ -41,6 +41,9 @@ import { MarkdownStatusBar } from './markdown/markdown-status-bar';
 registerBackend(claudeBackend);
 registerBackend(codexBackend);
 
+/** How long after a model loads before its chibi is auto-captured. */
+const AUTO_CAPTURE_DELAY_MS = 1500;
+
 // Common shape extension.ts depends on regardless of which UI host is active:
 // the in-VS-Code panel webview, or the floating Tauri desktop pet (bridge).
 // Both must be able to receive raw messages, pomodoro ticks, and refresh
@@ -582,7 +585,7 @@ export async function activate(context: vscode.ExtensionContext) {
       stats,
       downloader,
       voiceAssetDownloader,
-      (modelId, dataUrl) => cursorChibi.saveCapturedChibi(modelId, dataUrl),
+      (modelId, dataUrl, options) => cursorChibi.saveCapturedChibi(modelId, dataUrl, options),
       chatManager,
       path.join(context.globalStorageUri.fsPath, 'cursor-chibi'),
       () => cursorChibi.getTuningState(),
@@ -611,6 +614,15 @@ export async function activate(context: vscode.ExtensionContext) {
     panelProvider.setWanderHandlers({
       receiveFrames: (modelId, frames) => wander.receiveFrames(modelId, frames),
       captureFailed: (reason) => wander.captureFailed(reason),
+    });
+    // A model with no captured chibi gets one on its first load. The delay lets
+    // her settle out of the entrance pose, so the photo is her standing still.
+    panelProvider.setLive2dReadyHandler(() => {
+      const timer = setTimeout(
+        () => cursorChibi.requestAutoCapture((message) => panelProvider.postMessage(message as never)),
+        AUTO_CAPTURE_DELAY_MS
+      );
+      timer.unref?.();
     });
     wander.setHost({
       postMessage: (message) => panelProvider.postMessage(message as never),
@@ -852,7 +864,10 @@ export async function activate(context: vscode.ExtensionContext) {
         );
         return;
       }
-      const modelId = vscode.workspace.getConfiguration('animeCompanion').get<string>('model', 'hiyori');
+      // The model this window shows, not plain config: a workspace-pinned model
+      // lives in workspaceState, and the cursor chibi reads the capture back
+      // under that id. Asking config would file the photo under the wrong name.
+      const modelId = getSelectedModel('panel').id;
       vscode.window.showInformationMessage(`Capturing chibi from model "${modelId}"...`);
       host.postMessage({ command: 'captureModelChibi', modelId });
     }),

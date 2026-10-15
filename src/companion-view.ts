@@ -46,10 +46,12 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   private _pendingInputs = new Map<string, (value: string | undefined) => void>();
   private _transportSubscriptions: vscode.Disposable[] = [];
 
-  private _saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>;
+  private _saveCapturedChibi?: (modelId: string, dataUrl: string, options?: { silent?: boolean }) => Promise<void>;
   /** Set after construction by extension.ts; see WanderManager. */
   private _receiveWanderFrames?: (modelId: string, frames: string[]) => Promise<void>;
   private _wanderCaptureFailed?: (reason: string) => void;
+  /** Set after construction by extension.ts; drives the chibi auto-capture. */
+  private _onLive2dReady?: () => void;
   private _chatManager?: ChatManager;
   private _agentProfileManager?: import('./agent-profiles/profile-manager').AgentProfileManager;
 
@@ -68,7 +70,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     stats: StatsStore,
     downloader: ModelDownloader,
     voiceAssets: VoiceAssetDownloader,
-    saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>,
+    saveCapturedChibi?: (modelId: string, dataUrl: string, options?: { silent?: boolean }) => Promise<void>,
     chatManager?: ChatManager,
     chibiRoot?: string,
     getCursorChibiState?: () => CursorChibiTuningState,
@@ -176,6 +178,11 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   }): void {
     this._receiveWanderFrames = handlers.receiveFrames;
     this._wanderCaptureFailed = handlers.captureFailed;
+  }
+
+  /** Called each time the panel finishes loading a model. */
+  public setLive2dReadyHandler(handler: () => void): void {
+    this._onLive2dReady = handler;
   }
 
   public showAchievementsPanel(): boolean {
@@ -301,6 +308,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
         nudgeCursorChibiSize: (delta) => this._nudgeCursorChibiSize?.(delta) ?? Promise.resolve(),
         resetCursorChibi: () => this._resetCursorChibi?.() ?? Promise.resolve(),
         saveCapturedChibi: this._saveCapturedChibi,
+        onLive2dReady: this._onLive2dReady,
         receiveWanderFrames: this._receiveWanderFrames,
         wanderCaptureFailed: this._wanderCaptureFailed,
         chatManager: this._chatManager,

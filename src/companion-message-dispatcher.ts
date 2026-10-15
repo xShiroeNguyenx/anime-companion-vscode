@@ -28,7 +28,8 @@ export interface DispatcherContext {
   nudgeCursorChibi?: (dx: number, dy: number) => Promise<void>;
   nudgeCursorChibiSize?: (delta: number) => Promise<void>;
   resetCursorChibi?: () => Promise<void>;
-  saveCapturedChibi?: (modelId: string, dataUrl: string) => Promise<void>;
+  saveCapturedChibi?: (modelId: string, dataUrl: string, options?: { silent?: boolean }) => Promise<void>;
+  onLive2dReady?: () => void;
   receiveWanderFrames?: (modelId: string, frames: string[]) => Promise<void>;
   wanderCaptureFailed?: (reason: string) => void;
   chatManager?: ChatManager;
@@ -98,6 +99,7 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
       break;
     case 'live2dReady':
       console.log('Live2D model loaded!');
+      ctx.onLive2dReady?.();
       break;
     case 'runCommand':
       _handleRunCommand(message, ctx);
@@ -243,7 +245,7 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
         typeof message.dataUrl === 'string' &&
         ctx.saveCapturedChibi
       ) {
-        void ctx.saveCapturedChibi(message.modelId, message.dataUrl);
+        void ctx.saveCapturedChibi(message.modelId, message.dataUrl, { silent: message.silent === true });
       }
       break;
     case 'wanderFramesCaptured':
@@ -255,6 +257,11 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
       ctx.wanderCaptureFailed?.(typeof message.reason === 'string' ? message.reason : 'unknown');
       break;
     case 'modelChibiCaptureFailed':
+      // An automatic capture nobody asked for fails quietly; the bundled icon stays.
+      if (message.silent === true) {
+        log(`CursorChibi: auto-capture failed: ${message.reason ?? 'unknown reason'}`);
+        break;
+      }
       vscode.window.showWarningMessage(
         `Couldn't capture chibi from the model: ${message.reason ?? 'unknown reason'}.`
       );

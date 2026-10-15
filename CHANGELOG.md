@@ -3,6 +3,17 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.5] - 2026-10-15
+
+### Added
+
+- **Each model's cursor chibi is captured automatically the first time it loads,** so the cursor shows the character instead of the bundled icon without anyone having to find the Capture command. It waits a moment for her to settle, runs silently (a failure goes to the log, not a notification), and is tried once per model per session ([src/cursor-chibi.ts](src/cursor-chibi.ts), [src/extension.ts](src/extension.ts)). **Reset Captured Chibi** now means "keep the icon": auto-capture leaves that model alone until it is captured by hand again.
+
+### Fixed
+
+- **A fresh capture never replaced the bundled icon at the cursor.** The sized sprite was rewritten to the same file name after every capture, and VS Code caches decoration images by URI, so it kept painting the old picture until the window was reloaded. The file name now carries a hash of its content, and each model's older renders are swept ([src/cursor-chibi.ts](src/cursor-chibi.ts)).
+- **Capture Chibi from Model filed the picture under the wrong character in a window with its own pinned model,** so the capture reported success but the cursor chibi never changed. The command read plain settings while the cursor chibi reads captures under the model the window shows; it now resolves the model the same way ([src/extension.ts](src/extension.ts)). The panel also refuses a capture request naming a model it is not showing, and files the picture under the model on its canvas ([media/webview/main.js](media/webview/main.js)).
+
 ## [0.6.4] - 2026-10-14
 
 ### Changed — 🐱 New icon and character art

@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -552,7 +552,10 @@
         },
         "animeCompanion.dragMode": {
           "type": "string",
-          "enum": ["character", "panel"],
+          "enum": [
+            "character",
+            "panel"
+          ],
           "enumDescriptions": [
             "Character — dragging pulls the character out of place; she stays where you hold her and springs back when you let go",
             "Panel — dragging moves the whole companion panel and it stays where you drop it"

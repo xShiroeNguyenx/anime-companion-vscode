@@ -1,6 +1,6 @@
 # 🌸 Anime Companion VSCode — Roadmap
 
-> **Phiên bản hiện tại:** v0.4.0 — *cập nhật 2026-05-28*
+> **Phiên bản hiện tại:** v0.6.5 — *cập nhật 2026-10-15*
 >
 > Tài liệu này là single-source-of-truth cho **trạng thái feature**, việc **còn phải làm** và **hướng phát triển tương lai**. Chi tiết implementation ở [FEATURES.md](./FEATURES.md), lịch sử release ở [CHANGELOG.md](./CHANGELOG.md), kế hoạch chi tiết từng version ở [PLAN.md](./PLAN.md).
 
@@ -13,15 +13,51 @@ v0.1.x  ──→  v0.1.27   Live2D + Reactive Engine + Pomodoro + Ambient + Des
 v0.3.0  ────────────   AI Chat Companion (4 providers: Copilot / Claude / GPT / Gemini)
 v0.3.1  ────────────   +4 providers (Grok/DeepSeek/OpenRouter/Ollama) · Tri-lingual docs · Copy-reply · Live resize fix
 v0.3.3  ────────────   Right-click menu reorganization (6 functional submenus)
-v0.4.0  ────────────   Pet Quick Chat + Agent Accounts (Claude/Codex credential swap)
-v0.5.x  ────────────   Slash commands · Diff-aware chat · Privacy redaction · Stats heatmap [PLANNED]
-v0.6.x  ────────────   Real-time TTS · OpenRouter model discovery · Conversation export   [PLANNED]
+v0.4.0  ────────────   Pet Quick Chat + Agent Accounts (Claude/Codex credential swap) + Gamification v2
+v0.4.x  ────────────   GitHub account swap · Claude team/SSO account fixes
+v0.5.0  ──→  v0.5.4    Background image · Markdown WYSIWYG editor · Alt+drag rotate · Auto look-at
+v0.5.5  ──→  v0.5.9    Outfits/Expressions/Motions từ file model · Settings panel · Radial menu · Idle life
+v0.6.0  ──→  v0.6.5    Wander (tạm tắt) · 10 bundled themes · Icon mới · Auto-capture cursor chibi
+v0.7.x  ────────────   Slash commands · Diff-aware chat · Privacy redaction · Stats heatmap [PLANNED]
+v0.8.x  ────────────   Real-time TTS · OpenRouter model discovery · Conversation export   [PLANNED]
 v1.x    ────────────   Mac/Linux Desktop Companion · Multi-character · Motion editor      [VISION]
 ```
 
 ---
 
-## ✅ Đã ship (v0.4.0)
+## ✅ Đã ship v0.4.1 → v0.6.5
+
+Chi tiết từng bản ở [CHANGELOG.md](./CHANGELOG.md).
+
+### 🎭 Live2D & tương tác
+- [x] **Outfits & Expressions** đọc thẳng từ file `exp3` của model, **Motions** dò theo group thật của model thay vì 3 tên cứng (v0.5.5)
+- [x] Nhấn giữ model: thân → Outfit, đầu → Expression & Motion; mở thành 2 cột bên cạnh nhân vật (v0.5.5–v0.5.6)
+- [x] **Alt + kéo để xoay** model (giả 3D) và toggle **Auto look-at cursor** (v0.5.4)
+- [x] Gợi ý điểm nhấn giữ, phản ứng theo chỗ trỏ chuột, cử chỉ chạm (v0.5.8)
+- [x] **Idle life**: tự làm việc vặt khi user không nhìn; kéo rồi thả thì bật về (v0.5.9)
+- [x] **Wander** — nhân vật đi vào editor, đứng ở góc dưới trái (v0.6.0–v0.6.1). ⏸️ **Đang tạm tắt** (`WANDER_AVAILABLE` trong [src/wander.ts](./src/wander.ts)) từ v0.6.2
+
+### 🎨 Giao diện
+- [x] **Background image** cho workbench + panel điều khiển, thêm từ URL Google Drive / Dropbox (v0.5.0, v0.5.3)
+- [x] **Markdown WYSIWYG editor** trong cửa sổ riêng, accent color tuỳ chỉnh (v0.5.1–v0.5.2)
+- [x] **Settings panel** riêng của companion + **radial right-click menu** (v0.5.7)
+- [x] Achievements mở thành 2 cột bên cạnh như Outfit/Expression (v0.5.8)
+- [x] **10 bundled color themes** chọn từ cột bên; nhân vật phản ứng và mặc màu theo theme (v0.6.2)
+- [x] Command Palette gọn lại: 12 lệnh thay vì 39 (v0.6.2)
+- [x] Icon và ảnh nhân vật mới (v0.6.4)
+
+### 🖱️ Cursor Chibi
+- [x] Đi theo model pin theo workspace (v0.6.2)
+- [x] **Tự chụp chibi** lần đầu mỗi model load; Reset = giữ icon bundled (v0.6.5)
+- [x] Ảnh vừa chụp hiện ngay, không cần reload cửa sổ (v0.6.5)
+
+### 👤 Agent Accounts
+- [x] Swap tài khoản GitHub cho Copilot (v0.4.1)
+- [x] Lưu tài khoản Claude team/SSO; sửa lỗi swap Claude làm tài khoản bị logout (v0.4.2–v0.4.3)
+
+---
+
+## ✅ Đã ship tới v0.4.0
 
 <details>
 <summary>Expand — danh sách đầy đủ feature đã có</summary>
@@ -163,7 +199,7 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 
 ---
 
-## 📋 Chưa làm — Backlog ngắn hạn (v0.5.x)
+## 📋 Chưa làm — Backlog ngắn hạn (v0.7.x)
 
 ### Chat productivity
 - [ ] **Slash commands trong chat** — gõ `/` đầu textarea mở dropdown:
@@ -187,19 +223,22 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
   - Show estimated input/output tokens trước khi click Send
   - Suggest trim active-file toggle hoặc giảm history depth
 
-### Gamification v2
-- [ ] **Daily / Weekly quests** — mở rộng từ stats/achievements hiện có thành gameplay loop local-first, không cần backend:
+### Gamification v2 — ✅ shipped in v0.4.0
+
+> Đã có trong [src/stats.ts](./src/stats.ts) + commands `Show Quests` / `Show Profile` / `Export Share Card`. Giữ mô tả gốc để tham chiếu scope.
+
+- [x] **Daily / Weekly quests** — mở rộng từ stats/achievements hiện có thành gameplay loop local-first, không cần backend:
   - Daily ví dụ: `save 20 files`, `write 100 lines`, `open terminal 5 lần`
   - Weekly ví dụ: `commit 10 lần`, `code 5h`
   - Quest tự rotate/reset theo local time, reuse stats store + reactive infrastructure nơi phù hợp
   - Scope chỉ gồm local progress tracking, local reward unlock, UI hiển thị trong VS Code; không có account sync hay leaderboard public
-- [ ] **Reward economy nhẹ** — reward cho quest và milestone theo hướng offline-friendly:
+- [x] **Reward economy nhẹ** — reward cho quest và milestone theo hướng offline-friendly:
   - `gems`
   - `tickets`
   - `cosmetic`
   - `voice pack`
   - Currency/reward derive từ local stats + achievement progress, không phải store hay backend economy nặng
-- [ ] **Achievement rarity + unlock effects** — thêm rarity layer cho hệ achievement hiện tại, thiên về presentation/progression:
+- [x] **Achievement rarity + unlock effects** — thêm rarity layer cho hệ achievement hiện tại, thiên về presentation/progression:
   - `Common`
   - `Rare`
   - `Epic`
@@ -208,13 +247,13 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
   - Visual language ví dụ: `🌸 Common`, `🔥 Epic`, `👑 Legendary`, `💀 Mythic`
   - Unlock effect phân tầng theo rarity: `glow`, `sound`, `animation`
   - Đây là lớp gắn lên achievement hiện có, không phải hệ progression tách riêng hay full RPG
-- [ ] **Companion memory system** — achievement và milestone không chỉ unlock item mà còn tạo shared memory giữa user với companion:
+- [x] **Companion memory system** — achievement và milestone không chỉ unlock item mà còn tạo shared memory giữa user với companion:
   - Ví dụ memory line: `"Remember when we fixed 100 bugs together?"`
   - Ví dụ memory line: `"We've been coding together for 30 hours now..."`
   - Memory được derive từ local stats, quest completion, achievement chains, secret unlocks, coding time và các milestone đáng nhớ
   - Dùng lại trong reactive bubble, profile card, weekly recap, hoặc special anniversary lines để tăng emotional attachment lâu dài
   - Scope vẫn local-only, offline-friendly; memory là narrative/state layer chứ không phải chat memory cloud hay profile backend
-- [ ] **Showcase profile / share card** — profile surface để user flex thành quả và share lên social:
+- [x] **Showcase profile / share card** — profile surface để user flex thành quả và share lên social:
   - Ví dụ card: `Anime Companion Profile` · `Lv.12` · `Bug Hunter Rank S` · `Affinity ❤️ 84%` · `Top Achievement: Sleep Is Optional`
   - Export `PNG` ngay trong VS Code để share Discord/Twitter, render local qua webview/canvas, không phụ thuộc external service
   - Gộp luôn ý tưởng export badge vào profile/share card để tránh duplicate roadmap item
@@ -223,7 +262,7 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 ### UI/UX Polish
 - [ ] **Screenshots marketplace** — chụp 12 ảnh theo [docs/images/README.md](./docs/images/README.md) manifest (hiện placeholder)
 - [ ] **GIF demo** cho README marketplace (Desktop Companion floating + Chat streaming + Live resize)
-- [ ] **Achievements webview đầy đủ** — logic core đã có, UI cần:
+- [ ] **Achievements webview đầy đủ** — từ v0.5.8 đã mở thành 2 cột bên cạnh; còn lại cần:
   - Group theo category: `Productivity` (save/commit), `Debugging` (error_fix), `Endurance` (coding_h)
   - Progress bar `current / target` cho achievement đang gần unlock nhất
   - Lock icon overlay cho achievement chưa đạt, sparkle FX khi unlock
@@ -266,7 +305,7 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 
 ---
 
-## 🎯 Chưa làm — Roadmap trung hạn (v0.6.x – v1.0)
+## 🎯 Chưa làm — Roadmap trung hạn (v0.8.x – v1.0)
 
 ### Real-time TTS (replace bundled MP3 cho `vi`/`en` extended)
 - [ ] **Auto-detect VoiceVox local** lúc activate qua `http://localhost:50021/version` ping (cho `ja`)
@@ -359,9 +398,9 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 - `OPTIONAL` **`@` mentions for symbols** — gõ `@functionName` autocomplete qua workspace symbols (`vscode.executeWorkspaceSymbolProvider`), khác `#filename` ở chỗ nhắm tới function/class
 
 ### 🎭 Live2D & Visual
-- `OPTIONAL` **Model outfit switcher** — nếu model có multiple `groups` trong `model3.json` (ví dụ Hiyori `school` / `casual`), expose qua menu picker
+- [x] ~~`OPTIONAL`~~ **Model outfit switcher** — ✅ shipped in v0.5.5 (đọc từ file `exp3` của model).
 - `OPTIONAL` **Seasonal/holiday themes** — date-triggered: Tết (Lunar New Year), Halloween, Christmas → swap bubble color scheme + thêm accessory layer (event hat / hairpin) nếu model support
-- `OPTIONAL` **VS Code theme sync** — companion adjust color palette theo `vscode.window.activeColorTheme.kind` (dark vs light) cho bubble background/border
+- [x] ~~`OPTIONAL`~~ **VS Code theme sync** — ✅ shipped in v0.6.2 (10 bundled themes, nhân vật phản ứng theo theme).
 
 ### 🔊 Audio & Voice
 - `OPTIONAL` **Ambient playlist** — thay vì 1 track loop, phát list theo shuffle/sequential, cross-fade 2s giữa tracks. Tận dụng `customAmbientTracks` đã có
@@ -389,4 +428,4 @@ v1.x    ────────────   Mac/Linux Desktop Companion · Mu
 
 ---
 
-*Cập nhật lần cuối: 2026-05-25 · v0.3.3 — roadmap revision r3 (menu reorganization shipped, release docs synced, localization/menu polish folded into current public release)*
+*Cập nhật lần cuối: 2026-10-15 · v0.6.5 — roadmap revision r4 (đồng bộ v0.4.1 → v0.6.5; Gamification v2 đánh dấu đã ship từ v0.4.0; backlog dời sang v0.7.x)*

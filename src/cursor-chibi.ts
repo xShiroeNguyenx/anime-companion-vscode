@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import { log } from './log';
 import { getSelectedModel } from './models';
 
@@ -37,6 +38,7 @@ export class CursorChibiManager {
   private _configListener: vscode.Disposable;
   private _throttle?: NodeJS.Timeout;
   private _lastEditor?: vscode.TextEditor;
+  private _autoCaptureTried = new Set<string>();
 
   constructor(extensionUri: vscode.Uri, globalStorageUri: vscode.Uri) {
     this._extensionUri = extensionUri;
@@ -100,16 +102,23 @@ export class CursorChibiManager {
     const mime = ext === '.png' ? 'image/png' : 'image/png';
     const modelId = this._modelId();
     const safeModel = modelId.replace(/[^A-Za-z0-9_-]/g, '_') || 'model';
-    const target = path.join(this._renderCacheDir, `${safeModel}-${sizePx}.svg`);
-
     try {
       const base64 = fs.readFileSync(sourcePath).toString('base64');
+      // The content hash is part of the name because VS Code caches decoration
+      // images by URI: rewriting the same path after a capture kept showing the
+      // old picture (the bundled icon) until the window was reloaded.
+      const hash = crypto.createHash('sha1').update(base64).digest('hex').slice(0, 10);
+      const target = path.join(this._renderCacheDir, `${safeModel}-${sizePx}-${hash}.svg`);
+      if (fs.existsSync(target)) {
+        return vscode.Uri.file(target);
+      }
       const svg = [
         `<svg xmlns="http://www.w3.org/2000/svg" width="${sizePx}" height="${sizePx}" viewBox="0 0 ${sizePx} ${sizePx}">`,
         `<image href="data:${mime};base64,${base64}" x="0" y="0" width="${sizePx}" height="${sizePx}" preserveAspectRatio="xMidYMid meet"/>`,
         `</svg>`,
       ].join('');
       fs.writeFileSync(target, svg, 'utf8');
+      this._sweepRenderCache(safeModel, path.basename(target));
       return vscode.Uri.file(target);
     } catch (err) {
       log(`CursorChibi: sized icon fallback -> ${err instanceof Error ? err.message : String(err)}`);
@@ -117,31 +126,81 @@ export class CursorChibiManager {
     }
   }
 
+  // Every capture or size change now writes a new file, so drop this model's
+  // older renders — both the hashed ones and the pre-hash `{model}-{size}.svg`.
+  // The fixed 10-char hash keeps "vivian" from matching "vivian-2"'s files.
+  private _sweepRenderCache(safeModel: string, keep: string): void {
+    const escaped = safeModel.replace(/[-]/g, '\\-');
+    const mine = new RegExp(`^${escaped}-\\d+(-[0-9a-f]{10})?\\.svg$`);
+    try {
+      for (const name of fs.readdirSync(this._renderCacheDir)) {
+        if (name !== keep && mine.test(name)) {
+          try { fs.unlinkSync(path.join(this._renderCacheDir, name)); } catch { /* in use, next time */ }
+        }
+      }
+    } catch (err) {
+      log(`CursorChibi: render cache sweep failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   // Decode a `data:image/png;base64,...` payload from the webview and persist
   // it as the captured chibi for the given model. Triggers a reapply so the
   // new icon shows up immediately.
-  public async saveCapturedChibi(modelId: string, dataUrl: string): Promise<void> {
+  public async saveCapturedChibi(
+    modelId: string,
+    dataUrl: string,
+    options: { silent?: boolean } = {}
+  ): Promise<void> {
     const m = /^data:image\/png;base64,(.+)$/.exec(dataUrl);
     if (!m) {
-      vscode.window.showWarningMessage('Captured chibi: unexpected dataUrl format.');
+      log('CursorChibi: captured chibi has an unexpected dataUrl format');
+      if (!options.silent) vscode.window.showWarningMessage('Captured chibi: unexpected dataUrl format.');
       return;
     }
     const safe = modelId.replace(/[^A-Za-z0-9_-]/g, '_') || 'model';
     const filePath = path.join(this._capturedChibiDir, `${safe}.png`);
     try {
       fs.writeFileSync(filePath, Buffer.from(m[1], 'base64'));
-      log(`CursorChibi: captured chibi saved -> ${filePath}`);
+      // A capture, by hand or automatic, overrides an earlier "use the icon".
+      try { fs.unlinkSync(this._optOutPath(safe)); } catch { /* no marker */ }
+      log(`CursorChibi: captured chibi saved${options.silent ? ' (auto)' : ''} -> ${filePath}`);
       this._reapply();
-      vscode.window.showInformationMessage(`Captured chibi for "${modelId}" — cursor sprite updated.`);
+      if (!options.silent) {
+        vscode.window.showInformationMessage(`Captured chibi for "${modelId}" — cursor sprite updated.`);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       log(`CursorChibi: save captured failed: ${msg}`);
-      vscode.window.showErrorMessage(`Couldn't save captured chibi: ${msg}`);
+      if (!options.silent) vscode.window.showErrorMessage(`Couldn't save captured chibi: ${msg}`);
     }
   }
 
+  /**
+   * Asks the panel to capture this model's chibi once, if it has none yet.
+   *
+   * Without this the cursor shows the bundled icon until someone finds the
+   * Capture command, which most people never do. Skipped when the user reset
+   * the capture (they asked for the icon), and tried at most once per model
+   * per session, so a model that cannot be photographed is not asked forever.
+   */
+  public requestAutoCapture(post: (message: unknown) => void): void {
+    const modelId = this._modelId();
+    const safe = modelId.replace(/[^A-Za-z0-9_-]/g, '_') || 'model';
+    if (this._autoCaptureTried.has(safe)) return;
+    if (fs.existsSync(path.join(this._capturedChibiDir, `${safe}.png`))) return;
+    if (fs.existsSync(this._optOutPath(safe))) return;
+    this._autoCaptureTried.add(safe);
+    log(`CursorChibi: auto-capturing chibi for "${modelId}"`);
+    post({ command: 'captureModelChibi', modelId, silent: true });
+  }
+
+  /** Marker left by Reset: this model should keep the bundled icon. */
+  private _optOutPath(safeModel: string): string {
+    return path.join(this._capturedChibiDir, `${safeModel}.use-icon`);
+  }
+
   // Wipe the captured PNG for the current model — the next decoration will
-  // fall back to the bundled icon.
+  // fall back to the bundled icon, and auto-capture leaves it that way.
   public async resetCapturedChibi(): Promise<void> {
     const modelId = this._modelId();
     const safe = modelId.replace(/[^A-Za-z0-9_-]/g, '_') || 'model';
@@ -151,6 +210,7 @@ export class CursorChibiManager {
         fs.unlinkSync(filePath);
         log(`CursorChibi: removed captured chibi -> ${filePath}`);
       }
+      fs.writeFileSync(this._optOutPath(safe), '');
       this._reapply();
       vscode.window.showInformationMessage(`Captured chibi for "${modelId}" cleared — using bundled icon.`);
     } catch (err) {

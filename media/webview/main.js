@@ -1,4 +1,4 @@
-﻿import { state, vscode, debugLog } from './core.js';
+import { state, vscode, debugLog } from './core.js';
 import { setExpression } from './expression.js';
 import { loadOutfits } from './outfit.js';
 import { initMotions } from './motions.js';
@@ -240,7 +240,7 @@ window.addEventListener('message', (event) => {
       showCommitMessageInput(event.data.requestId, event.data.stagedCount);
       break;
     case 'captureModelChibi':
-      void handleCaptureModelChibi(event.data.modelId);
+      void handleCaptureModelChibi(event.data.modelId, event.data.silent === true);
       break;
     case 'captureWanderFrames':
       void handleCaptureWanderFrames(event.data);
@@ -430,18 +430,28 @@ async function handleCaptureWanderFrames(payload) {
   }
 }
 
-async function handleCaptureModelChibi(modelId) {
+async function handleCaptureModelChibi(modelId, silent) {
   try {
     if (!state.isLive2DReady) {
       vscode.postMessage({
-        command: 'modelChibiCaptureFailed',
+        command: 'modelChibiCaptureFailed', silent,
         reason: 'Live2D model is not ready yet — wait for it to finish loading.',
+      });
+      return;
+    }
+    // Same guard as the wander capture: if the extension names a model this
+    // view is not showing (mid-reload after a switch), the pixels would be
+    // filed under the wrong character.
+    if (modelId && window.__MODEL_ID__ && modelId !== window.__MODEL_ID__) {
+      vscode.postMessage({
+        command: 'modelChibiCaptureFailed', silent,
+        reason: `the panel is showing "${window.__MODEL_ID__}", not "${modelId}" — try again once it has reloaded`,
       });
       return;
     }
     const canvas = document.getElementById('live2dCanvas');
     if (!canvas) {
-      vscode.postMessage({ command: 'modelChibiCaptureFailed', reason: 'Canvas element not found.' });
+      vscode.postMessage({ command: 'modelChibiCaptureFailed', silent, reason: 'Canvas element not found.' });
       return;
     }
 
@@ -454,21 +464,22 @@ async function handleCaptureModelChibi(modelId) {
 
     const cropped = autoCropCanvas(canvas);
     if (!cropped) {
-      vscode.postMessage({ command: 'modelChibiCaptureFailed', reason: 'Canvas is fully transparent — model not visible.' });
+      vscode.postMessage({ command: 'modelChibiCaptureFailed', silent, reason: 'Canvas is fully transparent — model not visible.' });
       return;
     }
 
     const dataUrl = cropped.toDataURL('image/png');
     vscode.postMessage({
       command: 'modelChibiCaptured',
-      modelId: modelId || window.__MODEL_ID__,
+      silent,
+      modelId: window.__MODEL_ID__ || modelId,
       dataUrl,
       width: cropped.width,
       height: cropped.height,
     });
   } catch (err) {
     vscode.postMessage({
-      command: 'modelChibiCaptureFailed',
+      command: 'modelChibiCaptureFailed', silent,
       reason: (err && err.message) ? err.message : String(err),
     });
   }
