@@ -987,7 +987,13 @@ export async function activate(context: vscode.ExtensionContext) {
         return r === 0 ? `${h}h` : `${h}h ${r}m`;
       };
       const unlocked = s.achievements.length;
+      // The one actionable row: everything else here is read-only.
+      const usageItem: vscode.QuickPickItem = {
+        label: `$(graph) Chat usage`,
+        description: 'Tokens per provider and model — open',
+      };
       const items: vscode.QuickPickItem[] = [
+        usageItem,
         { label: `$(save) Saves`,           description: `${s.saves}` },
         { label: `$(git-commit) Commits`,   description: `${s.commits}` },
         { label: `$(bug) Errors fixed`,     description: `${s.errorsFixed}` },
@@ -1018,10 +1024,11 @@ export async function activate(context: vscode.ExtensionContext) {
           detail: new Date(memory.createdAt).toLocaleString(),
         })),
       ];
-      await vscode.window.showQuickPick(items, {
+      const picked = await vscode.window.showQuickPick(items, {
         title: 'Anime Companion — Stats',
         placeHolder: 'Press Esc to close',
       });
+      if (picked === usageItem) await chatManager.openUsagePanel();
     }),
     vscode.commands.registerCommand('animeCompanion.showAchievements', async () => {
       if (provider?.showAchievementsPanel()) {
@@ -1047,7 +1054,7 @@ export async function activate(context: vscode.ExtensionContext) {
         detail: row.detail,
       }));
       await vscode.window.showQuickPick(items, {
-        title: 'Anime Companion â€” Quests',
+        title: 'Anime Companion — Quests',
         placeHolder: 'Press Esc to close',
       });
     }),
@@ -1067,7 +1074,7 @@ export async function activate(context: vscode.ExtensionContext) {
         { label: `$(unmute) Voice packs`, description: voicePacks },
       ];
       await vscode.window.showQuickPick(items, {
-        title: `Anime Companion â€” Profile (Lv.${profile.level})`,
+        title: `Anime Companion — Profile (Lv.${profile.level})`,
         placeHolder: 'Press Esc to close',
       });
     }),

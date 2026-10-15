@@ -14,6 +14,16 @@ import { vscode } from './core.js';
 
 const $ = (id) => document.getElementById(id);
 
+// Chat UI strings from `webview.chat` in media/messages/{en,vi,ja}.json.
+// The English fallback is the second argument at each call site.
+const CHAT_STRINGS = (window.__WEBVIEW_STRINGS__ && window.__WEBVIEW_STRINGS__.chat) || {};
+function t(key, fallback) {
+  const v = CHAT_STRINGS[key];
+  return typeof v === 'string' && v ? v : fallback;
+}
+
+const SEARCH_DEBOUNCE_MS = 250;
+
 const state = {
   providers: [],
   providerId: 'copilot',
@@ -35,6 +45,9 @@ const state = {
   settingsOpen: false,
   // #file mention picker state
   mention: { open: false, activeIdx: 0, items: [], rangeStart: -1, query: '' },
+  // Conversation search: `hits` is null until the host answers the current
+  // query; until then the list is filtered by title only.
+  search: { query: '', hits: null, requestId: 0, timer: null },
 };
 
 function init() {
@@ -57,6 +70,39 @@ function init() {
     vscode.postMessage({ command: 'chat:newConversation' });
     toggleSidebar(false);
   });
+  const search = $('chatConvSearch');
+  if (search) {
+    search.placeholder = t('searchPlaceholder', 'Search conversations…');
+    search.setAttribute('aria-label', search.placeholder);
+    search.addEventListener('input', () => setSearchQuery(search.value));
+    search.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && search.value) {
+        ev.stopPropagation();
+        search.value = '';
+        setSearchQuery('');
+      }
+    });
+  }
+  const tokenTotal = $('chatTokenTotal');
+  if (tokenTotal) {
+    tokenTotal.title = t('usageOpen', 'Open chat usage');
+    tokenTotal.setAttribute('role', 'button');
+    tokenTotal.tabIndex = 0;
+    const openUsage = () => vscode.postMessage({ command: 'chat:openUsage' });
+    tokenTotal.addEventListener('click', openUsage);
+    tokenTotal.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        openUsage();
+      }
+    });
+  }
+  const exportAll = $('chatExportAllBtn');
+  if (exportAll) {
+    exportAll.title = t('exportAll', 'Export all conversations (JSON)');
+    exportAll.setAttribute('aria-label', exportAll.title);
+    exportAll.addEventListener('click', () => vscode.postMessage({ command: 'chat:exportAll' }));
+  }
   $('chatForm')?.addEventListener('submit', (ev) => {
     ev.preventDefault();
     submitPrompt();
@@ -267,7 +313,7 @@ function handleHostMessage(data) {
       if (data.error && !data.aborted) {
         showStatus(data.error, true);
       } else if (data.usage) {
-        addToTotalTokens(data.usage);
+        setConversationTokens(data.conversationUsage);
         showStatus(
           `Tokens this turn: in ${data.usage.inputTokens ?? '?'} / out ${data.usage.outputTokens ?? '?'}`,
           false
@@ -289,7 +335,30 @@ function handleHostMessage(data) {
     case 'chat:fileSearchResults':
       applyMentionResults(data);
       break;
+    case 'chat:searchResults':
+      // Answers to an older keystroke arrive late; only the newest counts.
+      if (data.requestId === state.search.requestId && Array.isArray(data.hits)) {
+        state.search.hits = data.hits;
+        renderConvList();
+      }
+      break;
   }
+}
+
+function setSearchQuery(raw) {
+  const query = (raw || '').trim();
+  state.search.query = query;
+  state.search.hits = null;
+  clearTimeout(state.search.timer);
+  renderConvList();
+  if (!query) return;
+  state.search.timer = setTimeout(requestSearch, SEARCH_DEBOUNCE_MS);
+}
+
+function requestSearch() {
+  if (!state.search.query) return;
+  state.search.requestId += 1;
+  vscode.postMessage({ command: 'chat:search', query: state.search.query, requestId: state.search.requestId });
 }
 
 function uncheckChips() {
@@ -327,22 +396,23 @@ function clearStagedSelectionChip() {
   if (chip) chip.hidden = true;
 }
 
-function addToTotalTokens(usage) {
-  if (usage.inputTokens) state.totalTokens.input += usage.inputTokens;
-  if (usage.outputTokens) state.totalTokens.output += usage.outputTokens;
+// The host sends the active conversation's totals, summed from the usage
+// stored on its replies, so Σ survives a reload and follows a switch.
+function setConversationTokens(totals) {
+  state.totalTokens = { input: totals?.in || 0, output: totals?.out || 0 };
   renderTokenTotal();
 }
 
 function renderTokenTotal() {
   const el = $('chatTokenTotal');
   if (!el) return;
-  const t = state.totalTokens;
-  if (!t.input && !t.output) {
+  const totals = state.totalTokens;
+  if (!totals.input && !totals.output) {
     el.hidden = true;
     return;
   }
   el.hidden = false;
-  el.textContent = `Σ in ${t.input} / out ${t.output}`;
+  el.textContent = `Σ in ${totals.input} / out ${totals.output}`;
 }
 
 function applySnapshot(data) {
@@ -380,6 +450,7 @@ function applySnapshot(data) {
     modelInput.placeholder = info?.defaultModel || 'AI model id';
   }
   state.modelOptions = collectModelOptions(info);
+  state.modelDetails = info?.modelDetails || {};
   state.modelComboActive = -1;
   renderCursorOrb();
   renderCopilotAccountButton();
@@ -387,8 +458,10 @@ function applySnapshot(data) {
   // account row should be visible (only when gear is open AND copilot).
   updateAccountRowVisibility();
 
-  // Conversation list
+  // Conversation list. A rename or delete arrives as a fresh snapshot, so an
+  // open search is re-asked rather than left showing hits that moved.
   renderConvList();
+  if (state.search.query) requestSearch();
 
   // Active conversation title
   const activeMeta = state.conversations.find((c) => c.id === state.activeId);
@@ -407,10 +480,7 @@ function applySnapshot(data) {
     }
   }
 
-  // Token totals are per-conversation in this UI — reset when switching
-  // (the per-turn `chat:assistantEnd` events will accumulate from here).
-  state.totalTokens = { input: 0, output: 0 };
-  renderTokenTotal();
+  setConversationTokens(data.conversationUsage);
   clearStagedSelectionChip();
 
   // API key gating
@@ -575,28 +645,68 @@ function renderConvList() {
   if (state.conversations.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'chat-conv-empty';
-    empty.textContent = 'No conversations yet';
+    empty.textContent = t('emptyList', 'No conversations yet');
     list.appendChild(empty);
     return;
   }
 
-  for (const c of state.conversations) {
+  // While a search is open: the host's hits once they arrive (titles and
+  // message bodies), and a quick title-only filter until then.
+  const query = state.search.query;
+  let shown = state.conversations.map((c) => ({ c, snippet: '' }));
+  if (query && state.search.hits) {
+    const byId = new Map(state.conversations.map((c) => [c.id, c]));
+    shown = state.search.hits
+      .filter((h) => byId.has(h.id))
+      .map((h) => ({ c: byId.get(h.id), snippet: h.snippet || '' }));
+  } else if (query) {
+    const q = query.toLowerCase();
+    shown = shown.filter(({ c }) => (c.title || '').toLowerCase().includes(q));
+  }
+  if (query && shown.length === 0 && state.search.hits) {
+    const empty = document.createElement('div');
+    empty.className = 'chat-conv-empty';
+    empty.textContent = t('searchEmpty', 'No conversation matches "{query}"').split('{query}').join(query);
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const { c, snippet } of shown) {
     const item = document.createElement('div');
     item.className = 'chat-conv-item' + (c.id === state.activeId ? ' active' : '');
     item.setAttribute('role', 'option');
     item.title = `${c.title}\n${c.providerId}/${c.model}`;
 
+    const text = document.createElement('span');
+    text.className = 'chat-conv-item-text';
     const title = document.createElement('span');
     title.className = 'chat-conv-item-title';
-    title.textContent = c.title || 'Untitled';
+    title.textContent = c.title || t('untitled', 'Untitled');
+    text.appendChild(title);
+    if (snippet) {
+      const snip = document.createElement('span');
+      snip.className = 'chat-conv-item-snippet';
+      snip.textContent = snippet;
+      text.appendChild(snip);
+    }
 
     const actions = document.createElement('span');
     actions.className = 'chat-conv-item-actions';
 
+    const exportBtn = document.createElement('button');
+    exportBtn.type = 'button';
+    exportBtn.className = 'chat-conv-item-action';
+    exportBtn.title = t('export', 'Export as Markdown');
+    exportBtn.textContent = '⤓';
+    exportBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      vscode.postMessage({ command: 'chat:exportConversation', id: c.id });
+    });
+
     const renameBtn = document.createElement('button');
     renameBtn.type = 'button';
     renameBtn.className = 'chat-conv-item-action';
-    renameBtn.title = 'Rename';
+    renameBtn.title = t('rename', 'Rename');
     renameBtn.textContent = '✎';
     renameBtn.addEventListener('click', (ev) => {
       ev.stopPropagation();
@@ -612,7 +722,7 @@ function renderConvList() {
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'chat-conv-item-action';
-    delBtn.title = 'Delete';
+    delBtn.title = t('delete', 'Delete');
     delBtn.textContent = '🗑';
     delBtn.addEventListener('click', (ev) => {
       ev.stopPropagation();
@@ -625,9 +735,10 @@ function renderConvList() {
       });
     });
 
+    actions.appendChild(exportBtn);
     actions.appendChild(renameBtn);
     actions.appendChild(delBtn);
-    item.appendChild(title);
+    item.appendChild(text);
     item.appendChild(actions);
 
     // Whole item is clickable to load the conversation (except clicks on
@@ -684,15 +795,20 @@ function collectModelOptions(providerInfo) {
   return out;
 }
 
+// OpenRouter lists ~300 models; past this many the list stops being a list.
+const MODEL_COMBO_LIMIT = 50;
+
 function openModelCombo(filterValue) {
   const list = $('chatModelComboList');
   const input = $('chatModel');
   if (!list || !input) return;
   const options = state.modelOptions || [];
+  const details = state.modelDetails || {};
   const filter = (filterValue || '').trim().toLowerCase();
-  const visible = filter
-    ? options.filter((o) => o.toLowerCase().includes(filter))
+  const matching = filter
+    ? options.filter((o) => o.toLowerCase().includes(filter) || (details[o] || '').toLowerCase().includes(filter))
     : options;
+  const visible = matching.slice(0, MODEL_COMBO_LIMIT);
   if (visible.length === 0) {
     list.hidden = true;
     return;
@@ -701,14 +817,31 @@ function openModelCombo(filterValue) {
   visible.forEach((opt, idx) => {
     const li = document.createElement('li');
     li.className = 'chat-model-combo-item' + (idx === state.modelComboActive ? ' active' : '');
-    li.textContent = opt;
     li.setAttribute('role', 'option');
+    const id = document.createElement('span');
+    id.className = 'chat-model-combo-id';
+    id.textContent = opt;
+    li.appendChild(id);
+    if (details[opt]) {
+      const detail = document.createElement('span');
+      detail.className = 'chat-model-combo-detail';
+      detail.textContent = details[opt];
+      li.appendChild(detail);
+    }
     li.addEventListener('mousedown', (ev) => {
       ev.preventDefault();
       acceptModelComboItem(opt);
     });
     list.appendChild(li);
   });
+  if (matching.length > visible.length) {
+    const more = document.createElement('li');
+    more.className = 'chat-model-combo-more';
+    more.textContent = t('modelMore', '…and {count} more — type to narrow down')
+      .split('{count}')
+      .join(String(matching.length - visible.length));
+    list.appendChild(more);
+  }
   list.hidden = false;
   state.modelComboVisible = visible;
   if (state.modelComboActive >= visible.length) state.modelComboActive = -1;

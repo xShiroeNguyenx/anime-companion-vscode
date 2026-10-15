@@ -183,7 +183,7 @@ window.addEventListener('message', (event) => {
     case 'pomodoroBreak':
       setExpression('sleepy', null);
       showBubble('🍅 Xong một phiên rồi nè~ nghỉ tay và uống nước chút nha!');
-      // Different sound cue for break vs work ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â break uses headpat (gentler)
+      // Different sound cue for break vs work — break uses headpat (gentler)
       playAudio('headpat.mp3');
       playMotion('TapBody');
       break;

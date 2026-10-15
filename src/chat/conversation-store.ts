@@ -9,6 +9,15 @@ export interface StoredMessage {
   role: 'user' | 'assistant';
   content: string;
   ts: number;
+  /**
+   * User messages only, since v0.7.0: what was typed, without the attached
+   * context that `content` carries for the provider. Absent in older files.
+   */
+  prompt?: string;
+  /** Assistant messages only, since v0.7.0: tokens the provider reported. */
+  usage?: { in: number; out: number };
+  /** Assistant messages only, since v0.7.0: the model that answered. */
+  model?: string;
 }
 
 export interface ConversationMeta {
@@ -75,6 +84,17 @@ export class ConversationStore {
     return [...out];
   }
 
+  /** Every conversation with its messages, for search and "export all". */
+  async getAll(): Promise<ConversationFile[]> {
+    const metas = await this.list();
+    const files: ConversationFile[] = [];
+    for (const meta of metas) {
+      const file = await this.get(meta.id);
+      if (file) files.push(file);
+    }
+    return files;
+  }
+
   getActiveId(): string | undefined {
     return this._context.workspaceState.get<string>(ACTIVE_KEY);
   }
@@ -114,7 +134,9 @@ export class ConversationStore {
     file.meta.updatedAt = Date.now();
     if (file.meta.title === 'New chat') {
       const first = file.messages.find((m) => m.role === 'user');
-      if (first) file.meta.title = makeTitle(first.content);
+      // The typed prompt, not `content`: with a file attached, `content`
+      // starts with "Active file `…`" and every title read the same.
+      if (first) file.meta.title = makeTitle(first.prompt ?? first.content);
     }
     await this._writeFile(file);
     this._metaCache = null;

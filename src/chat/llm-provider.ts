@@ -92,6 +92,8 @@ export interface ProviderInfo {
   label: string;
   defaultModel: string;
   modelExamples: string[];
+  /** Optional one-line detail per model id (price, context), for the picker. */
+  modelDetails?: Record<string, string>;
   keyHint: string;
   requiresApiKey: boolean;
   notes?: string;

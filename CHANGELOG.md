@@ -3,6 +3,38 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-10-15
+
+### Added — 🔎 Search and export your conversations
+
+- **A search box at the top of the conversation list.** Titles filter as you type; a moment later the list narrows to every conversation whose messages contain the words too, each with a line of text around the match. Case and Vietnamese diacritics are ignored, so `cau hinh` finds "cấu hình". Files and selections attached to a question are not searched, so a file pasted into one chat does not make it turn up for every search ([src/chat/conversation-export.ts](src/chat/conversation-export.ts), [media/webview/chat.js](media/webview/chat.js)).
+- **Export a conversation as Markdown** with the ⤓ button beside rename and delete, or **every conversation as one JSON file** with the ⤓ next to the search box. Both ask where to save and offer to open the result.
+- **Exports leave attached context out.** Only what you typed and what she answered is written; a selection or file sent along with a question may hold keys or `.env` values, and an export is a file that tends to get shared. Questions now also store the typed text on its own, which is what makes this exact for new chats; for older ones the attached blocks are cut off in front of the question, erring towards dropping a few words rather than ever keeping a file.
+- **Chat panel strings in Vietnamese and Japanese.** The new controls, and the conversation list around them, read from `webview.chat` in [media/messages](media/messages) instead of being English-only.
+
+### Added — 🧭 OpenRouter's whole catalog in the model picker
+
+- **Every OpenRouter model, with its price and context size,** instead of six hardcoded names. The list comes from OpenRouter's public `/api/v1/models` (no key needed), is kept on disk for a day, and is refreshed in the background — the panel never waits on the network, and when offline the last list (or the six names) stays ([src/chat/model-catalog.ts](src/chat/model-catalog.ts), [src/chat/chat-manager.ts](src/chat/chat-manager.ts)).
+- **The picker shows at most 50 matches,** with "…and N more" below; typing filters by id and by the price line, so `free` lists the free models.
+
+### Added — 📊 Chat usage
+
+- **Token usage is kept per day, provider and model.** Every reply, in the panel and in quick chat, is counted; the last 180 days are kept day by day and older ones folded into months, so all-time totals survive ([src/chat/usage.ts](src/chat/usage.ts)).
+- **A usage page**, opened by clicking Σ in the chat panel or from **Stats › Chat usage**: Today / 7 days / 30 days / All time, a row per provider and model, and a bar per day for the last 30 days. It follows the VS Code theme and runs no script ([src/chat/usage-view.ts](src/chat/usage-view.ts)).
+- **Estimated cost for OpenRouter only,** from the prices in its catalog. Other providers show tokens alone — a hand-kept price table would be wrong within weeks. Replies the provider sent no token count for (Copilot never does) are counted and labelled as such rather than shown as zero.
+- **Σ in the chat panel is the conversation's total,** read from the usage now stored on each reply, so it survives a reload and follows a switch instead of restarting at zero.
+
+### Fixed
+
+- **Each chat provider remembers its own model.** Switching provider used to carry the previous model id across, so Gemini could be sent "claude-…"; an older single choice is still honoured where it fits the provider.
+- **A conversation is titled after its question, not after the file attached to it.** With a file or selection attached, every title used to read "Active file `…`" ([src/chat/conversation-store.ts](src/chat/conversation-store.ts)).
+- **Garbled Japanese text** in the built-in save, branch-switch and error lines, the Quests and Profile panel titles, and an internal error message — they had been double-encoded several times over ([src/messages.ts](src/messages.ts), [src/extension.ts](src/extension.ts)).
+
+### Internal
+
+- `scripts/chat-test.js`, the first tests for the chat code (22: export, search, catalog parsing, usage bookkeeping, the usage page), run by `npm test`.
+- Conversation files gain optional `prompt` (questions) and `usage` / `model` (replies) fields; older files read as before.
+
 ## [0.6.5] - 2026-10-15
 
 ### Added

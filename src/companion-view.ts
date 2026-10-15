@@ -771,6 +771,10 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
             <button id="chatNewBtn" class="chat-btn-primary" style="flex:1">＋ New chat</button>
             <button id="chatSidebarCloseBtn" class="chat-icon-btn" title="Close conversation list" aria-label="Close conversation list">✕</button>
           </div>
+          <div class="chat-sidebar-search">
+            <input id="chatConvSearch" type="search" spellcheck="false" autocomplete="off" />
+            <button id="chatExportAllBtn" type="button" class="chat-icon-btn">⤓</button>
+          </div>
           <div id="chatConvList" class="chat-conv-list" role="listbox"></div>
         </div>
 

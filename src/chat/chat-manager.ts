@@ -1,9 +1,31 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { log } from '../log';
 import { getSelectedModel } from '../models';
 import { ChatSecrets, ProviderId } from './secrets';
 import { ConversationStore, ConversationFile, StoredMessage } from './conversation-store';
 import { getProvider, PROVIDER_INFO, ChatMessage } from './llm-provider';
+import { safeFileName, searchConversations, toJsonBundle, toMarkdown } from './conversation-export';
+import {
+  CatalogModel,
+  ModelCatalog,
+  formatModelDetail,
+  isCatalogFresh,
+  parseOpenRouterModels,
+} from './model-catalog';
+import {
+  TurnUsage,
+  addUsage,
+  aggregateUsage,
+  conversationTotals,
+  dayKeysBack,
+  localDayKey,
+  normalizeUsage,
+  pruneUsage,
+} from './usage';
+import { DEFAULT_USAGE_STRINGS, UsageViewStrings, renderUsageHtml } from './usage-view';
 import { resolveSystemPrompt } from './persona';
 import { buildContext, ContextRequest, searchWorkspaceFiles } from './context-builder';
 import { detectSentiment } from './sentiment';
@@ -39,7 +61,20 @@ function isModelCompatibleWithProvider(model: string, providerId: ProviderId): b
 export class ChatManager {
   private static readonly PROVIDER_STATE_KEY = 'chat.providerSelection';
   private static readonly MODEL_STATE_KEY = 'chat.modelSelection';
+  // Since v0.7.0 each provider remembers its own model; switching provider
+  // used to carry the old model id over ("claude-…" sent to Gemini).
+  private static readonly MODEL_BY_PROVIDER_KEY = 'chat.modelSelectionByProvider';
+  private static readonly USAGE_KEY = 'animeCompanion.chatUsage.v1';
   private static readonly MODEL_CACHE_TTL_MS = 5 * 60 * 1000;
+  /** After a failed catalog fetch, wait this long before trying again. */
+  private static readonly CATALOG_RETRY_MS = 10 * 60 * 1000;
+  private static readonly CATALOG_FETCH_TIMEOUT_MS = 10_000;
+
+  private _openRouterCatalog?: ModelCatalog;
+  private _catalogLoaded = false;
+  private _catalogRefreshing = false;
+  private _catalogFailedAt = 0;
+  private _usagePanel?: vscode.WebviewPanel;
 
   private _abort?: AbortController;
   private _inFlight = false;
@@ -133,7 +168,7 @@ export class ChatManager {
     conv.meta.model = model;
 
     const now = Date.now();
-    const userMsg: StoredMessage = { role: 'user', content: userContent, ts: now };
+    const userMsg: StoredMessage = { role: 'user', content: userContent, prompt: text, ts: now };
     conv.messages.push(userMsg);
     await this._store.save(conv);
     await this._store.setActiveId(conv.meta.id);
@@ -192,9 +227,14 @@ export class ChatManager {
         role: 'assistant',
         content: accumulated || '(empty response)',
         ts: Date.now(),
+        model,
+        ...(result.usage
+          ? { usage: { in: result.usage.inputTokens ?? 0, out: result.usage.outputTokens ?? 0 } }
+          : {}),
       };
       conv.messages.push(assistantMsg);
       await this._store.save(conv);
+      await this._recordUsage(providerId, model, result.usage);
 
       this._post({
         command: 'chat:assistantEnd',
@@ -202,6 +242,7 @@ export class ChatManager {
         streamId: streamMsgId,
         message: assistantMsg,
         usage: result.usage,
+        conversationUsage: conversationTotals(conv.messages),
         title: conv.meta.title,
       });
 
@@ -324,7 +365,7 @@ export class ChatManager {
 
     let accumulated = '';
     try {
-      const { stream } = provider.sendStream({
+      const { stream, result } = provider.sendStream({
         apiKey,
         model,
         messages: providerMessages,
@@ -337,6 +378,7 @@ export class ChatManager {
         accumulated += chunk;
         opts.onDelta(chunk);
       }
+      await this._recordUsage(providerId, model, result.usage);
 
       opts.onEnd(accumulated || '(empty response)');
       await this._recordSuccessfulProvider(providerId);
@@ -451,6 +493,69 @@ export class ChatManager {
     await this.sendSnapshot();
   }
 
+  // ───────────────────────────────────── export / search ─────────────────────────────────────
+
+  /** One conversation as Markdown; the active one when no id is given. */
+  async exportConversation(id?: string): Promise<void> {
+    const s = chatStrings();
+    const targetId = id ?? this._store.getActiveId();
+    const file = targetId ? await this._store.get(targetId) : undefined;
+    if (!file || file.messages.length === 0) {
+      vscode.window.showInformationMessage(s.exportNothing);
+      return;
+    }
+    const markdown = toMarkdown(file, {
+      user: s.exportUserLabel,
+      assistant: getSelectedModel('panel').name || s.exportAssistantLabel,
+      contextOmitted: s.exportContextOmitted,
+    });
+    await this._saveExport(safeFileName(file.meta.title, 'md'), markdown, { Markdown: ['md'] });
+  }
+
+  /** Every conversation as one JSON file. */
+  async exportAll(): Promise<void> {
+    const s = chatStrings();
+    const files = await this._store.getAll();
+    if (files.length === 0) {
+      vscode.window.showInformationMessage(s.exportNothing);
+      return;
+    }
+    const day = new Date().toISOString().slice(0, 10);
+    await this._saveExport(`anime-companion-chats-${day}.json`, toJsonBundle(files, Date.now()), { JSON: ['json'] });
+  }
+
+  private async _saveExport(fileName: string, content: string, filters: Record<string, string[]>): Promise<void> {
+    const s = chatStrings();
+    const folder = vscode.workspace.workspaceFolders?.[0]?.uri ?? vscode.Uri.file(os.homedir());
+    const target = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.joinPath(folder, fileName),
+      filters,
+      title: s.exportDialogTitle,
+    });
+    if (!target) return;
+    try {
+      await vscode.workspace.fs.writeFile(target, Buffer.from(content, 'utf8'));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log(`ChatManager: export failed: ${msg}`);
+      vscode.window.showErrorMessage(`${s.exportFailed} ${msg}`);
+      return;
+    }
+    const choice = await vscode.window.showInformationMessage(
+      s.exportDone.split('{file}').join(path.basename(target.fsPath)),
+      s.exportOpen
+    );
+    if (choice === s.exportOpen) {
+      await vscode.window.showTextDocument(target);
+    }
+  }
+
+  /** Full-text search over titles and message bodies (attached context excluded). */
+  async search(query: string, requestId: number): Promise<void> {
+    const hits = query.trim() ? searchConversations(await this._store.getAll(), query) : [];
+    this._post({ command: 'chat:searchResults', requestId, query, hits });
+  }
+
   async sendSnapshot(): Promise<void> {
     const providerId = this._resolveActiveProvider();
     const provider = getProvider(providerId);
@@ -497,6 +602,25 @@ export class ChatManager {
       }
     }
 
+    // OpenRouter's catalog needs no key. The snapshot uses whatever is cached
+    // (memory or disk) and never waits on the network; a stale or missing
+    // catalog is refreshed in the background and the snapshot re-sent.
+    if (providerId === 'openrouter') {
+      const catalog = await this._loadOpenRouterCatalog();
+      const entry = providersForUi.find((p) => p.id === 'openrouter');
+      if (catalog && entry) {
+        entry.modelExamples = catalog.models.map((m) => m.id);
+        entry.modelDetails = Object.fromEntries(
+          catalog.models.map((m) => [m.id, formatModelDetail(m)]).filter(([, d]) => d)
+        );
+      }
+      if (!isCatalogFresh(catalog, Date.now())) {
+        void this._refreshOpenRouterCatalog().then((changed) => {
+          if (changed) void this.sendSnapshot();
+        });
+      }
+    }
+
     this._post({
       command: 'chat:snapshot',
       providerId,
@@ -510,7 +634,116 @@ export class ChatManager {
       conversations,
       activeId: active?.meta.id,
       messages: active?.messages ?? [],
+      conversationUsage: conversationTotals(active?.messages ?? []),
     });
+  }
+
+  // ───────────────────────────────────── OpenRouter catalog ─────────────────────────────────────
+
+  private _catalogPath(): string {
+    return path.join(this._context.globalStorageUri.fsPath, 'chat-models', 'openrouter.json');
+  }
+
+  /** Memory first, then the copy on disk. Never touches the network. */
+  private async _loadOpenRouterCatalog(): Promise<ModelCatalog | undefined> {
+    if (this._catalogLoaded) return this._openRouterCatalog;
+    this._catalogLoaded = true;
+    try {
+      const raw = JSON.parse(await fs.promises.readFile(this._catalogPath(), 'utf8')) as ModelCatalog;
+      if (typeof raw?.fetchedAt === 'number' && Array.isArray(raw.models)) this._openRouterCatalog = raw;
+    } catch {
+      // First run, or the file is unreadable: the hardcoded examples stand in.
+    }
+    return this._openRouterCatalog;
+  }
+
+  /** Fetches the catalog; resolves true when a new one was stored. */
+  private async _refreshOpenRouterCatalog(): Promise<boolean> {
+    if (this._catalogRefreshing) return false;
+    if (Date.now() - this._catalogFailedAt < ChatManager.CATALOG_RETRY_MS) return false;
+    this._catalogRefreshing = true;
+    try {
+      const resp = await fetch('https://openrouter.ai/api/v1/models', {
+        signal: AbortSignal.timeout(ChatManager.CATALOG_FETCH_TIMEOUT_MS),
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const models = parseOpenRouterModels(await resp.json());
+      // An empty list is a broken response, not "OpenRouter has no models";
+      // keep the old catalog rather than wiping the picker.
+      if (models.length === 0) throw new Error('response held no models');
+      this._openRouterCatalog = { fetchedAt: Date.now(), models };
+      await fs.promises.mkdir(path.dirname(this._catalogPath()), { recursive: true });
+      await fs.promises.writeFile(this._catalogPath(), JSON.stringify(this._openRouterCatalog), 'utf8');
+      log(`ChatManager: OpenRouter catalog refreshed (${models.length} models)`);
+      return true;
+    } catch (err) {
+      this._catalogFailedAt = Date.now();
+      log(`ChatManager: OpenRouter catalog fetch failed, keeping the cached list: ${err instanceof Error ? err.message : String(err)}`);
+      return false;
+    } finally {
+      this._catalogRefreshing = false;
+    }
+  }
+
+  private _priceOf(provider: string, model: string): CatalogModel | undefined {
+    if (provider !== 'openrouter') return undefined;
+    return this._openRouterCatalog?.models.find((m) => m.id === model);
+  }
+
+  // ───────────────────────────────────── usage ─────────────────────────────────────
+
+  private async _recordUsage(providerId: ProviderId, model: string, usage: TurnUsage | undefined): Promise<void> {
+    try {
+      const today = localDayKey(new Date());
+      const data = normalizeUsage(this._context.globalState.get(ChatManager.USAGE_KEY));
+      pruneUsage(addUsage(data, today, providerId, model, usage), today);
+      await this._context.globalState.update(ChatManager.USAGE_KEY, data);
+      if (this._usagePanel) void this._renderUsagePanel();
+    } catch (err) {
+      // Bookkeeping must never break a reply that already arrived.
+      log(`ChatManager: usage record failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /** Opens (or focuses) the usage dashboard. */
+  async openUsagePanel(): Promise<void> {
+    if (this._usagePanel) {
+      this._usagePanel.reveal();
+    } else {
+      this._usagePanel = vscode.window.createWebviewPanel(
+        'animeCompanion.chatUsage',
+        usageStrings().title,
+        vscode.ViewColumn.Active,
+        // No scripts: the page is static HTML, tabs are CSS-only.
+        { enableScripts: false }
+      );
+      this._usagePanel.onDidDispose(() => (this._usagePanel = undefined));
+    }
+    // Prices come from the OpenRouter catalog; load it if this is the first use.
+    await this._loadOpenRouterCatalog();
+    await this._renderUsagePanel();
+  }
+
+  private async _renderUsagePanel(): Promise<void> {
+    if (!this._usagePanel) return;
+    const s = usageStrings();
+    const r = rangeLabels();
+    const data = normalizeUsage(this._context.globalState.get(ChatManager.USAGE_KEY));
+    const today = localDayKey(new Date());
+    const last30 = dayKeysBack(today, 30);
+    const ranges = [
+      { id: 'today', label: r.today, summary: aggregateUsage(data, [today]) },
+      { id: 'week', label: r.week, summary: aggregateUsage(data, dayKeysBack(today, 7)) },
+      { id: 'month', label: r.month, summary: aggregateUsage(data, last30) },
+      { id: 'all', label: r.all, summary: aggregateUsage(data, Object.keys(data.days).sort(), true) },
+    ];
+    this._usagePanel.title = s.title;
+    this._usagePanel.webview.html = renderUsageHtml(
+      ranges,
+      aggregateUsage(data, last30).perDay,
+      (provider, model) => this._priceOf(provider, model),
+      s
+    );
   }
 
   async setProvider(providerId: ProviderId): Promise<void> {
@@ -526,6 +759,12 @@ export class ChatManager {
     } catch (err) {
       log(`ChatManager: failed to mirror provider to settings.json: ${err instanceof Error ? err.message : String(err)}`);
     }
+    // Settings shows the model of the provider now in use, not the last one.
+    try {
+      await cfg.update('chat.model', this._resolveActiveModel(providerId), this._chatConfigTarget());
+    } catch (err) {
+      log(`ChatManager: failed to mirror model to settings.json: ${err instanceof Error ? err.message : String(err)}`);
+    }
     // Invalidate the model list cache — provider switched, the old list is
     // for a different vendor and would mislead the dropdown.
     this._modelListCache.clear();
@@ -533,6 +772,9 @@ export class ChatManager {
   }
 
   async setModel(model: string): Promise<void> {
+    const providerId = this._resolveActiveProvider();
+    const byProvider = { ...this._modelsByProvider(), [providerId]: model };
+    await this._context.workspaceState.update(ChatManager.MODEL_BY_PROVIDER_KEY, byProvider);
     await this._context.workspaceState.update(ChatManager.MODEL_STATE_KEY, model);
     const cfg = vscode.workspace.getConfiguration('animeCompanion');
     try {
@@ -606,12 +848,25 @@ export class ChatManager {
     return out;
   }
 
+  private _modelsByProvider(): Partial<Record<ProviderId, string>> {
+    const raw = this._context.workspaceState.get<Record<string, unknown>>(ChatManager.MODEL_BY_PROVIDER_KEY);
+    const out: Partial<Record<ProviderId, string>> = {};
+    for (const [k, v] of Object.entries(raw ?? {})) {
+      if (typeof v === 'string' && v.trim()) out[k as ProviderId] = v.trim();
+    }
+    return out;
+  }
+
+  // This provider's own pick first. The single pre-v0.7 selection and the
+  // settings value still count, but only when the id fits this provider.
   private _resolveActiveModel(providerId: ProviderId): string {
-    const stored = this._context.workspaceState.get<string>(ChatManager.MODEL_STATE_KEY);
-    if (stored && stored.trim()) return stored.trim();
+    const own = this._modelsByProvider()[providerId];
+    if (own) return own;
+    const stored = (this._context.workspaceState.get<string>(ChatManager.MODEL_STATE_KEY) || '').trim();
+    if (stored && isModelCompatibleWithProvider(stored, providerId)) return stored;
     const cfg = vscode.workspace.getConfiguration('animeCompanion');
     const fromCfg = (cfg.get<string>('chat.model', '') || '').trim();
-    if (fromCfg) return fromCfg;
+    if (fromCfg && isModelCompatibleWithProvider(fromCfg, providerId)) return fromCfg;
     return PROVIDER_INFO.find((p) => p.id === providerId)?.defaultModel || '';
   }
 
@@ -815,4 +1070,49 @@ async function configureOllamaEndpoint(): Promise<void> {
   vscode.window.showInformationMessage(
     `Ollama endpoint saved: ${normalized}. Pick "Ollama" from the chat panel's provider dropdown to use it.`
   );
+}
+
+// English defaults for the host-side chat strings; `webview.chat` in
+// media/messages/{en,vi,ja}.json overrides them per message language.
+const CHAT_STRING_DEFAULTS = {
+  exportNothing: 'This conversation has no messages to export yet.',
+  exportDialogTitle: 'Export conversation',
+  exportDone: 'Exported to {file} (attached files and selections left out).',
+  exportOpen: 'Open',
+  exportFailed: "Couldn't export:",
+  exportUserLabel: 'You',
+  exportAssistantLabel: 'Assistant',
+  exportContextOmitted: '_(attached context omitted)_',
+};
+
+function chatStringOverrides(): Record<string, string> {
+  try {
+    return getMessageBank().getWebviewStrings().chat ?? {};
+  } catch {
+    // Message bank not ready (smoke-test host): English is fine.
+    return {};
+  }
+}
+
+/** `defaults` with each key looked up in `webview.chat` as prefix + Key (`usage` + `title` → `usageTitle`). */
+function withOverrides<T extends object>(defaults: T, prefix = ''): T {
+  const overrides = chatStringOverrides();
+  const out = { ...defaults } as Record<string, string>;
+  for (const key of Object.keys(out)) {
+    const v = overrides[prefix ? prefix + key[0].toUpperCase() + key.slice(1) : key];
+    if (typeof v === 'string' && v) out[key] = v;
+  }
+  return out as T;
+}
+
+function chatStrings(): typeof CHAT_STRING_DEFAULTS {
+  return withOverrides(CHAT_STRING_DEFAULTS);
+}
+
+function usageStrings(): UsageViewStrings {
+  return withOverrides(DEFAULT_USAGE_STRINGS, 'usage');
+}
+
+function rangeLabels(): { today: string; week: string; month: string; all: string } {
+  return withOverrides({ today: 'Today', week: '7 days', month: '30 days', all: 'All time' }, 'usageRange');
 }

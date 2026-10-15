@@ -2,7 +2,7 @@
   "name": "anime-companion-vscode",
   "displayName": "Anime Companion",
   "description": "🌸 Live2D anime companion in your sidebar — reacts to errors, saves, commits, builds, debug & Pomodoro. Multilingual voice + lip-sync.",
-  "version": "0.6.5",
+  "version": "0.7.0",
   "publisher": "shiroenguyen",
   "license": "MIT",
   "engines": {
@@ -1117,7 +1117,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
-    "test": "npm run compile && node ./scripts/smoke-test.js && node ./scripts/theme-test.js && node ./scripts/param-offsets-test.js",
+    "test": "npm run compile && node ./scripts/smoke-test.js && node ./scripts/theme-test.js && node ./scripts/param-offsets-test.js && node ./scripts/chat-test.js",
     "themes:generate": "npm run compile && node scripts/gen-themes.js",
     "cleanup:vsix": "node scripts/cleanup-vsix.js",
     "build:desktop-pet": "node scripts/build-desktop-pet.js",

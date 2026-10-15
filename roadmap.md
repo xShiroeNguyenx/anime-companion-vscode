@@ -1,6 +1,6 @@
 # 🌸 Anime Companion VSCode — Roadmap
 
-> **Phiên bản hiện tại:** v0.6.5 — *cập nhật 2026-10-15*
+> **Phiên bản hiện tại:** v0.7.0 — *cập nhật 2026-10-15*
 >
 > Tài liệu này là single-source-of-truth cho **trạng thái feature**, việc **còn phải làm** và **hướng phát triển tương lai**. Chi tiết implementation ở [FEATURES.md](./FEATURES.md), lịch sử release ở [CHANGELOG.md](./CHANGELOG.md), kế hoạch chi tiết từng version ở [PLAN.md](./PLAN.md).
 
@@ -18,8 +18,9 @@ v0.4.x  ────────────   GitHub account swap · Claude tea
 v0.5.0  ──→  v0.5.4    Background image · Markdown WYSIWYG editor · Alt+drag rotate · Auto look-at
 v0.5.5  ──→  v0.5.9    Outfits/Expressions/Motions từ file model · Settings panel · Radial menu · Idle life
 v0.6.0  ──→  v0.6.5    Wander (tạm tắt) · 10 bundled themes · Icon mới · Auto-capture cursor chibi
-v0.7.x  ────────────   Slash commands · Diff-aware chat · Privacy redaction · Stats heatmap [PLANNED]
-v0.8.x  ────────────   Real-time TTS · OpenRouter model discovery · Conversation export   [PLANNED]
+v0.7.0  ────────────   Export/search hội thoại · OpenRouter model discovery · Usage dashboard
+v0.8.x  ────────────   Real-time TTS (VoiceVox → ElevenLabs BYOK)                        [PLANNED]
+v0.9.x  ────────────   Slash commands · Diff-aware chat · Privacy redaction · Stats heatmap [PLANNED]
 v1.x    ────────────   Mac/Linux Desktop Companion · Multi-character · Motion editor      [VISION]
 ```
 
@@ -199,7 +200,7 @@ Chi tiết từng bản ở [CHANGELOG.md](./CHANGELOG.md).
 
 ---
 
-## 📋 Chưa làm — Backlog ngắn hạn (v0.7.x)
+## 📋 Chưa làm — Backlog ngắn hạn (v0.9.x)
 
 ### Chat productivity
 - [ ] **Slash commands trong chat** — gõ `/` đầu textarea mở dropdown:
@@ -305,7 +306,9 @@ Chi tiết từng bản ở [CHANGELOG.md](./CHANGELOG.md).
 
 ---
 
-## 🎯 Chưa làm — Roadmap trung hạn (v0.8.x – v1.0)
+## 🎯 Chưa làm — Roadmap trung hạn (v0.7.x – v1.0)
+
+> Kế hoạch chi tiết cho TTS, Build Optimization và Chat Nâng cao: [docs/PLAN_v0.7-v0.8.md](./docs/PLAN_v0.7-v0.8.md).
 
 ### Real-time TTS (replace bundled MP3 cho `vi`/`en` extended)
 - [ ] **Auto-detect VoiceVox local** lúc activate qua `http://localhost:50021/version` ping (cho `ja`)
@@ -328,10 +331,10 @@ Chi tiết từng bản ở [CHANGELOG.md](./CHANGELOG.md).
 - [ ] **Model preview tooltip** — hover model trong picker → mini preview canvas hiện thumbnail (tận dụng captured chibi nếu có)
 
 ### Chat Nâng cao
-- [ ] **OpenRouter model discovery** — cache `/api/v1/models` → autocomplete model name (hiện free-text)
-- [ ] **Conversation search** — Ctrl+F trong sidebar conversation list, full-text qua title + message bodies
-- [ ] **Export conversation** ra Markdown (single conv) hoặc JSON (all conv) → save vào folder user pick
-- [ ] **Session usage dashboard** — webview tổng hợp `tokens_in / tokens_out / estimated_cost_usd` per-provider, per-day (cost lookup table built-in cho các provider có rate công khai)
+- [x] **OpenRouter model discovery** — ✅ v0.7.0 — — cache `/api/v1/models` → autocomplete model name (hiện free-text)
+- [x] **Conversation search** — ✅ v0.7.0 — — Ctrl+F trong sidebar conversation list, full-text qua title + message bodies
+- [x] **Export conversation** — ✅ v0.7.0 (bỏ context đính kèm) — ra Markdown (single conv) hoặc JSON (all conv) → save vào folder user pick
+- [x] **Session usage dashboard** — ✅ v0.7.0 (chi phí chỉ cho OpenRouter) — — webview tổng hợp `tokens_in / tokens_out / estimated_cost_usd` per-provider, per-day (cost lookup table built-in cho các provider có rate công khai)
 
 ---
 

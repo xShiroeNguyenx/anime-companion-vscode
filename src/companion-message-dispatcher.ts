@@ -294,6 +294,20 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
     case 'chat:clearAll':
       void ctx.chatManager?.clearAll();
       break;
+    case 'chat:exportConversation':
+      void ctx.chatManager?.exportConversation(typeof message.id === 'string' ? message.id : undefined);
+      break;
+    case 'chat:exportAll':
+      void ctx.chatManager?.exportAll();
+      break;
+    case 'chat:openUsage':
+      void ctx.chatManager?.openUsagePanel();
+      break;
+    case 'chat:search':
+      if (typeof message.query === 'string' && ctx.chatManager) {
+        void ctx.chatManager.search(message.query.slice(0, 200), Number(message.requestId) || 0);
+      }
+      break;
     case 'chat:newConversation':
       void ctx.chatManager?.newConversation();
       break;
