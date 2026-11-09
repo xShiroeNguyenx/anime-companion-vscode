@@ -3,6 +3,32 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2026-11-09
+
+### Changed — 🐾 One desktop pet for all your VS Code windows
+
+With Desktop Companion on, every VS Code window started a pet of its own: four windows, four pets stacked on one spot, each answering only to the window that started it.
+
+- **One window runs the pet; the others leave her to it.** When that window closes, crashes or stops responding for 15 seconds, another one takes her over within a few seconds. A window waking up with the machine after sleep does not grab her from a window that only slept too ([src/pet-owner.ts](src/pet-owner.ts), [src/pet-owner-lock.ts](src/pet-owner-lock.ts)).
+- **"🐾 Pet: other window" in the status bar** of the other windows. Click it, or run **Anime Companion: Bring Desktop Companion Here**, and she moves to that window in a couple of seconds.
+- For now she reacts to the window that runs her: errors, saves and the Pomodoro of the other windows do not reach her yet.
+
+### Changed — 🎧 One ambient track at a time
+
+- **The ambient music plays in one window, the last one you used.** Every window with the panel open played its own copy of the preset, out of step with the others. A window takes the music when you focus it, provided you have clicked her there since it loaded (a page may not start sound before that). The window that had it pauses within two seconds and picks up where it left off when you come back ([src/ambient-owner.ts](src/ambient-owner.ts)).
+
+### Changed
+
+- **The Settings panel lets go of its page while its tab is hidden,** instead of keeping a whole page in memory for a form that saves every change as you make it. Your search, unsaved JSON edits and scroll position come back with the tab.
+
+### Security
+
+- **The companion panel and the Agent Accounts panel only run their own scripts.** Both pages allowed inline script, so markup slipped into a chat reply or a profile name (an `onerror=` on an image) would have run with the page's access to git and settings. Scripts now need the page's nonce, and anything the policy blocks is written to the Anime Companion output.
+
+### Fixed
+
+- **Quit in the desktop pet's tray menu keeps her closed.** She came back a second later, and the fourth Quit within a minute ended in "Desktop Companion keeps crashing". The status bar now shows "🐾 Pet is off"; click it to bring her back.
+
 ## [0.7.1] - 2026-11-09
 
 ### Changed — ⚡ She only draws for the window you are using

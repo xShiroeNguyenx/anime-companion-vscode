@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as crypto from 'crypto';
 import { log } from '../log';
 import { AgentProfileManager } from './profile-manager';
 
@@ -156,11 +157,14 @@ export class AgentProfilePanel {
 
   private _renderHtml(): string {
     const cspSource = this._panel.webview.cspSource;
+    // Only the page's own script runs. Profile names are typed by the user and
+    // drawn with innerHTML; with 'unsafe-inline' an onerror= in one would run.
+    const nonce = crypto.randomBytes(16).toString('base64');
     return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src 'unsafe-inline';" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';" />
 <title>Agent Accounts</title>
 <style>
   body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); background: var(--vscode-editor-background); padding: 16px; }
@@ -192,7 +196,7 @@ export class AgentProfilePanel {
 <div class="footer">
   <button id="save-btn" class="primary">+ Save current as new profile</button>
 </div>
-<script>
+<script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
 const sectionsEl = document.getElementById('sections');
 const activeEl = document.getElementById('active');

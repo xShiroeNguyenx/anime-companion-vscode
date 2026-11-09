@@ -8,13 +8,33 @@
   const t = (key, fallback) => (S[key] != null ? S[key] : fallback);
   const root = document.getElementById('root');
 
+  // The page is not kept alive while its tab is hidden: that held a whole
+  // renderer in memory for a form whose every change is already saved. What
+  // is not saved yet (the search, JSON drafts, where you had scrolled to) is
+  // kept with setState and put back when the tab shows again.
+  const saved = (typeof vscode.getState === 'function' && vscode.getState()) || {};
   let state = null;
-  let filter = '';
+  let filter = typeof saved.filter === 'string' ? saved.filter : '';
   let builtSignature = '';
   /** key -> { row, sync(item) } for in-place updates without a rebuild. */
   const controls = {};
-  /** key -> textarea draft for JSON items; survives rebuilds and broadcasts. */
-  const drafts = {};
+  /** key -> textarea draft for JSON items; survives rebuilds, broadcasts and hiding the tab. */
+  const drafts = saved.drafts && typeof saved.drafts === 'object' ? { ...saved.drafts } : {};
+  /** Where the page was scrolled to before it was hidden; used once, on the first build. */
+  let restoreScrollY = Number.isFinite(saved.scrollY) ? saved.scrollY : null;
+  let saveTimer = null;
+  function saveState() {
+    if (saveTimer) return;
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      try {
+        vscode.setState({ filter, drafts, scrollY: window.scrollY });
+      } catch {
+        // nothing to keep it in; the tab simply starts fresh next time
+      }
+    }, 150);
+  }
+  window.addEventListener('scroll', saveState, { passive: true });
   /** Repaints the theme picker in place; set while the picker is on screen. */
   let pickerSync = null;
   const SECTION_LABEL = {
@@ -217,6 +237,7 @@
       drafts[item.key] = area.value;
       error.hidden = true;
       refreshButtons();
+      saveState();
     });
     save.addEventListener('click', () => {
       let parsed;
@@ -234,6 +255,7 @@
         return;
       }
       delete drafts[item.key];
+      saveState();
       setValue(item.key, parsed);
     });
     refreshButtons();
@@ -387,7 +409,7 @@
       class: 'reset',
       title: t('reset', 'Reset to default'),
       'aria-label': t('reset', 'Reset to default'),
-      onclick: () => { delete drafts[item.key]; post('settings:reset', { key: item.key }); },
+      onclick: () => { delete drafts[item.key]; saveState(); post('settings:reset', { key: item.key }); },
     }, ['↺']);
     const defaultNote = el('span', { class: 'default', text: t('defaultValue', 'Default: {value}').replace('{value}', formatDefault(item.default)) });
 
@@ -491,7 +513,7 @@
       class: 'search',
       placeholder: t('search', 'Search settings…'),
       'aria-label': t('search', 'Search settings…'),
-      oninput: () => { filter = search.value.trim(); applyFilter(); },
+      oninput: () => { filter = search.value.trim(); applyFilter(); saveState(); },
     });
     search.value = filter;
 
@@ -588,7 +610,14 @@
       sync();
       applyFilter();
     }
-    if (msg.focusSection) focusSection(msg.focusSection);
+    if (msg.focusSection) {
+      restoreScrollY = null;
+      focusSection(msg.focusSection);
+    } else if (restoreScrollY !== null) {
+      // Back from a hidden tab: where it was, not the top.
+      window.scrollTo(0, restoreScrollY);
+      restoreScrollY = null;
+    }
   });
 
   post('settings:ready');

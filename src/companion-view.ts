@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ReactiveManager } from './reactive';
@@ -30,6 +31,7 @@ import { ChatManager } from './chat/chat-manager';
 import type { CursorChibiTuningState } from './cursor-chibi';
 import { BUNDLED_THEMES } from './bundled-themes';
 import { msUntilNextChange, RenderInputs, renderMode, RenderMode } from './render-gate';
+import { AMBIENT_POLL_MS, AmbientOwner } from './ambient-owner';
 
 export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'animeCompanion.live2dView';
@@ -63,6 +65,13 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   private _pendingRefresh = false;
   /** Set while a reload waits out REFRESH_COALESCE_MS for more requests. */
   private _refreshTimer?: NodeJS.Timeout;
+
+  // Ambient music plays in one window at a time (ambient-owner.ts).
+  private _ambient?: AmbientOwner;
+  /** The current page may play sound: it has been clicked once since it loaded. */
+  private _ambientUnlocked = false;
+  /** Runs while this window has the music, to notice another window taking it. */
+  private _ambientTimer?: NodeJS.Timeout;
 
   private _saveCapturedChibi?: (modelId: string, dataUrl: string, options?: { silent?: boolean }) => Promise<void>;
   /** Set after construction by extension.ts; see WanderManager. */
@@ -224,6 +233,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
    */
   private _syncUse(): void {
     this._syncRenderMode();
+    this._syncAmbient();
     if (!this._isInUse()) {
       this._stopMessageTimer();
       return;
@@ -234,6 +244,49 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     }
     // `active` flips with every pause in typing: keep a running timer as it is.
     if (!this._messageTimer) this._startMessageTimer();
+  }
+
+  /** Shares the ambient music with the other windows; set once by extension.ts. */
+  public setAmbientOwner(owner: AmbientOwner): void {
+    this._ambient = owner;
+  }
+
+  /**
+   * Takes the music when this window is focused and its page may play sound;
+   * the window that had it stops on its next check. Focusing a window whose
+   * page was never clicked leaves the music where it is: that page could not
+   * start it.
+   */
+  private _syncAmbient(): void {
+    const owner = this._ambient;
+    if (!owner || !this._view) return;
+    if (vscode.window.state.focused && this._ambientUnlocked) {
+      // A window that thinks it has the music may have lost it a moment ago.
+      owner.check();
+      if (!owner.mine && owner.claim()) {
+        log('Ambient: this window plays the music now');
+        this.postMessage({ command: 'setAmbientActive', active: true });
+      }
+    }
+    this._scheduleAmbientCheck();
+  }
+
+  private _scheduleAmbientCheck(): void {
+    if (this._ambientTimer || !this._ambient?.mine) return;
+    this._ambientTimer = setInterval(() => {
+      const owner = this._ambient;
+      if (!owner || !this._view) return this._stopAmbientCheck();
+      if (owner.check()) {
+        log('Ambient: another window plays the music now');
+        this.postMessage({ command: 'setAmbientActive', active: false });
+      }
+      if (!owner.mine) this._stopAmbientCheck();
+    }, AMBIENT_POLL_MS);
+  }
+
+  private _stopAmbientCheck(): void {
+    if (this._ambientTimer) clearInterval(this._ambientTimer);
+    this._ambientTimer = undefined;
   }
 
   private _applyShowcaseToNativeTitle(): ShowcaseView | null {
@@ -313,6 +366,8 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       enableScripts: true,
       localResourceRoots: this._getWebviewResourceRoots(customAmbientTracks),
     };
+    // A new page has not been clicked yet, so it may not play sound.
+    this._ambientUnlocked = false;
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
     setTimeout(() => {
       // Only where someone is looking: VS Code restoring four windows used to
@@ -423,6 +478,10 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
           this._syncRenderMode();
           this._onLive2dReady?.();
         },
+        onAmbientUnlocked: () => {
+          this._ambientUnlocked = true;
+          this._syncAmbient();
+        },
         receiveWanderFrames: this._receiveWanderFrames,
         wanderCaptureFailed: this._wanderCaptureFailed,
         chatManager: this._chatManager,
@@ -449,6 +508,9 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
         clearTimeout(this._refreshTimer);
         this._refreshTimer = undefined;
       }
+      this._stopAmbientCheck();
+      this._ambient?.release();
+      this._ambientUnlocked = false;
       this._reactive?.dispose();
       this._pendingConfirms.clear();
       this._pendingInputs.clear();
@@ -754,6 +816,12 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       perModel && typeof perModel === 'object' ? perModel : expressionMapSetting;
 
     const achievements = this._getAchievementPanelData();
+    // Scripts: the extension's own files, plus the one inline block below that
+    // carries this nonce. Chat replies from a model are drawn with innerHTML;
+    // with 'unsafe-inline' an onerror= slipped into one would run with the
+    // page's access to git and settings. 'unsafe-eval' stays: PIXI 6 compiles
+    // its shader uploads with new Function.
+    const nonce = crypto.randomBytes(16).toString('base64');
 
     return /*html*/ `<!DOCTYPE html>
 <html lang="vi">
@@ -763,7 +831,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'none';
     img-src ${webview.cspSource} data: blob: http://127.0.0.1:${this._server.port};
-    script-src ${webview.cspSource} 'unsafe-eval' 'unsafe-inline';
+    script-src ${webview.cspSource} 'nonce-${nonce}' 'unsafe-eval';
     style-src ${webview.cspSource} 'unsafe-inline' https://fonts.googleapis.com;
     connect-src ${webview.cspSource} http://127.0.0.1:${this._server.port};
     media-src ${webview.cspSource} https:;
@@ -948,7 +1016,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     </div>
   </div>
 
-  <script>
+  <script nonce="${nonce}">
     window.__MODEL_URL__ = "${modelUrl}";
     window.__MODEL_ID__ = "${selectedModel.id}";
     window.__AUDIO_BASE_URL__ = "${audioBaseUri}";
@@ -966,6 +1034,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__DRAG_MODE__ = ${JSON.stringify(dragMode)};
     window.__AMBIENT_PRESET__ = "${ambientPreset.id}";
     window.__AMBIENT_VOLUME__ = ${ambientVolume};
+    window.__AMBIENT_ACTIVE__ = ${!this._ambient || this._ambient.mine ? 'true' : 'false'};
     window.__AMBIENT_TRACKS__ = ${JSON.stringify(ambientTracks)};
     window.__VISIBLE_MODELS__ = ${JSON.stringify(visibleModels)};
     window.__EXPRESSION_MAP__ = ${JSON.stringify(expressionMap)};
@@ -980,11 +1049,11 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     window.__CURSOR_CHIBI_STATE__ = ${JSON.stringify(cursorChibiState)};
   </script>
 
-  <script src="${cubismCoreUri}"></script>
-  <script src="${pixiUri}"></script>
-  <script src="${cubism4Uri}"></script>
-  <script type="module" src="${webviewScriptUri}"></script>
-  <script type="module" src="${chatScriptUri}"></script>
+  <script nonce="${nonce}" src="${cubismCoreUri}"></script>
+  <script nonce="${nonce}" src="${pixiUri}"></script>
+  <script nonce="${nonce}" src="${cubism4Uri}"></script>
+  <script nonce="${nonce}" type="module" src="${webviewScriptUri}"></script>
+  <script nonce="${nonce}" type="module" src="${chatScriptUri}"></script>
 </body>
 </html>`;
   }

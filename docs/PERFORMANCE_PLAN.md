@@ -3,8 +3,10 @@
 **Trạng thái:** bước A–F đã code, ship ở **v0.7.1** (2026-11-09): `compile`, `lint`, `npm test` xanh.
 F5 một cửa sổ đã kiểm qua log: chỉ còn một vòng vẽ (`shared=0 system=0`); `run` → `slow` khi mất focus → `paused`
 đúng 60 s sau; view ẩn thì dừng, hiện lại thì vẽ 30 khung/giây; mute không nạp lại; hover và click vẫn chạy.
-**Chưa kiểm:** rê chuột đánh thức cửa sổ đang `paused`, 4 cửa sổ thật, chế độ desktop pet, số đo GPU (mục 11).
-Mục 9 (desktop pet) chưa làm.
+**Chưa kiểm:** rê chuột đánh thức cửa sổ đang `paused`, 4 cửa sổ thật, chế độ desktop pet, số đo GPU sau (mục 11).
+**v0.7.2 (2026-11-09), đã code, `compile` + `lint` + `npm test` xanh, CHƯA chạy thật:** mục 9 đợt 1 (một desktop pet cho
+mọi cửa sổ, Quit ở tray không chạy lại pet); nhạc nền một luồng (mục 8); panel Settings bỏ `retainContextWhenHidden`;
+CSP dùng nonce cho panel nhân vật và panel Agent Accounts; `scripts/measure-gpu.ps1` và số đo "trước" ở mục 11.
 **Ship kèm v0.7.1, ngoài các bước A–F:** panel không chờ tải gói giọng nữa, và nhớ gói thiếu trên release (404) trong
 24 h (`src/voice-asset-retry.ts`); gộp các lần nạp lại sát nhau; lời chào chỉ ở cửa sổ đang dùng; gỡ listener
 `onDidChangeActiveTextEditor` bị rò.
@@ -570,9 +572,16 @@ Ngoài ra phải chạy thật bằng Extension Development Host (F5), vì test 
 
 ## 8. Để sau, và kế hoạch riêng
 
-- **Bỏ `retainContextWhenHidden` ở panel Settings** ([src/settings-panel.ts](../src/settings-panel.ts)):
-  chỉ tiết kiệm RAM khi panel đang mở nhưng tab bị che, và phải lưu trạng thái form bằng
-  `getState` / `setState`. Giữ nguyên ở Markdown editor (chữ chưa lưu) và sidebar (nạp lại Live2D chậm).
+- ✅ **Bỏ `retainContextWhenHidden` ở panel Settings** (v0.7.2, [src/settings-panel.ts](../src/settings-panel.ts)):
+  chỉ tiết kiệm RAM khi panel đang mở nhưng tab bị che. Form vốn lưu mỗi thay đổi ngay, nên chỉ cần giữ ô tìm kiếm,
+  bản nháp JSON và vị trí cuộn bằng `getState` / `setState`. `reveal(..., section)` khi tab đang ẩn không broadcast
+  ngay nữa: trang chưa nạp thì tin nhắn mất, kéo theo mất luôn section cần cuộn tới; trang tự xin bằng
+  `settings:ready`. Giữ nguyên ở Markdown editor (chữ chưa lưu) và sidebar (nạp lại Live2D chậm).
+- ✅ **CSP** (v0.7.2): panel nhân vật và panel Agent Accounts bỏ `'unsafe-inline'` ở `script-src`, dùng nonce. Giữ
+  `'unsafe-eval'` vì PIXI 6 dùng `new Function`. Vi phạm CSP được ghi ra Output qua `securitypolicyviolation`.
+  - **Chưa làm: trang desktop pet** ([desktop-pet/web/index.html](../desktop-pet/web/index.html)) chưa có CSP nào. Cần
+    hash cho script bootstrap inline, `connect-src` cho `ws://127.0.0.1:*` **và IPC của Tauri** (`ipc:` /
+    `http://ipc.localhost`). Chặn nhầm IPC thì pet không kéo được, mất click-through. Chỉ làm khi thử được trong Tauri.
 - **Nhịp đứng yên 20–24, tuỳ chọn tắt `antialias` (MSAA, viền tóc răng cưa):** chờ số đo bên
   desktop-companion; nếu làm thì làm cùng lúc cả hai repo để hai bên giữ cùng một bộ hằng số.
 - **Giải phóng hẳn PIXI + texture khi `paused` lâu:** đáng làm hơn khi mở nhiều cửa sổ (xem phần bộ nhớ GPU ở
@@ -581,9 +590,16 @@ Ngoài ra phải chạy thật bằng Extension Development Host (F5), vì test 
     đi dạo) rồi mới huỷ app.
   - Khi về `run`, nạp lại model phía sau ảnh tĩnh, xong thì đổi sang canvas.
   - Chỉ làm nếu số đo bộ nhớ GPU ở mục 11 cho thấy đáng.
-- **Nhạc nền chỉ một luồng:** `ambientPreset` là cài đặt Global và mỗi webview tự phát nhạc của nó, nên 4 cửa sổ có
-  thể phát 4 luồng chồng lên nhau (chưa chạy thật để xác nhận). Dùng lại file chủ của mục 9.3 với một file riêng
-  (`ambient-owner.json`), nhưng chủ là **cửa sổ được focus gần nhất**, không phải cửa sổ đầu tiên.
+- ✅ **Nhạc nền chỉ một luồng** (v0.7.2, [src/ambient-owner.ts](../src/ambient-owner.ts)): `ambientPreset` là cài đặt
+  Global và mỗi webview tự phát nhạc của nó, nên 4 cửa sổ có thể phát 4 luồng chồng lên nhau. Làm đơn giản hơn file
+  chủ của 9.3, vì ở đây không cần nhịp tim:
+  - `<globalStorage>/ambient-owner.json` = `{ ownerId, at }`. Cửa sổ **nhận** khi được focus **và** trang của nó đã
+    được bấm ít nhất một lần từ lúc nạp (`audio.js` gửi `ambientUnlocked`). Trang chưa bấm thì không được tự phát âm
+    thanh, nên nhận về nó chỉ làm im cả hai nơi.
+  - Chỉ cửa sổ đang phát đọc file (2 s một lần); thấy tên cửa sổ khác thì `setAmbientActive(false)`: tạm dừng, không
+    tua về đầu. Các cửa sổ khác không đọc gì.
+  - Đóng cửa sổ đang phát thì xoá file nếu còn tên mình. Nhạc ở im tới khi một cửa sổ đã bấm được focus.
+  - Desktop pet không nhận `setAmbientActive` nên luôn phát; mục 9 đã bảo đảm chỉ có một pet.
 
 ## 9. Đợt riêng: một desktop pet cho mọi cửa sổ VS Code
 
@@ -745,6 +761,27 @@ vào, để test giả được lỗi.
 - Thanh trạng thái của chủ hiện "🐾 Pet is off"; bấm vào thì chạy lại.
 - Khi chạy thật cần kiểm: `app.exit(0)` của Tauri có thật sự trả mã 0, không signal, về cho Node không.
 
+**Đã làm ở v0.7.2, khác hoặc thêm so với phác thảo trên:**
+- **Xác nhận ở lượt kiểm sau mới chạy pet.** Nhận chủ xong, cửa sổ chỉ báo `owned` (và chạy sidecar) khi lượt kiểm kế
+  tiếp vẫn thấy file mang tên mình. Hai cửa sổ cùng đổi tên một file quá hạn có thể cùng nghĩ mình thắng; bên thua
+  thấy file của bên thắng trước khi kịp chạy sidecar. Pet ra chậm hơn khoảng 1 s, đổi lại không bao giờ có hai
+  sidecar mở rồi tắt. Có test tái hiện đúng cuộc đua này.
+- **Ân hạn sau khi ngủ dậy** (`WAKE_GAP_MS`, `WAKE_GRACE_MS`, tham số `justWoke` của `decide`). Sau khi máy ngủ, mọi
+  nhịp tim đều trông quá hạn, và cửa sổ theo nào dậy trước sẽ giành pet của một chủ vẫn sống. Một lượt kiểm trễ
+  ≥ 3 s nghĩa là cửa sổ đó vừa không chạy, nên trong 7 s sau đó, chủ còn sống không bị coi là quá hạn. Chủ đã chết
+  thì vẫn bị thay ngay.
+- **Bridge gỡ listener `upgrade`** khỏi HTTP server dùng chung lúc dispose. Trước đây không gỡ, vì mỗi cửa sổ chỉ tạo
+  một bridge. Giờ một cửa sổ có thể nhường pet rồi nhận lại: listener của bridge cũ sẽ trả 401 cho kết nối của bridge mới.
+- **Bridge không khởi động được** (server file của model hỏng) thì cửa sổ thả quyền chủ và báo lỗi, để cửa sổ khác nhận.
+- Lệnh `animeCompanion.desktopPet.bringHere` chỉ hiện trong Command Palette khi `desktopCompanion.enabled` bật. Ở cửa
+  sổ chủ, nếu pet đang tắt (Quit) thì lệnh chạy lại pet.
+- Thanh trạng thái: "🐾 Pet: other window" ở cửa sổ theo, "🐾 Pet is off" ở chủ sau khi Quit. Ẩn khi pet đang chạy ở
+  cửa sổ này.
+- **Chưa kiểm:** `app.exit(0)` của Tauri có thật sự trả mã 0, không signal, về cho Node không. Nếu không, Quit vẫn chạy
+  lại pet như cũ. Log `DesktopPet: sidecar exited code=... signal=...` cho biết.
+- **Vẫn như cũ:** Windows không tự giết tiến trình con khi extension host chết (`detached: false` không gắn vòng đời).
+  Extension host crash thì có thể còn sidecar mồ côi trong khi cửa sổ khác chạy pet mới.
+
 ### 9.4 Đợt 2: pet nghe mọi cửa sổ
 
 Mới là phác thảo, chưa thiết kế xong:
@@ -793,13 +830,16 @@ Phần I/O, chạy trong thư mục tạm (`fs.mkdtempSync`):
 
 ### 9.6 Checklist đợt này
 
-- [ ] Kiểm hiện trạng ở 9.1 (đếm tiến trình, thử Quit), ghi kết quả vào 9.1
-- [ ] `src/pet-owner.ts` (`decide`, `shouldRestart`) + `scripts/pet-owner-test.js`, thêm vào `npm test`
-- [ ] `src/pet-owner-lock.ts`: nhận chủ nguyên tử, nhịp tim, thả chủ; lỗi đọc không bị coi là "chưa có chủ"
-- [ ] `extension.ts`: `SwitchableHost` / `FollowerHost`; tạo bridge khi thành chủ, dispose khi thả; kiểm `chatHostRef`
-- [ ] Thanh trạng thái + lệnh `animeCompanion.desktopPet.bringHere` (khai trong `contributes.commands` của `package.json`)
-- [ ] Bridge: `exit` dùng `shouldRestart`; Quit ở tray không chạy lại pet
-- [ ] `compile` + `lint` + `test` xanh
+- [ ] Kiểm hiện trạng ở 9.1 (đếm tiến trình, thử Quit), ghi kết quả vào 9.1. **Bỏ qua:** đã sửa trước khi chạy thật
+      được; bản cũ (v0.7.1) vẫn cài lại được nếu cần đối chiếu
+- [x] `src/pet-owner.ts` (`decide`, `shouldRestart`) + `scripts/pet-owner-test.js` (17 test, gồm cả phần I/O),
+      thêm vào `npm test`
+- [x] `src/pet-owner-lock.ts`: nhận chủ nguyên tử, nhịp tim, thả chủ; lỗi đọc không bị coi là "chưa có chủ"
+- [x] `extension.ts`: `SwitchableHost` / `FOLLOWER_HOST`; tạo bridge khi thành chủ, dispose khi thả; `chatHostRef` trỏ
+      vào `SwitchableHost`
+- [x] Thanh trạng thái + lệnh `animeCompanion.desktopPet.bringHere` (khai trong `contributes.commands` của `package.json`)
+- [x] Bridge: `exit` dùng `shouldRestart`; Quit ở tray không chạy lại pet
+- [x] `compile` + `lint` + `test` xanh (2026-11-09)
 - [ ] Chạy thật:
   - mở lại VS Code với 4 cửa sổ cùng lúc → đúng 1 tiến trình sidecar;
   - đóng cửa sổ chủ → pet hiện lại ở cửa sổ khác trong vài giây;
@@ -807,9 +847,19 @@ Phần I/O, chạy trong thư mục tạm (`fs.mkdtempSync`):
   - `bringHere` → pet chuyển sang cửa sổ yêu cầu;
   - Quit ở tray → pet không hiện lại, không cửa sổ nào tự chạy lại pet;
   - tắt chế độ desktop rồi reload → file chủ bị xoá
-- [ ] CHANGELOG (tiếng Anh) cho đợt này, ở version sẽ thật sự ship nó
+- [x] CHANGELOG (tiếng Anh) cho đợt này, ở version sẽ thật sự ship nó (0.7.2)
 
 ## 10. Cách đo (trước và sau)
+
+**Đo bằng script:** [scripts/measure-gpu.ps1](../scripts/measure-gpu.ps1) đọc đúng các bộ đếm Task Manager dùng, mỗi
+giây một lần, rồi tách GPU 3D theo tiến trình GPU của VS Code (mọi cửa sổ và webview của VS Code đều vẽ qua đây), desktop
+pet, `dwm` và app khác (kể tên app nặng nhất). Script cũng in bộ nhớ GPU và một dòng sẵn để dán vào mục 11:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/measure-gpu.ps1 -Seconds 30 -Label "4 windows, 1 focused, minute 2"
+```
+
+Cột "VS Code" đáng tin hơn cột tổng, vì nó không bị app khác (desktop-companion, trình duyệt) làm lệch.
 
 1. Đóng desktop-companion và desktop pet. Khi GPU tích hợp gần kín việc, % GPU gán cho từng tiến trình
    bị đội lên, nên đo **GPU 3D tổng** ở tab Performance của Task Manager. Process Explorer của VS Code chỉ thấy
@@ -836,6 +886,19 @@ Phần I/O, chạy trong thư mục tạm (`fs.mkdtempSync`):
 6. Ghi vào các bảng ở mục 11.
 
 ## 11. Kết quả đo
+
+**Lần đo đầu (2026-11-09), bằng `scripts/measure-gpu.ps1`, 30 s.** 4 cửa sổ VS Code cài bản **0.7.0** (trước bước A–F),
+một cửa sổ được focus. Không biết chắc cửa sổ nào đang hiện view companion. Đang có Claude Code trả lời trong cửa sổ
+được focus, và desktop-companion.exe (app khác) đang chạy.
+
+| Đo | Trước (0.7.0) | Sau (0.7.1+) |
+|---|---|---|
+| GPU 3D, tiến trình GPU của VS Code | 42,8 % | |
+| GPU 3D, tổng (gồm desktop-companion.exe 27,4 %, dwm 18,3 %) | 95,0 % | |
+| Bộ nhớ GPU chia sẻ của VS Code | 1575 MB | |
+
+Đo "sau" trong **đúng điều kiện đó**: cập nhật cả 4 cửa sổ lên bản mới, nạp lại, chờ 2 phút cho cửa sổ nền về
+`paused`, rồi chạy lại script với cùng nhãn. Chênh lệch ở dòng đầu là phần extension tiết kiệm được.
 
 **Một cửa sổ**
 
@@ -886,6 +949,6 @@ Phần I/O, chạy trong thư mục tạm (`fs.mkdtempSync`):
 - [ ] F5, nhiều cửa sổ: cửa sổ nền 15 khung/giây rồi dừng sau 60 s; rê chuột qua cửa sổ nền thì nhân vật cử động;
       focus lại thì vẽ ngay; bấm mute không làm cửa sổ nào nạp lại; đổi model thì chỉ cửa sổ đang dùng nạp ngay,
       cửa sổ khác nạp khi được focus
-- [ ] Điền các bảng ở mục 11
-- [ ] CHANGELOG (tiếng Anh, như các mục khác) ở version **sẽ thật sự ship**: kiểm bằng
-      `git tag --sort=-v:refname` trước khi chọn số
+- [ ] Điền các bảng ở mục 11 (đã có số "trước" cho 4 cửa sổ; còn thiếu số "sau" và các bảng chi tiết)
+- [x] CHANGELOG (tiếng Anh, như các mục khác) ở version **sẽ thật sự ship**: kiểm bằng
+      `git tag --sort=-v:refname` trước khi chọn số (ship ở v0.7.1)

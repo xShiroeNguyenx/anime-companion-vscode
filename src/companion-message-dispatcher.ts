@@ -30,6 +30,8 @@ export interface DispatcherContext {
   resetCursorChibi?: () => Promise<void>;
   saveCapturedChibi?: (modelId: string, dataUrl: string, options?: { silent?: boolean }) => Promise<void>;
   onLive2dReady?: () => void;
+  /** The page was clicked for the first time, so it may play sound now. */
+  onAmbientUnlocked?: () => void;
   receiveWanderFrames?: (modelId: string, frames: string[]) => Promise<void>;
   wanderCaptureFailed?: (reason: string) => void;
   chatManager?: ChatManager;
@@ -100,6 +102,9 @@ export function dispatchRuntimeMessage(message: any, ctx: DispatcherContext): vo
     case 'live2dReady':
       console.log('Live2D model loaded!');
       ctx.onLive2dReady?.();
+      break;
+    case 'ambientUnlocked':
+      ctx.onAmbientUnlocked?.();
       break;
     case 'runCommand':
       _handleRunCommand(message, ctx);

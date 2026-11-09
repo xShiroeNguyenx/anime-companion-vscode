@@ -1,4 +1,4 @@
-import { state } from './core.js';
+import { state, vscode } from './core.js';
 
 let currentAudio = null;
 let currentPlaybackToken = 0;
@@ -7,6 +7,9 @@ let speechVoiceLoadPromise = null;
 let ambientAudio = null;
 let ambientPreset = 'off';
 let ambientUnlocked = false;
+// Whether this window is the one that plays the music (ambient-owner.ts on the
+// extension side). The desktop pet never hears otherwise: it is the only one.
+let ambientActive = true;
 
 function statusTextEl() {
   return document.querySelector('.status-text');
@@ -73,7 +76,7 @@ function ambientShouldPlay() {
 
 async function tryPlayAmbient() {
   const track = currentAmbientTrack();
-  if (!track || !track.url || !ambientUnlocked || window.__AUDIO_MUTED__) {
+  if (!track || !track.url || !ambientUnlocked || !ambientActive || window.__AUDIO_MUTED__) {
     return;
   }
 
@@ -93,6 +96,13 @@ async function tryPlayAmbient() {
 function syncAmbientPlayback() {
   updateAmbientStatusLabel();
 
+  if (!ambientActive) {
+    // Another window plays it now. Paused, not rewound: coming back here
+    // picks the track up where it was.
+    if (ambientAudio && !ambientAudio.paused) ambientAudio.pause();
+    return;
+  }
+
   if (!ambientShouldPlay()) {
     stopAmbientAudio();
     return;
@@ -109,12 +119,19 @@ function syncAmbientPlayback() {
 
 export function initAmbientAudio() {
   ambientPreset = window.__AMBIENT_PRESET__ || 'off';
+  ambientActive = window.__AMBIENT_ACTIVE__ !== false;
   updateAmbientStatusLabel();
 
   const unlock = () => {
     if (ambientUnlocked) return;
     ambientUnlocked = true;
     void tryPlayAmbient();
+    // This page may play sound from now on: the extension can hand it the music.
+    try {
+      vscode.postMessage({ command: 'ambientUnlocked' });
+    } catch {
+      // no host to tell; nothing changes
+    }
   };
 
   window.addEventListener('pointerdown', unlock, true);
@@ -301,6 +318,12 @@ export function setAmbientVolume(volume) {
   if (ambientAudio) {
     ambientAudio.volume = ambientVolumeValue();
   }
+}
+
+/** This window plays the ambient music (true) or another window does (false). */
+export function setAmbientActive(active) {
+  ambientActive = Boolean(active);
+  syncAmbientPlayback();
 }
 
 export function setGlobalAudioMuted(muted) {

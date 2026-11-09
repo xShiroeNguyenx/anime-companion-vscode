@@ -15,6 +15,7 @@ import { getSelectedModel, HIYORI, ModelInfo, listVisibleModels } from './models
 import { AmbientPreset, getAmbientPreset, listAmbientPresets, resolveCustomAmbientTracks } from './ambient-presets';
 import { getMessageBank, ResolvedPhrase, MessageKey } from './messages';
 import { PomodoroState } from './pomodoro';
+import { shouldRestart } from './pet-owner';
 import { log } from './log';
 
 // Routes the floating desktop pet through the same VS Code-backed reactive
@@ -40,6 +41,10 @@ export class DesktopPetBridge implements vscode.Disposable {
   private _extensionUri: vscode.Uri;
 
   private _wss: WebSocketServer | null = null;
+  // Kept so dispose can take it off the shared HTTP server. A window can run
+  // the pet, hand her over and get her back: a listener left behind from the
+  // first bridge would turn the next one's connection away with a 401.
+  private _upgradeListener?: (req: import('http').IncomingMessage, socket: import('stream').Duplex, head: Buffer) => void;
   private _transport = new WebSocketTransport();
   private _reactive?: ReactiveManager;
   private _resolvedModel: ModelInfo = HIYORI;
@@ -50,6 +55,9 @@ export class DesktopPetBridge implements vscode.Disposable {
   private _sidecar: child_process.ChildProcess | null = null;
   private _sidecarRestarts: number[] = [];
   private _sidecarRestartGivenUp = false;
+  private readonly _sidecarRunning = new vscode.EventEmitter<boolean>();
+  /** Fires true when the pet's process starts, false when it ends (Quit in the tray, a crash, a restart). */
+  readonly onDidChangeSidecarRunning = this._sidecarRunning.event;
   private static readonly RESTART_WINDOW_MS = 60_000;
   private static readonly RESTART_MAX_IN_WINDOW = 3;
 
@@ -82,6 +90,10 @@ export class DesktopPetBridge implements vscode.Disposable {
 
   get token(): string {
     return this._token;
+  }
+
+  get isSidecarRunning(): boolean {
+    return this._sidecar !== null;
   }
 
   setChatManager(manager: import('./chat/chat-manager').ChatManager): void {
@@ -136,9 +148,10 @@ export class DesktopPetBridge implements vscode.Disposable {
       throw new Error('ModelFileServer must be started before DesktopPetBridge');
     }
 
-    this._wss = new WebSocketServer({ noServer: true });
+    const wss = new WebSocketServer({ noServer: true });
+    this._wss = wss;
 
-    httpServer.on('upgrade', (req, socket, head) => {
+    this._upgradeListener = (req, socket, head) => {
       const url = req.url || '';
       // Only handle our endpoint; let other upgrades fail closed.
       if (!url.startsWith('/ws')) {
@@ -151,10 +164,11 @@ export class DesktopPetBridge implements vscode.Disposable {
         socket.destroy();
         return;
       }
-      this._wss!.handleUpgrade(req, socket as any, head, (ws) => {
+      wss.handleUpgrade(req, socket as any, head, (ws) => {
         this._onClientConnected(ws);
       });
-    });
+    };
+    httpServer.on('upgrade', this._upgradeListener);
 
     log(`DesktopPetBridge listening at ${this.connectUrl}`);
 
@@ -305,6 +319,10 @@ export class DesktopPetBridge implements vscode.Disposable {
     this._reactive = undefined;
     this._disposeTransportSubscriptions();
     this._transport.dispose();
+    if (this._upgradeListener) {
+      this._server.httpServer?.off('upgrade', this._upgradeListener);
+      this._upgradeListener = undefined;
+    }
     if (this._wss) {
       this._wss.close();
       this._wss = null;
@@ -312,6 +330,7 @@ export class DesktopPetBridge implements vscode.Disposable {
     this._pendingConfirms.clear();
     this._pendingInputs.clear();
     this._server.clearAmbientTracks();
+    this._sidecarRunning.dispose();
   }
 
   // ─── Sidecar process ───────────────────────────────────────────────────
@@ -417,6 +436,7 @@ export class DesktopPetBridge implements vscode.Disposable {
       });
 
       this._sidecar = proc;
+      this._sidecarRunning.fire(true);
 
       proc.stdout?.on('data', (chunk: Buffer) => {
         log(`[sidecar stdout] ${chunk.toString().trimEnd()}`);
@@ -431,8 +451,15 @@ export class DesktopPetBridge implements vscode.Disposable {
           this._sidecar = null;
         }
         log(`DesktopPet: sidecar exited code=${code} signal=${signal}`);
+        if (wasOurs && !this._disposed) this._sidecarRunning.fire(false);
 
-        if (this._disposed || !wasOurs) return;
+        if (!shouldRestart({ disposed: this._disposed, wasOurs, code, signal })) {
+          // Code 0 is the tray's Quit. Starting her again a second later is
+          // what made Quit look broken. She stays off until asked for again
+          // (the status bar item, or "Bring Desktop Companion Here").
+          if (wasOurs && !this._disposed) log('DesktopPet: quit from the tray, not restarting');
+          return;
+        }
 
         // Auto-restart on unexpected exit, capped to avoid crash loops.
         const now = Date.now();

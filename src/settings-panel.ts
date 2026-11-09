@@ -112,9 +112,13 @@ export class SettingsPanel {
    */
   static reveal(context: vscode.ExtensionContext, themes?: ThemeManager, focusSection?: string): void {
     if (SettingsPanel._current) {
-      SettingsPanel._current._focusSection = focusSection;
-      SettingsPanel._current._panel.reveal(vscode.ViewColumn.Active);
-      SettingsPanel._current._broadcast();
+      const current = SettingsPanel._current;
+      const wasVisible = current._panel.visible;
+      current._focusSection = focusSection;
+      current._panel.reveal(vscode.ViewColumn.Active);
+      // A hidden tab loads its page again and asks with settings:ready. Sending
+      // now would reach no page and use up the section to scroll to.
+      if (wasVisible) current._broadcast();
       return;
     }
     const strings = getMessageBank().getWebviewStrings().settingsPanel ?? {};
@@ -124,7 +128,8 @@ export class SettingsPanel {
       vscode.ViewColumn.Active,
       {
         enableScripts: true,
-        retainContextWhenHidden: true,
+        // Not kept alive while hidden: every change is saved as it is made, and
+        // the page keeps its search, JSON drafts and scroll with setState.
         localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
       }
     );

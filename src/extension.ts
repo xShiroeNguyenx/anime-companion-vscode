@@ -19,6 +19,8 @@ import { AnimeCompanionViewProvider } from './companion-view';
 import { CursorChibiManager } from './cursor-chibi';
 import { WANDER_AVAILABLE, WanderManager } from './wander';
 import { DesktopPetBridge } from './desktop-pet-bridge';
+import { PetOwnerLock } from './pet-owner-lock';
+import { AmbientOwner } from './ambient-owner';
 import { initMessageBank } from './messages';
 import { ACHIEVEMENT_COUNT, AchievementDef, buildAchievementPanelData, buildAchievementQuickPickRows, buildCompanionProfile, buildQuestQuickPickRows, QuestDef, StatsStore } from './stats';
 import { initCompanionPosition, clearPanelPosition } from './companion-position';
@@ -54,6 +56,79 @@ interface CompanionHost {
   updatePomodoroTick(state: PomodoroState, secondsLeft: number, totalSeconds: number): void;
   refreshView(): void | Promise<void>;
   openShareCardPreview?(profile: unknown): void;
+}
+
+/**
+ * Desktop mode in a window that does not run the pet: another window has her.
+ * Events here go nowhere for now (sending them on to that window is the
+ * plan's second step, docs/PERFORMANCE_PLAN.md section 9.4).
+ */
+const FOLLOWER_HOST: CompanionHost = {
+  postMessage: () => undefined,
+  updatePomodoroTick: () => undefined,
+  refreshView: () => undefined,
+};
+
+/**
+ * The host the rest of activate() holds on to in desktop mode. The window can
+ * start or stop running the pet at any time; this forwards to whichever is
+ * current, so nothing else has to know.
+ */
+class SwitchableHost implements CompanionHost {
+  constructor(public target: CompanionHost) {}
+
+  postMessage(message: any): void {
+    this.target.postMessage(message);
+  }
+
+  updatePomodoroTick(state: PomodoroState, secondsLeft: number, totalSeconds: number): void {
+    this.target.updatePomodoroTick(state, secondsLeft, totalSeconds);
+  }
+
+  refreshView(): void | Promise<void> {
+    return this.target.refreshView();
+  }
+
+  openShareCardPreview(profile: unknown): void {
+    if (this.target.openShareCardPreview) {
+      this.target.openShareCardPreview(profile);
+      return;
+    }
+    void vscode.window
+      .showInformationMessage('Desktop Companion is in another VS Code window.', 'Bring Her Here')
+      .then((choice) => {
+        if (choice) void vscode.commands.executeCommand('animeCompanion.desktopPet.bringHere');
+      });
+  }
+}
+
+/** Desktop mode only: says where the pet is when she is not on screen for this window. */
+class DesktopPetStatusBar implements vscode.Disposable {
+  private readonly _item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 101);
+
+  constructor() {
+    this._item.command = 'animeCompanion.desktopPet.bringHere';
+  }
+
+  /** `here`: this window runs her and she is up. `off`: this window runs her, but she was quit. */
+  show(where: 'here' | 'off' | 'elsewhere'): void {
+    if (where === 'here') {
+      this._item.hide();
+      return;
+    }
+    if (where === 'off') {
+      this._item.text = '🐾 Pet is off';
+      this._item.tooltip = 'Desktop Companion was closed from the tray. Click to bring her back.';
+    } else {
+      this._item.text = '🐾 Pet: other window';
+      this._item.tooltip = 'Desktop Companion runs for another VS Code window. Click to bring her here.';
+    }
+    this._item.show();
+  }
+
+  dispose(): void {
+    this._item.dispose();
+  }
 }
 
 type ModelSelectionTarget = 'panel' | 'desktop' | 'auto';
@@ -534,28 +609,87 @@ export async function activate(context: vscode.ExtensionContext) {
   const desktopPetEnabled = getDesktopCompanionSetting(config, 'enabled', false);
 
   let provider: AnimeCompanionViewProvider | undefined;
+  // Desktop mode: set while this window runs the pet, which one window does
+  // for all of them (pet-owner.ts). Read through the variable each time, never
+  // kept: it comes and goes as the pet moves between windows.
   let bridge: DesktopPetBridge | undefined;
+  let petLock: PetOwnerLock | undefined;
+  // Created further down; a bridge made later picks it up from here.
+  const later: { agentProfileManager?: AgentProfileManager } = {};
   let host: CompanionHost;
 
   if (desktopPetEnabled) {
-    bridge = new DesktopPetBridge(
-      context.extensionUri,
-      modelServer,
-      stats,
-      downloader,
-      desktopPetDownloader
-    );
-    // Wire chat manager so the pet's right-click Quick Chat works through
-    // the WS bridge. Must happen before bridge.start() so the dispatcher
-    // context sees it on the very first attached client.
-    bridge.setChatManager(chatManager);
-    bridge.start();
-    context.subscriptions.push(bridge);
-    host = bridge;
-    chatHostRef = host;
+    const server = modelServer;
+    const petHost = new SwitchableHost(FOLLOWER_HOST);
+    const petStatus = new DesktopPetStatusBar();
+    host = petHost;
+    chatHostRef = petHost;
     // Hide the in-VS-Code panel view; user uses the floating window instead.
     void vscode.commands.executeCommand('setContext', 'animeCompanion.visible', false);
-    log(`DesktopPet bridge active. Bootstrap URL: ${bridge.bootstrapUrl}`);
+
+    const startBridge = () => {
+      if (bridge) return;
+      const b = new DesktopPetBridge(context.extensionUri, server, stats, downloader, desktopPetDownloader);
+      // Wire chat manager so the pet's right-click Quick Chat works through
+      // the WS bridge. Must happen before start() so the dispatcher context
+      // sees it on the very first attached client.
+      b.setChatManager(chatManager);
+      if (later.agentProfileManager) b.setAgentProfileManager(later.agentProfileManager);
+      b.onDidChangeSidecarRunning((running) => petStatus.show(running ? 'here' : 'off'));
+      bridge = b;
+      petHost.target = b;
+      try {
+        b.start();
+      } catch (err) {
+        // Holding on would leave every window without a pet: let another have her.
+        const msg = err instanceof Error ? err.message : String(err);
+        log(`DesktopPet: could not start in this window (${msg}); leaving the pet to another window`);
+        stopBridge();
+        petLock?.dispose();
+        petLock = undefined;
+        void vscode.window.showErrorMessage(`Anime Companion: Desktop Companion could not start in this window (${msg}).`);
+        return;
+      }
+      log(`DesktopPet bridge active. Bootstrap URL: ${b.bootstrapUrl}`);
+    };
+    const stopBridge = () => {
+      petHost.target = FOLLOWER_HOST;
+      const b = bridge;
+      bridge = undefined;
+      // Kills the pet's process before anyone else can start theirs.
+      b?.dispose();
+    };
+
+    const lock = new PetOwnerLock({
+      dir: context.globalStorageUri.fsPath,
+      log,
+      onChange: (owned) => {
+        if (owned) {
+          petStatus.show('here');
+          startBridge();
+        } else {
+          stopBridge();
+          petStatus.show('elsewhere');
+        }
+      },
+    });
+    petLock = lock;
+    context.subscriptions.push(petStatus, {
+      dispose: () => {
+        // The pet goes first, then the claim: the other way round, another
+        // window could start its pet while ours still runs.
+        stopBridge();
+        lock.dispose();
+      },
+    });
+    lock.start();
+    // A window that never runs the pet hears nothing from the lock (it only
+    // reports changes). Taking the pet needs two polls, about a second, so by
+    // now a window that has not got her is following.
+    const firstLook = setTimeout(() => {
+      if (!lock.owned) petStatus.show('elsewhere');
+    }, 2500);
+    context.subscriptions.push({ dispose: () => clearTimeout(firstLook) });
 
     // v1 ships Windows-only. Surface a one-time warning on Mac/Linux so the
     // user isn't left wondering why nothing pops up. The bridge still runs
@@ -610,6 +744,10 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     host = provider;
     chatHostRef = host;
+    // One window plays the ambient music, not every open one.
+    const ambientOwner = new AmbientOwner({ dir: context.globalStorageUri.fsPath, log });
+    provider.setAmbientOwner(ambientOwner);
+    context.subscriptions.push({ dispose: () => ambientOwner.release() });
     // Captured in a local so the closures below keep the narrowed type.
     const panelProvider = provider;
     panelProvider.setWanderHandlers({
@@ -786,6 +924,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // Inject the manager into whichever companion host is active so the
   // in-webview right-click "Đổi nhanh" / "Lưu hồ sơ" popups can dispatch
   // through the runtime message dispatcher.
+  later.agentProfileManager = agentProfileManager;
   bridge?.setAgentProfileManager(agentProfileManager);
   provider?.setAgentProfileManager(agentProfileManager);
   context.subscriptions.push(
@@ -970,6 +1109,32 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('animeCompanion.switchToPanel', async () => {
       await setDesktopCompanionEnabled(false);
+    }),
+    // One window runs the pet for all of them. From any other window this
+    // asks for her; from that window, after Quit in the tray, it starts her again.
+    vscode.commands.registerCommand('animeCompanion.desktopPet.bringHere', () => {
+      if (!petLock) {
+        void vscode.window.showInformationMessage(
+          'Desktop Companion mode is off in this window. Turn it on in the Anime Companion settings, then reload the window.'
+        );
+        return;
+      }
+      if (petLock.owned) {
+        if (bridge && !bridge.isSidecarRunning) {
+          bridge.restartSidecar();
+          vscode.window.setStatusBarMessage('$(sync~spin) Starting Desktop Companion...', 3000);
+        } else {
+          void vscode.window.showInformationMessage('Desktop Companion already runs for this window.');
+        }
+        return;
+      }
+      if (!petLock.requestTakeover()) {
+        void vscode.window.showErrorMessage(
+          'Anime Companion could not ask the other window for Desktop Companion. See the Anime Companion output for the reason.'
+        );
+        return;
+      }
+      vscode.window.setStatusBarMessage('$(sync~spin) Bringing Desktop Companion to this window...', 4000);
     }),
     vscode.commands.registerCommand('animeCompanion.toggleDesktopClickThrough', async () => {
       const cfg = vscode.workspace.getConfiguration('animeCompanion');

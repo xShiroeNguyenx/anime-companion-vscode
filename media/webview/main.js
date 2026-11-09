@@ -4,7 +4,7 @@ import { paceFocus } from './focus-pace.js';
 import { loadOutfits } from './outfit.js';
 import { initMotions } from './motions.js';
 import { updateMoodIndicator } from './expression.js';
-import { initAmbientAudio, playAudio, setAmbientPreset, setAmbientVolume, setGlobalAudioMuted, speakText } from './audio.js';
+import { initAmbientAudio, playAudio, setAmbientActive, setAmbientPreset, setAmbientVolume, setGlobalAudioMuted, speakText } from './audio.js';
 import { ACTIVE_HOLD_MS, normalizeMode, isRecentlyActive, fpsAt, shouldRun, cssPaused } from './pet-fps.js';
 import {
   showBubble,
@@ -33,6 +33,15 @@ import { announceModelInventory, applyShowcaseBanner, openShareCardPreview, rece
 initThemeAccent();
 
 // ─── Drawing pace ──────────────────────────────────────────────────────────
+// Anything the page's Content-Security-Policy blocks is told to the Anime
+// Companion output, where people look, not only to this page's DevTools.
+// Capped: one broken image in a loop must not flood the log.
+let cspReports = 0;
+document.addEventListener('securitypolicyviolation', (e) => {
+  if (++cspReports > 10) return;
+  debugLog(`Blocked by the page's security policy: ${e.effectiveDirective || e.violatedDirective} ${e.blockedURI || '(inline)'}`);
+});
+
 // One loop draws her: app.ticker, capped by pet-fps.js. The extension host says
 // how much this window is in use ('render' message, src/render-gate.ts); the
 // pointer, the page's visibility and the wander can each stop or speed it.
@@ -286,6 +295,10 @@ window.addEventListener('message', (event) => {
       break;
     case 'setAmbientVolume':
       if (Number.isFinite(event.data.volume)) setAmbientVolume(event.data.volume);
+      break;
+    case 'setAmbientActive':
+      setAmbientActive(event.data.active === true);
+      debugLog('Ambient: ' + (event.data.active === true ? 'plays here' : 'another window plays it'));
       break;
     case 'setMutedState':
       setGlobalAudioMuted(event.data.muted);
