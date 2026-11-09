@@ -1,9 +1,11 @@
 import { state, vscode, debugLog } from './core.js';
 import { setExpression } from './expression.js';
+import { paceFocus } from './focus-pace.js';
 import { loadOutfits } from './outfit.js';
 import { initMotions } from './motions.js';
 import { updateMoodIndicator } from './expression.js';
-import { initAmbientAudio, playAudio, setAmbientPreset, setGlobalAudioMuted, speakText } from './audio.js';
+import { initAmbientAudio, playAudio, setAmbientPreset, setAmbientVolume, setGlobalAudioMuted, speakText } from './audio.js';
+import { ACTIVE_HOLD_MS, normalizeMode, isRecentlyActive, fpsAt, shouldRun, cssPaused } from './pet-fps.js';
 import {
   showBubble,
   showError,
@@ -29,6 +31,76 @@ import { announceModelInventory, applyShowcaseBanner, openShareCardPreview, rece
 
 // Before the model loads: the bubbles and menus should not flash pink first.
 initThemeAccent();
+
+// ─── Drawing pace ──────────────────────────────────────────────────────────
+// One loop draws her: app.ticker, capped by pet-fps.js. The extension host says
+// how much this window is in use ('render' message, src/render-gate.ts); the
+// pointer, the page's visibility and the wander can each stop or speed it.
+
+let petLastActive = NaN;
+let petWakeTimer = 0;
+// mode: set by the extension host, 'run' until it says otherwise.
+const gate = { mode: 'run', modelHidden: false, holds: 0 };
+
+// Reads state.app each time: a model reload destroys and recreates it.
+function syncPetTicker() {
+  const now = performance.now();
+  const recentlyActive = isRecentlyActive(now, petLastActive);
+  const run = shouldRun({ ...gate, docHidden: document.hidden, recentlyActive });
+  const ticker = state.app && state.app.ticker;
+  if (ticker) {
+    if (run) ticker.maxFPS = fpsAt(now, petLastActive, gate.mode);
+    if (run && !ticker.started) {
+      ticker.start();
+      debugLog(`Drawing: on at ${ticker.maxFPS} fps (mode ${gate.mode})`);
+    } else if (!run && ticker.started) {
+      ticker.stop();
+      debugLog(
+        `Drawing: off (mode ${gate.mode}` +
+          (document.hidden ? ', page hidden' : '') +
+          (gate.modelHidden ? ', wandering' : '') +
+          ')'
+      );
+    }
+  }
+  // Endless CSS loops keep the page producing frames at the display's rate
+  // whatever PIXI does, so they stand still with her.
+  document.body.classList.toggle('render-paused', cssPaused({ run, mode: gate.mode, recentlyActive }));
+}
+
+/**
+ * The user is at her, or something worth seeing is about to happen: the faster
+ * pace for ACTIVE_HOLD_MS, even in a window that is otherwise paused.
+ */
+function markPetActive() {
+  const wasActive = isRecentlyActive(performance.now(), petLastActive);
+  petLastActive = performance.now();
+  if (!wasActive) syncPetTicker();
+  clearTimeout(petWakeTimer);
+  // When the hold runs out: back to 30, 15, or stopped, whatever the mode says.
+  petWakeTimer = setTimeout(syncPetTicker, ACTIVE_HOLD_MS + 50);
+}
+
+for (const ev of ['pointermove', 'pointerdown', 'wheel', 'keydown']) {
+  window.addEventListener(ev, markPetActive, { passive: true, capture: true });
+}
+document.addEventListener('visibilitychange', syncPetTicker);
+
+/**
+ * Keeps her moving while `capture` runs. `app.render()` only draws the pose she
+ * is in; her idle animation moves on only while app.ticker runs, and a capture
+ * that wants several breaths would otherwise take the same frame four times.
+ */
+async function withTickerHeld(capture) {
+  gate.holds++;
+  syncPetTicker();
+  try {
+    return await capture();
+  } finally {
+    gate.holds--;
+    syncPetTicker();
+  }
+}
 
 function disposeCurrentModel() {
   state.isLive2DReady = false;
@@ -90,6 +162,14 @@ async function initLive2D() {
       antialias: true,
       autoStart: true,
     });
+    // Hover is checked on real pointer events anyway. Left on, the interaction
+    // plugin keeps PIXI.Ticker.system running a requestAnimationFrame loop of
+    // its own at the display's rate, in every window, even while she is paused.
+    const interactionPlugin = state.app.renderer.plugins && state.app.renderer.plugins.interaction;
+    if (interactionPlugin) interactionPlugin.useSystemTicker = false;
+    // Straight away: a new app (every model switch makes one) would otherwise
+    // draw at the display's rate until the next pointer event.
+    syncPetTicker();
     debugLog('PIXI Application created');
 
     const modelUrl = window.__MODEL_URL__;
@@ -109,9 +189,19 @@ async function initLive2D() {
     showLoading('Loading model...');
     state.model = await Live2DModel.from(modelUrl, {
       autoInteract: false,
-      autoUpdate: true,
+      // Not PIXI.Ticker.shared: that would be a second loop with its own pace.
+      autoUpdate: false,
     });
     debugLog('Model loaded successfully!');
+    {
+      // One loop for everything. `update` only adds up time; the model does its
+      // work when app.ticker draws it, so this changes nothing but the pace.
+      const app = state.app;
+      const model = state.model;
+      app.ticker.add(() => model.update(app.ticker.deltaMS));
+    }
+    // The head turns toward the cursor unhurried rather than snapping to it.
+    paceFocus(state.model);
 
     // Before the first frame: this is what points the library's idle loop at
     // the model's own idle group when it isn't called `Idle`.
@@ -129,6 +219,13 @@ async function initLive2D() {
     state.isLive2DReady = true;
 
     debugLog('Live2D fully initialized!');
+    // Both should be 0: app.ticker is the only loop left (pet-fps.js).
+    if (PIXI.Ticker) {
+      debugLog(
+        `Ticker loops: app=${state.app.ticker.count} shared=${PIXI.Ticker.shared.count} ` +
+          `system=${PIXI.Ticker.system.count}`
+      );
+    }
     vscode.postMessage({ command: 'live2dReady' });
   } catch (error) {
     const errMsg = error && error.message ? error.message : String(error);
@@ -149,9 +246,30 @@ if (fallbackImg) {
   });
 }
 
+// Commands that start a motion or an effect. In a window that is paused, these
+// wake her for ACTIVE_HOLD_MS so the motion plays and a one-shot CSS animation
+// does not freeze on its first frame. `pomodoroTick` is deliberately not here:
+// it arrives every second and would keep a background window drawing for good.
+const WAKING_COMMANDS = new Set([
+  'showMessage',
+  'playMotion',
+  'tapBody',
+  'achievementUnlocked',
+  'pomodoroStart',
+  'pomodoroBreak',
+  'pomodoroStop',
+]);
+
 window.addEventListener('message', (event) => {
   const { command, text } = event.data;
+  if (WAKING_COMMANDS.has(command)) markPetActive();
   switch (command) {
+    case 'render':
+      // Extension host (src/render-gate.ts): 'run' | 'slow' | 'paused'.
+      gate.mode = normalizeMode(event.data.mode);
+      debugLog(`Render mode: ${gate.mode}`);
+      syncPetTicker();
+      break;
     case 'chat:snapshot':
       if (window.__DESKTOP_PET_MODE__) {
         syncQuickChatConversationHistory(event.data.messages || []);
@@ -165,6 +283,9 @@ window.addEventListener('message', (event) => {
       break;
     case 'setAmbientPreset':
       setAmbientPreset(event.data.preset);
+      break;
+    case 'setAmbientVolume':
+      if (Number.isFinite(event.data.volume)) setAmbientVolume(event.data.volume);
       break;
     case 'setMutedState':
       setGlobalAudioMuted(event.data.muted);
@@ -240,10 +361,10 @@ window.addEventListener('message', (event) => {
       showCommitMessageInput(event.data.requestId, event.data.stagedCount);
       break;
     case 'captureModelChibi':
-      void handleCaptureModelChibi(event.data.modelId, event.data.silent === true);
+      void withTickerHeld(() => handleCaptureModelChibi(event.data.modelId, event.data.silent === true));
       break;
     case 'captureWanderFrames':
-      void handleCaptureWanderFrames(event.data);
+      void withTickerHeld(() => handleCaptureWanderFrames(event.data));
       break;
     case 'setModelVisible':
       setModelVisible(event.data.visible !== false, event.data.fadeMs);
@@ -289,10 +410,25 @@ window.addEventListener('message', (event) => {
  * webview down and rebuild it, which means reloading the model and a visible
  * stall on the way back. Fading the sprite costs nothing and returns instantly.
  */
+let modelHideTimer = 0;
+
 function setModelVisible(visible, fadeMs) {
   const wrapper = document.getElementById('characterWrapper');
   if (!wrapper) return;
   const ms = Number.isFinite(fadeMs) ? Math.max(0, fadeMs) : 420;
+
+  // Nobody sees a canvas at opacity 0: stop drawing once the fade has played
+  // out, and start again before she comes back so the fade-in moves.
+  clearTimeout(modelHideTimer);
+  if (visible) {
+    gate.modelHidden = false;
+    syncPetTicker();
+  } else {
+    modelHideTimer = setTimeout(() => {
+      gate.modelHidden = true;
+      syncPetTicker();
+    }, ms);
+  }
   wrapper.style.transition = `opacity ${ms}ms ease`;
   wrapper.style.opacity = visible ? '1' : '0';
   // While she is away the panel must not react to clicks aimed at nothing.

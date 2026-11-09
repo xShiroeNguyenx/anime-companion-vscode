@@ -6,6 +6,7 @@ import * as http from 'http';
 import { URL } from 'url';
 import AdmZip = require('adm-zip');
 import { log } from './log';
+import { isMissingStatus, MISSING_RETRY_MS, parseMarker, shouldTryDownload } from './voice-asset-retry';
 
 const MAX_REDIRECTS = 5;
 
@@ -15,6 +16,8 @@ export class VoiceAssetDownloader {
   private _cacheRoot: string;
   private _extensionVersion: string;
   private _inflight = new Map<string, Promise<string | null>>();
+  /** When a download last failed for a reason other than "not there" (this window only). */
+  private _failedAt = new Map<string, number>();
 
   constructor(context: vscode.ExtensionContext) {
     this._extensionVersion = String(
@@ -46,6 +49,19 @@ export class VoiceAssetDownloader {
     }
   }
 
+  /**
+   * The language's directory if it is already on disk, else null, and the
+   * download started in the background for a later load. Never makes the
+   * caller wait on the network: the panel shows with the bundled voices
+   * meanwhile, where it used to stay empty until the download finished or
+   * failed (up to the 60 s timeout, in every window, on every load).
+   */
+  public cachedDirOrStartDownload(lang: VoiceAssetLang): string | null {
+    if (this.isCached(lang)) return this.getCachedDir(lang);
+    void this.ensureLanguageAudio(lang);
+    return null;
+  }
+
   // Returns the local cache directory for the language on success, or null
   // on failure. Caller is expected to fall back to bundled audio when null.
   public ensureLanguageAudio(lang: VoiceAssetLang): Promise<string | null> {
@@ -56,10 +72,28 @@ export class VoiceAssetDownloader {
     const existing = this._inflight.get(lang);
     if (existing) return existing;
 
+    if (!shouldTryDownload({ missingAt: this._readMissingAt(lang), failedAt: this._failedAt.get(lang), now: Date.now() })) {
+      return Promise.resolve(null);
+    }
+
     const promise = this._downloadAndExtract(lang)
+      .then((dir) => {
+        this._failedAt.delete(lang);
+        this._clearMissing(lang);
+        return dir;
+      })
       .catch((err) => {
         const msg = err instanceof Error ? err.message : String(err);
-        log(`VoiceAssetDownloader: ${lang} failed: ${msg}`);
+        if (isMissingStatus((err as { status?: unknown } | null)?.status)) {
+          this._markMissing(lang);
+          log(
+            `VoiceAssetDownloader: ${lang} is not on the release (${msg}); ` +
+              `not asking again for ${MISSING_RETRY_MS / 3_600_000} h. Bundled voices are used meanwhile.`
+          );
+        } else {
+          this._failedAt.set(lang, Date.now());
+          log(`VoiceAssetDownloader: ${lang} failed: ${msg}`);
+        }
         return null;
       })
       .finally(() => {
@@ -68,6 +102,37 @@ export class VoiceAssetDownloader {
 
     this._inflight.set(lang, promise);
     return promise;
+  }
+
+  // "Not on the release" is kept in a file beside the cache rather than in
+  // memory, so every VS Code window sees it. The cache folder is per extension
+  // version, so a new version asks again.
+  private _missingMarkerPath(lang: VoiceAssetLang): string {
+    return path.join(this._cacheRoot, `.${lang}.missing`);
+  }
+
+  private _readMissingAt(lang: VoiceAssetLang): number | undefined {
+    try {
+      return parseMarker(fs.readFileSync(this._missingMarkerPath(lang), 'utf8'));
+    } catch {
+      return undefined;
+    }
+  }
+
+  private _markMissing(lang: VoiceAssetLang): void {
+    try {
+      fs.writeFileSync(this._missingMarkerPath(lang), String(Date.now()), 'utf8');
+    } catch (err) {
+      log(`VoiceAssetDownloader: could not record that ${lang} is missing: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  private _clearMissing(lang: VoiceAssetLang): void {
+    try {
+      fs.rmSync(this._missingMarkerPath(lang), { force: true });
+    } catch {
+      // Harmless: the marker only delays the next attempt.
+    }
   }
 
   private async _downloadAndExtract(lang: VoiceAssetLang): Promise<string | null> {
@@ -146,7 +211,8 @@ export class VoiceAssetDownloader {
         }
 
         if (status < 200 || status >= 300) {
-          reject(new Error(`HTTP ${status} for ${url}`));
+          // The status rides along so the caller can tell "not there" from "try later".
+          reject(Object.assign(new Error(`HTTP ${status} for ${url}`), { status }));
           res.resume();
           return;
         }

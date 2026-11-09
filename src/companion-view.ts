@@ -10,6 +10,9 @@ import { VoiceAssetDownloader, VoiceAssetLang } from './voice-asset-downloader';
 import { getMessageBank, MessageKey, ResolvedPhrase } from './messages';
 import { AchievementRarity, buildAchievementPanelData, ShowcaseView, StatsStore } from './stats';
 
+/** Reload requests this close together become one reload (see refreshView). */
+const REFRESH_COALESCE_MS = 150;
+
 const SHOWCASE_RARITY_EMOJI: Record<AchievementRarity, string> = {
   common: '✨',
   rare: '💎',
@@ -26,6 +29,7 @@ import { setWorkspaceModel } from './models';
 import { ChatManager } from './chat/chat-manager';
 import type { CursorChibiTuningState } from './cursor-chibi';
 import { BUNDLED_THEMES } from './bundled-themes';
+import { msUntilNextChange, RenderInputs, renderMode, RenderMode } from './render-gate';
 
 export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'animeCompanion.live2dView';
@@ -45,6 +49,20 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
   private _pendingConfirms = new Map<string, (approved: boolean) => void>();
   private _pendingInputs = new Map<string, (value: string | undefined) => void>();
   private _transportSubscriptions: vscode.Disposable[] = [];
+
+  // How fast the webview draws (render-gate.ts). With several VS Code windows
+  // open, each one draws its own character; only the one in use needs to.
+  /** When this window lost focus; undefined while focused. */
+  private _blurredSince?: number;
+  /** When `window.state.active` turned false; undefined while active or on a VS Code without it. */
+  private _inactiveSince?: number;
+  /** The mode last sent to the webview; undefined forces the next one out. */
+  private _sentRenderMode?: RenderMode;
+  private _renderTimer?: NodeJS.Timeout;
+  /** A reload was asked for while nobody was looking; done when the window is next in use. */
+  private _pendingRefresh = false;
+  /** Set while a reload waits out REFRESH_COALESCE_MS for more requests. */
+  private _refreshTimer?: NodeJS.Timeout;
 
   private _saveCapturedChibi?: (modelId: string, dataUrl: string, options?: { silent?: boolean }) => Promise<void>;
   /** Set after construction by extension.ts; see WanderManager. */
@@ -137,7 +155,85 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
 
   public refreshView() {
     if (!this._view) return;
-    void this._renderWith(this._view);
+    // A setting or model changed globally reaches every open window at once.
+    // Reloading means loading the model again (textures, shaders), so a window
+    // nobody is looking at does it when it is next used, not all four now.
+    if (!this._isInUse()) {
+      this._pendingRefresh = true;
+      return;
+    }
+    // One reload for a burst of requests. A model switch in a window with no
+    // folder open asks twice: the settings listener, then the command that
+    // made the switch. Each reload is a full model load.
+    if (this._refreshTimer) return;
+    this._refreshTimer = setTimeout(() => {
+      this._refreshTimer = undefined;
+      this._pendingRefresh = false;
+      if (this._view) void this._renderWith(this._view);
+    }, REFRESH_COALESCE_MS);
+  }
+
+  /** The view is showing and its window has focus. */
+  private _isInUse(): boolean {
+    return !!this._view?.visible && vscode.window.state.focused;
+  }
+
+  private _renderInputs(): RenderInputs {
+    return {
+      viewVisible: this._view?.visible ?? false,
+      focused: vscode.window.state.focused,
+      blurredSince: this._blurredSince,
+      inactiveSince: this._inactiveSince,
+      now: Date.now(),
+    };
+  }
+
+  /** Tells the webview how fast to draw, only when that changes, and when to look again. */
+  private _syncRenderMode(): void {
+    if (this._renderTimer) {
+      clearTimeout(this._renderTimer);
+      this._renderTimer = undefined;
+    }
+    if (!this._view) return;
+    const inputs = this._renderInputs();
+    const mode = renderMode(inputs);
+    if (mode !== this._sentRenderMode) {
+      this._sentRenderMode = mode;
+      this.postMessage({ command: 'render', mode });
+    }
+    const wait = msUntilNextChange(inputs);
+    if (wait !== undefined) {
+      this._renderTimer = setTimeout(() => this._syncRenderMode(), wait + 50);
+    }
+  }
+
+  /** Records focus and activity as VS Code reports them. */
+  private _noteWindowState(state: vscode.WindowState): void {
+    const now = Date.now();
+    if (state.focused) this._blurredSince = undefined;
+    else if (this._blurredSince === undefined) this._blurredSince = now;
+    // Not in every VS Code this extension supports (engines ^1.85).
+    const active = (state as { active?: unknown }).active;
+    if (typeof active !== 'boolean' || active) this._inactiveSince = undefined;
+    else if (this._inactiveSince === undefined) this._inactiveSince = now;
+  }
+
+  /**
+   * Visibility, focus or activity changed. The drawing pace, the idle chatter
+   * and any reload put off while nobody was looking follow.
+   */
+  private _syncUse(): void {
+    this._syncRenderMode();
+    if (!this._isInUse()) {
+      this._stopMessageTimer();
+      return;
+    }
+    if (this._pendingRefresh && this._view) {
+      this._pendingRefresh = false;
+      void this._renderWith(this._view);
+    }
+    // `active` flips with every pause in typing: keep a running timer as it is.
+    if (!this._messageTimer) this._startMessageTimer();
   }
 
   private _applyShowcaseToNativeTitle(): ShowcaseView | null {
@@ -211,7 +307,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     // The header title follows the model, so refresh it on every render (a
     // model switch re-renders).
     this._applyShowcaseToNativeTitle();
-    this._resolvedVoiceAssetDir = await this._resolveVoiceAssetDir();
+    this._resolvedVoiceAssetDir = this._resolveVoiceAssetDir();
     const customAmbientTracks = this._getCustomAmbientTracks();
     webviewView.webview.options = {
       enableScripts: true,
@@ -219,14 +315,18 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     };
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
     setTimeout(() => {
-      this._sendMessage(this._pickMessage('greeting'));
+      // Only where someone is looking: VS Code restoring four windows used to
+      // greet four times, and wake every background character to do it.
+      if (this._isInUse()) this._sendMessage(this._pickMessage('greeting'));
     }, 4000);
   }
 
-  // Lazy-downloads ElevenLabs-generated MP3s for en/vi the first time they're
-  // requested. Returns null on failure or when not applicable; callers fall
-  // back to the bundled media/audio/{lang}/ directory.
-  private async _resolveVoiceAssetDir(): Promise<string | null> {
+  // The ElevenLabs-generated MP3s for en/vi, if already downloaded. Otherwise
+  // null, with the download started in the background for a later load; the
+  // page uses the bundled media/audio/{lang}/ directory meanwhile. Not awaited
+  // on purpose: the page used to stay empty until the download finished or
+  // failed.
+  private _resolveVoiceAssetDir(): string | null {
     const config = vscode.workspace.getConfiguration('animeCompanion');
     if (!config.get<boolean>('voiceAssets.enableExtended', true)) return null;
 
@@ -234,7 +334,7 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     const lang = raw === 'ja-vi' ? 'en' : raw;
     if (lang !== 'en' && lang !== 'vi') return null;
 
-    return this._voiceAssets.ensureLanguageAudio(lang as VoiceAssetLang);
+    return this._voiceAssets.cachedDirOrStartDownload(lang as VoiceAssetLang);
   }
 
   public resolveWebviewView(
@@ -247,6 +347,15 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
     this._view = webviewView;
     this._transport.attach(webviewView);
     this._applyShowcaseToNativeTitle();
+
+    // A window opened in the background (VS Code restoring several at once)
+    // has been out of focus from the start; without this it would stay at the
+    // background pace forever instead of pausing.
+    this._blurredSince = undefined;
+    this._inactiveSince = undefined;
+    this._noteWindowState(vscode.window.state);
+    this._sentRenderMode = undefined;
+    this._pendingRefresh = false;
 
     void this._renderWith(webviewView);
 
@@ -308,7 +417,12 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
         nudgeCursorChibiSize: (delta) => this._nudgeCursorChibiSize?.(delta) ?? Promise.resolve(),
         resetCursorChibi: () => this._resetCursorChibi?.() ?? Promise.resolve(),
         saveCapturedChibi: this._saveCapturedChibi,
-        onLive2dReady: this._onLive2dReady,
+        onLive2dReady: () => {
+          // A freshly loaded page starts at 'run' whatever was sent before.
+          this._sentRenderMode = undefined;
+          this._syncRenderMode();
+          this._onLive2dReady?.();
+        },
         receiveWanderFrames: this._receiveWanderFrames,
         wanderCaptureFailed: this._wanderCaptureFailed,
         chatManager: this._chatManager,
@@ -317,16 +431,24 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       });
     }));
 
-    this._transportSubscriptions.push(this._transport.onVisibilityChange((visible) => {
-      if (visible) {
-        this._startMessageTimer();
-      } else {
-        this._stopMessageTimer();
-      }
-    }));
+    this._transportSubscriptions.push(this._transport.onVisibilityChange(() => this._syncUse()));
+    this._transportSubscriptions.push(
+      vscode.window.onDidChangeWindowState((state) => {
+        this._noteWindowState(state);
+        this._syncUse();
+      })
+    );
 
     webviewView.onDidDispose(() => {
       this._stopMessageTimer();
+      if (this._renderTimer) {
+        clearTimeout(this._renderTimer);
+        this._renderTimer = undefined;
+      }
+      if (this._refreshTimer) {
+        clearTimeout(this._refreshTimer);
+        this._refreshTimer = undefined;
+      }
       this._reactive?.dispose();
       this._pendingConfirms.clear();
       this._pendingInputs.clear();
@@ -334,20 +456,28 @@ export class AnimeCompanionViewProvider implements vscode.WebviewViewProvider {
       this._view = undefined;
     });
 
-    // Random reaction when active editor changes - comments on file type
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor && this._view?.visible && Math.random() < 0.15) {
-        const fileName = path.basename(editor.document.fileName);
-        const ext = path.extname(fileName);
-        this._sendMessage(getMessageBank().pickFileMessage(ext, fileName), {
-          speak: true,
-        });
-      }
-    });
+    // Random reaction when active editor changes - comments on file type.
+    // Kept with the view's other subscriptions: registered loose, every time
+    // the view was resolved again added one more listener that never went away,
+    // and each of them could comment on the same file switch.
+    this._transportSubscriptions.push(
+      vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (editor && this._view?.visible && Math.random() < 0.15) {
+          const fileName = path.basename(editor.document.fileName);
+          const ext = path.extname(fileName);
+          this._sendMessage(getMessageBank().pickFileMessage(ext, fileName), {
+            speak: true,
+          });
+        }
+      })
+    );
   }
 
   private _startMessageTimer(forceDelayMs?: number) {
     this._stopMessageTimer();
+    // Idle chatter is for the window in use. In the others nobody reads it, and
+    // each bubble would wake a paused character for nothing.
+    if (!this._isInUse()) return;
     const config = vscode.workspace.getConfiguration('animeCompanion');
     const minInterval = config.get<number>('messageIntervalMin', 10);
     const maxInterval = config.get<number>('messageIntervalMax', 20);

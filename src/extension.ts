@@ -10,6 +10,7 @@ import {
   hasWorkspaceModel,
   listVisibleModels,
 } from './models';
+import { getAmbientPreset, resolveCustomAmbientTracks } from './ambient-presets';
 import { ModelFileServer } from './model-server';
 import { ModelDownloader } from './model-downloader';
 import { DesktopPetDownloader } from './desktop-pet-downloader';
@@ -678,13 +679,34 @@ export async function activate(context: vscode.ExtensionContext) {
       if (
         event.affectsConfiguration('animeCompanion.customModels') ||
         event.affectsConfiguration('animeCompanion.customModelRoots') ||
-        event.affectsConfiguration('animeCompanion.customAmbientTracks') ||
-        event.affectsConfiguration('animeCompanion.ambientVolume') ||
-        event.affectsConfiguration('animeCompanion.ambientPreset') ||
-        event.affectsConfiguration('animeCompanion.muted')
+        event.affectsConfiguration('animeCompanion.customAmbientTracks')
       ) {
+        // These change what the page may load (resource roots, the model list).
         statusBar.refresh();
         void host.refreshView();
+      }
+      // These the page applies in place. Reloading it for them meant loading the
+      // model again, in every open window at once, for a mute button.
+      if (
+        event.affectsConfiguration('animeCompanion.muted') ||
+        event.affectsConfiguration('animeCompanion.ambientPreset') ||
+        event.affectsConfiguration('animeCompanion.ambientVolume')
+      ) {
+        statusBar.refresh();
+        const cfg = vscode.workspace.getConfiguration('animeCompanion');
+        if (event.affectsConfiguration('animeCompanion.muted')) {
+          host.postMessage({ command: 'setMutedState', muted: cfg.get<boolean>('muted', false) });
+        }
+        if (event.affectsConfiguration('animeCompanion.ambientPreset')) {
+          const tracks = resolveCustomAmbientTracks(cfg.get<unknown>('customAmbientTracks', []));
+          host.postMessage({
+            command: 'setAmbientPreset',
+            preset: getAmbientPreset(cfg.get<string>('ambientPreset', 'off'), tracks).id,
+          });
+        }
+        if (event.affectsConfiguration('animeCompanion.ambientVolume')) {
+          host.postMessage({ command: 'setAmbientVolume', volume: cfg.get<number>('ambientVolume', 30) });
+        }
       }
       // Click-through is read by the Tauri sidecar from an env var only at
       // spawn time. Restart just the sidecar process — no need to reload the
@@ -1174,8 +1196,8 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('animeCompanion.toggleMute', async () => {
       const muteConfig = vscode.workspace.getConfiguration('animeCompanion');
       const muted = muteConfig.get<boolean>('muted', false);
+      // The configuration listener tells the page; no reload needed.
       await muteConfig.update('muted', !muted, vscode.ConfigurationTarget.Global);
-      void host.refreshView();
       vscode.window.showInformationMessage(!muted ? 'Companion muted.' : 'Companion unmuted.');
     }),
     vscode.commands.registerCommand('animeCompanion.startPomodoro', () => {
@@ -1260,15 +1282,11 @@ export async function activate(context: vscode.ExtensionContext) {
         log(`chat.open: focus failed: ${err instanceof Error ? err.message : String(err)}`);
       }
       chatHostRef?.postMessage({ command: 'chat:focus' });
-    }),
-    vscode.commands.registerCommand('claude-vscode.terminal.open', async () => {
-      await vscode.commands.executeCommand('workbench.action.terminal.focus');
-
-      if (!vscode.window.activeTerminal) {
-        await vscode.commands.executeCommand('workbench.action.terminal.new');
-        await vscode.commands.executeCommand('workbench.action.terminal.focus');
-      }
     })
+    // No `claude-vscode.*` command here: the Claude Code extension registers
+    // `claude-vscode.terminal.open` itself, both activate on startup, and VS Code
+    // refuses the second registration of one id. Whichever came second failed
+    // to activate: this extension, or worse, Claude Code.
   );
 
   if (

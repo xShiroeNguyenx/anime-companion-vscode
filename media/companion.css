@@ -2079,13 +2079,38 @@ body.desktop-pet-mode .companion-quickchat-history {
 
 /* Legendary: + animated gradient sweep + shimmer */
 .companion-showcase.rarity-legendary {
-  background: linear-gradient(90deg, #9c5d09, #e6a542, #ffd874, #e6a542, #9c5d09);
-  background-size: 300% 100%;
   color: #2a1a02;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
   border: 1px solid rgba(255, 220, 130, 0.85);
   box-shadow: 0 0 18px rgba(255, 200, 80, 0.7);
-  animation: showcase-pulse 2.4s ease-in-out infinite, showcase-sweep 4s linear infinite;
+  animation: showcase-pulse 2.4s ease-in-out infinite;
+}
+
+/* The sweeping gradient lives on a strip wider than the badge that slides
+   under the text. Moving it with `transform` lets the compositor do the work;
+   animating `background-position` instead repainted the badge on every frame
+   of the display, for as long as the badge was on screen. */
+.companion-showcase.rarity-legendary,
+.companion-showcase.rarity-mythic {
+  background: none;
+  isolation: isolate;
+}
+
+.companion-showcase.rarity-legendary::before,
+.companion-showcase.rarity-mythic::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* 300% wide sliding by two thirds of itself: the same travel as the old
+   background-position 0% -> 100% with background-size: 300%. */
+.companion-showcase.rarity-legendary::before {
+  width: 300%;
+  background: linear-gradient(90deg, #9c5d09, #e6a542, #ffd874, #e6a542, #9c5d09);
+  animation: showcase-slide-3 4s linear infinite;
 }
 
 .companion-showcase.rarity-legendary .companion-showcase-rarity {
@@ -2094,13 +2119,18 @@ body.desktop-pet-mode .companion-quickchat-history {
 
 /* Mythic: + floating particles + faster rainbow sweep */
 .companion-showcase.rarity-mythic {
-  background: linear-gradient(90deg, #a03066, #d44896, #6845c9, #4a8fde, #d44896, #a03066);
-  background-size: 400% 100%;
   color: #fff;
   text-shadow: 0 0 6px rgba(255, 100, 200, 0.8);
   border: 1px solid rgba(255, 180, 220, 0.7);
   box-shadow: 0 0 22px rgba(212, 72, 150, 0.9), inset 0 0 12px rgba(255, 255, 255, 0.2);
-  animation: showcase-pulse 2s ease-in-out infinite, showcase-sweep 3s linear infinite;
+  animation: showcase-pulse 2s ease-in-out infinite;
+}
+
+/* 400% wide sliding by three quarters of itself, as background-size: 400% did. */
+.companion-showcase.rarity-mythic::before {
+  width: 400%;
+  background: linear-gradient(90deg, #a03066, #d44896, #6845c9, #4a8fde, #d44896, #a03066);
+  animation: showcase-slide-4 3s linear infinite;
 }
 
 .companion-showcase-particles {
@@ -2121,9 +2151,14 @@ body.desktop-pet-mode .companion-quickchat-history {
   50% { transform: scale(1.02); }
 }
 
-@keyframes showcase-sweep {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 100% 50%; }
+@keyframes showcase-slide-3 {
+  from { transform: translateX(0); }
+  to { transform: translateX(-66.667%); }
+}
+
+@keyframes showcase-slide-4 {
+  from { transform: translateX(0); }
+  to { transform: translateX(-75%); }
 }
 
 @keyframes showcase-particles-float {
@@ -2134,6 +2169,7 @@ body.desktop-pet-mode .companion-quickchat-history {
 
 @media (prefers-reduced-motion: reduce) {
   .companion-showcase,
+  .companion-showcase::before,
   .companion-showcase-particles {
     animation: none !important;
   }
@@ -2963,4 +2999,16 @@ body[data-message-language="vi"] .companion-radial-center {
 .companion-side-column .companion-theme-action {
   border-style: dashed;
   background: transparent;
+}
+
+/* main.js syncPetTicker(): when she stands still (window not in use, view
+   hidden), the endless loops (status dot, badges, hints, chat button) stand
+   still too. They run at the display's rate whatever PIXI does, and would keep
+   the page producing frames for nothing. This also holds one-shot animations
+   that start meanwhile, which is why the commands that show something wake her
+   first (WAKING_COMMANDS in main.js). */
+body.render-paused *,
+body.render-paused *::before,
+body.render-paused *::after {
+  animation-play-state: paused !important;
 }

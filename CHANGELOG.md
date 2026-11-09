@@ -3,6 +3,30 @@
 Tài liệu này theo format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 extension áp dụng [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-11-09
+
+### Changed — ⚡ She only draws for the window you are using
+
+With three or four VS Code windows open, each one drew its own character at the display's refresh rate: 120 frames a second on many laptops, even while she only stood and breathed.
+
+- **30 frames a second while she stands still, 60 for three seconds after you move, click or type near her.** One drawing loop instead of three: the model is updated from the loop that draws it, and PIXI's interaction ticker no longer runs a loop of its own ([media/webview/pet-fps.js](media/webview/pet-fps.js), [media/webview/main.js](media/webview/main.js)).
+- **A window out of focus draws at 15 frames a second, and stops after a minute.** A hidden view (another sidebar view, a collapsed panel) stops at once, and the window you are in stops after five minutes without activity. She stays on screen at her last frame. Moving the mouse over her wakes her for a few seconds without focusing that window, and coming back to the window starts her straight away ([src/render-gate.ts](src/render-gate.ts), [src/companion-view.ts](src/companion-view.ts)).
+- **Endless CSS animations stop with her:** the status dot, the badges, the hints and the chat button ran at the display's rate whatever the character did. The legendary and mythic showcase badges now slide their gradient with `transform` instead of `background-position`, which repainted the badge on every frame.
+- **Expressions blend by time, not by frame,** so a face changes at the same speed at 15, 30 or 60 frames a second.
+- **Idle chatter and the startup greeting only in the window you are using.** Four restored windows used to greet four times.
+
+### Changed
+
+- **Her head turns toward the cursor unhurried:** about two thirds of a second to get there instead of a quarter, which read as twitchy. Every caller (cursor follow, drag-to-rotate, hover, idle glances) goes through the one controller that is slowed ([media/webview/focus-pace.js](media/webview/focus-pace.js)).
+
+### Fixed
+
+- **Mute, the ambient sound and its volume apply in place.** Each change used to reload the panel, a full model load, in every open window at once; the mute command reloaded the current window twice.
+- **A model switch reloads the panel once.** In a window with no folder open it loaded the model twice. Windows not in use reload when you next use them, not all together.
+- **The panel no longer waits for the voice pack download.** It stayed empty until the extended voice pack for your language finished downloading or failed: a few seconds on every load when the pack is not on the release, up to a minute on a stalled connection. It now shows straight away with the bundled voices, fetches the pack in the background and uses it from the next load. A pack that is not on the release is asked for again after a day, not on every load in every window ([src/voice-asset-downloader.ts](src/voice-asset-downloader.ts), [src/voice-asset-retry.ts](src/voice-asset-retry.ts)).
+- **Activation no longer fails next to the Claude Code extension.** Both registered the command `claude-vscode.terminal.open`, and whichever started second failed to activate: this extension (skipping the rest of its startup, such as showing the panel and the background image) or Claude Code. The command is gone from this extension; Claude Code provides it.
+- **Comments on switching files no longer multiply.** The listener was added again each time the view was rebuilt, and never removed.
+
 ## [0.7.0] - 2026-10-15
 
 ### Added — 🔎 Search and export your conversations

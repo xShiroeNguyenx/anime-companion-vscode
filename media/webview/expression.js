@@ -1,5 +1,6 @@
 import { state, debugLog } from './core.js';
 import { activeIn, applyToSlot, clearSlot, faceNames } from './model-expressions.js';
+import { blendAlpha } from './pet-fps.js';
 
 // Cubism parameter presets per emotional state. Missing params on a model are
 // silently ignored by setParameterValueById's catch.
@@ -65,7 +66,7 @@ const EXPRESSIONS = {
   },
 };
 
-const BLEND_SPEED = 0.08; // per-frame interpolation toward target
+const BLEND_SPEED = 0.08; // interpolation toward target per frame at 60 fps
 let currentExpression = {};
 let targetExpression = {};
 let expressionResetTimer = null;
@@ -139,14 +140,17 @@ export function activeModelExpression() {
 }
 
 // Called from PIXI ticker every frame to smoothly blend toward target.
-export function updateExpressionTick() {
+// deltaMS = length of the frame just drawn: blending by real time, so the face
+// changes at the same speed at 15, 30 or 120 fps.
+export function updateExpressionTick(deltaMS = 1000 / 60) {
   if (!state.model || !state.model.internalModel) return;
   const core = state.model.internalModel.coreModel;
   if (!core) return;
 
+  const k = blendAlpha(BLEND_SPEED, deltaMS);
   for (const [param, target] of Object.entries(targetExpression)) {
     const current = currentExpression[param] || 0;
-    const blended = current + (target - current) * BLEND_SPEED;
+    const blended = current + (target - current) * k;
     currentExpression[param] = blended;
     try {
       core.setParameterValueById(param, blended);

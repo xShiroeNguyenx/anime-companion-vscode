@@ -606,7 +606,7 @@ export function setupModel() {
   }
 
   state.app.ticker.add(() => {
-    updateExpressionTick();
+    updateExpressionTick(state.app.ticker.deltaMS);
     // After the mood preset, deliberately: a file the model's author drew is a
     // more specific statement than our guess at parameters every model might
     // have, so where both claim one it should win.
@@ -798,6 +798,7 @@ export function fitModel() {
     state.model.scale.set(previousScale);
     state.model.position.set(previousX, previousY);
     debugLog('Fit fallback: restored previous transform because computed position was invalid');
+    drawIfStopped();
     return;
   }
 
@@ -807,6 +808,16 @@ export function fitModel() {
     ', overlayScale=' + overlayScaleMultiplier.toFixed(2) +
     ', pos=(' + state.model.x.toFixed(2) + ',' + state.model.y.toFixed(2) + ')'
   );
+  drawIfStopped();
+}
+
+/**
+ * Resizing clears the canvas. While the ticker is stopped (window paused, view
+ * hidden) nothing would draw her again, so draw the one frame here.
+ */
+function drawIfStopped() {
+  if (!state.app || state.app.ticker.started) return;
+  try { state.app.render(); } catch (_) { /* drawn on the next tick instead */ }
 }
 
 function setupContextMenu() {
